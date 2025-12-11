@@ -124,6 +124,7 @@ export default function ScannerScreen({ navigation }: Props) {
         ref={cameraRef}
         facing="back"
         animateShutter={false}
+        autofocus="on"
       />
       <ScannerOverlay scanStatus={scanStatus} stability={stability} />
 
