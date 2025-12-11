@@ -19,18 +19,90 @@ METHOD 1 - LOGO/TEXT DETECTION (Highest confidence):
 - Look for: metal plaques, embossed text, printed labels, hang tags
 - Check: tongue of shoes, interior lining, hardware, zippers, buckles, soles
 
-METHOD 2 - SIGNATURE DESIGN ELEMENTS (When no logo visible):
-- PRADA: Triangle logo, chunky Monolith soles, nylon with leather trim, silver hardware
-- BOTTEGA VENETA: Intrecciato woven leather, NO visible logos, muted earth tones
-- GUCCI: GG monogram, green-red-green web stripe, horsebit hardware, flora prints
-- LOUIS VUITTON: LV monogram canvas, Damier pattern, brass hardware, red edge painting
-- CHANEL: Quilted leather, CC turnlock, chain straps, beige/black combo
-- HERMES: Distinctive Birkin/Kelly shapes, Palladium hardware, hand-stitched saddle stitch
-- BALENCIAGA: Oversized silhouettes, Track/Triple S chunky soles, distressed aesthetics
-- SAINT LAURENT: YSL logo, pointed toes, rock-and-roll aesthetic, gold hardware
-- VALENTINO: Rockstud pyramid studs, red soles on some styles
-- CHRISTIAN LOUBOUTIN: Signature red soles (lacquered), slim stilettos
-- JIMMY CHOO: Crystal embellishments, sleek pointed toes, JC logo
+METHOD 2 - COMPREHENSIVE FASHION BRAND DATABASE:
+
+=== LUXURY TIER (€1000+) ===
+PRADA: Triangle metal logo, "PRADA MILANO" text, Monolith chunky soles, Re-Nylon fabric, silver/gunmetal hardware, clean minimalist design
+BOTTEGA VENETA: Intrecciato woven leather (signature), NO visible logos ever, muted earth tones (brown, green, cream), Cassette/Padded bags, Tire/Lug boots
+GUCCI: GG monogram, green-red-green web stripe, Horsebit hardware, Flora prints, Dionysus/Jackie bags, rhinestone GG
+LOUIS VUITTON: LV monogram canvas, Damier (Ebene/Azur), brass hardware, red edge painting, Speedy/Neverfull/Alma bags
+CHANEL: Quilted leather, CC turnlock, chain straps with leather weave, beige/black/white, Classic Flap/Boy bags, tweed fabric
+HERMES: Birkin/Kelly/Constance shapes, Palladium/Gold hardware, hand-stitched saddle stitch, Clemence/Togo/Epsom leather, H buckle belts
+DIOR: Cannage quilting, CD logo, Oblique monogram, Saddle/Lady Dior/Book Tote bags, J'Adior accessories
+FENDI: FF Zucca monogram, Baguette/Peekaboo bags, yellow/brown colors, Fendi Roma text, monster eyes
+BALENCIAGA: Oversized silhouettes, Track/Triple S chunky sneakers, City/Hourglass bags, distressed aesthetics, gothic fonts
+CELINE: Triomphe monogram, minimal clean design, gold hardware, Belt/Luggage/Trio bags, Phoebe Philo era minimalism
+LOEWE: Anagram logo, Puzzle/Hammock bags, soft leather, craft-focused design, basket weave
+BURBERRY: Nova check plaid, TB monogram, trench coats, beige/red/black check pattern
+GIVENCHY: 4G logo, Antigona bags, star motifs, gothic streetwear aesthetic
+VERSACE: Medusa head logo, baroque prints, gold hardware, bold colors, Greek key pattern
+
+=== PREMIUM TIER (€500-1000) ===
+SAINT LAURENT: YSL logo, Loulou/Kate bags, gold hardware, rock-and-roll aesthetic, pointed toes, Le 5 à 7 bag
+VALENTINO: Rockstud pyramid studs, V logo, red/pink colors, Roman Stud bags, lace details
+ALEXANDER MCQUEEN: Skull motifs, oversized sneakers, dramatic silhouettes, Knuckle clutch
+MIU MIU: (Prada's sister) playful feminine design, matelassé quilting, crystal embellishments, retro aesthetics
+AMIRI: Distressed denim, bandana prints, guitar strap motifs, LA streetwear luxury
+TOM FORD: TF logo, sleek minimalism, black/gold, oversized sunglasses
+JACQUEMUS: Le Chiquito micro bags, La Montagne collection, French Riviera aesthetic, oversized hats
+THE ROW: Ultra-minimal, no logos, exceptional fabrics, quiet luxury, Margaux/Park bags
+LORO PIANA: Cashmere excellence, minimal branding, earth tones, "Summer Walk" loafers, discrete LP logo
+
+=== FOOTWEAR SPECIALISTS ===
+CHRISTIAN LOUBOUTIN: Signature red lacquered soles (100% identifier), slim stilettos, So Kate/Pigalle styles
+JIMMY CHOO: Crystal embellishments, pointed toes, JC logo, glamorous evening wear
+MANOLO BLAHNIK: Elegant silhouettes, silk/satin, Hangisi jeweled buckle, Sex and the City fame
+GIANVITO ROSSI: Clean lines, PVC elements, Plexi heels, Italian craftsmanship
+AQUAZZURA: Tassel details, Wild Thing fringed sandals, pointed toes
+ROGER VIVIER: Trompette buckle (rectangular), elegant classic design, Viv' bags
+STUART WEITZMAN: 5050 over-knee boots, stretch suede, comfortable glamour
+SALVATORE FERRAGAMO: Vara bow, Gancini hardware, loafers, Italian craftsmanship
+
+=== SNEAKER/STREETWEAR ===
+NIKE: Swoosh logo, Air Jordan wings, Dunk silhouette, Air Force 1 shape
+ADIDAS: Three stripes, Trefoil logo, Yeezy (Boost/Foam), Stan Smith, Superstar shell toe
+NEW BALANCE: "N" logo, 550/990/2002R models, dad shoe aesthetic
+CONVERSE: All Star logo, Chuck Taylor, star ankle patch
+VANS: Side stripe, Old Skool, Sk8-Hi checkerboard
+GOLDEN GOOSE: Intentional distressing, star logo on side, handwritten effects, Superstar/Ball Star
+COMMON PROJECTS: Gold serial number on heel, minimalist design, Achilles model
+OFF-WHITE: Diagonal stripes, zip ties, quotation marks, industrial design, Virgil Abloh
+FEAR OF GOD: Essentials line, oversized fits, neutral colors, minimal branding
+
+=== CONTEMPORARY/ACCESSIBLE LUXURY (€200-500) ===
+MARC JACOBS: Snapshot camera bag, Tote Bag, playful design, bold colors
+COACH: C monogram, Tabby bag, Pillow Tabby, American heritage
+KATE SPADE: Spade logo, playful feminine design, Sam bag, bright colors
+MICHAEL KORS: MK monogram, Jet Set bags, accessible luxury, gold hardware
+TORY BURCH: Double-T logo, Miller sandals, Kira bag, preppy American style
+FURLA: Metropolis bag, Italian craftsmanship, colorful leather, affordable luxury
+LONGCHAMP: Le Pliage foldable bags, nylon with leather handles, French heritage
+MCM: Visetos monogram (cognac color with logo pattern), studded details, backpacks
+MULBERRY: Bayswater/Alexa bags, postman lock, British heritage, thick leather
+
+=== TURKISH/REGIONAL BRANDS ===
+BEYMEN: Turkish luxury retailer
+VAKKO: Turkish fashion house, silk scarves
+NETWORK: Turkish contemporary fashion
+IPEKYOL: Turkish women's fashion
+DAMAT/TWEEN: Turkish men's suiting
+
+=== BOOT IDENTIFICATION GUIDE ===
+Combat boots with chunky soles:
+- Monolith sole (thick rectangular) = PRADA
+- Tire/Lug sole (wavy tread) = BOTTEGA VENETA
+- Track sole (complex layers) = BALENCIAGA
+- Tread sole (hiking-style) = ALEXANDER MCQUEEN
+
+Chelsea boots:
+- Intrecciato leather = BOTTEGA VENETA
+- Chain detail = GIVENCHY
+- Pointed toe + harness = SAINT LAURENT
+
+Ankle boots with heel:
+- Red sole = LOUBOUTIN (100% certain)
+- Rockstud = VALENTINO
+- Cassandra logo = SAINT LAURENT
 
 METHOD 3 - CONSTRUCTION ANALYSIS (For logo-less items):
 Check these details to identify quality/brand:
