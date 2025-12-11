@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
 import { insertPortfolioAssetSchema } from "@shared/schema";
+import { searchPricesMultiRegion } from "./serpapi";
 
 const FORENSIC_ANALYSIS_PROMPT = `
 ROLE: Elite Forensic Asset Authenticator & Global Market Analyst.
@@ -146,6 +147,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      try {
+        console.log(`Fetching SerpAPI prices for: ${data.itemName}`);
+        const serpResults = await searchPricesMultiRegion(data.itemName, ["US", "TR", "DE"]);
+        
+        if (serpResults.length > 0) {
+          data.deals = serpResults;
+          
+          const usPrices = serpResults.filter(r => r.region === "US").map(r => r.price);
+          if (usPrices.length > 0) {
+            data.estimatedPrice = Math.round(usPrices.reduce((a, b) => a + b, 0) / usPrices.length);
+          }
+        }
+      } catch (serpError) {
+        console.error("SerpAPI error, using AI estimates:", serpError);
+      }
+
       if (!data.deals || data.deals.length === 0) {
         const encodedItem = encodeURIComponent(data.itemName);
         data.deals = [
@@ -176,9 +193,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
       }
 
+      const regionSummary = {
+        US: data.deals.filter((d: any) => d.region === "US"),
+        TR: data.deals.filter((d: any) => d.region === "TR"),
+        DE: data.deals.filter((d: any) => d.region === "DE"),
+      };
+
       res.json({
         ...data,
         currency: "USD",
+        regionSummary,
+        searchRegions: ["US", "TR", "DE"],
       });
     } catch (error: any) {
       console.error("Gemini Analysis Error:", error);
