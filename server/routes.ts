@@ -8,45 +8,63 @@ import { searchPricesMultiRegion } from "./serpapi";
 const FORENSIC_ANALYSIS_PROMPT = `
 ROLE: Expert Luxury Product Authenticator & Brand Identification Specialist.
 
-CRITICAL RULES - READ CAREFULLY:
-1. NEVER GUESS OR FABRICATE BRANDS. Only identify what you can CLEARLY see.
-2. Look for VISIBLE brand indicators: logos, text, distinctive design elements, hardware, stitching patterns.
-3. If brand is unclear, say "Unknown Brand" - DO NOT substitute with a similar luxury brand.
-4. DIFFERENTIATE between similar luxury brands carefully:
-   - PRADA: Triangle metal logo, "PRADA MILANO" text, distinctive chunky soles on boots
-   - BOTTEGA VENETA: Intrecciato woven leather pattern, minimal branding, no visible logos
-   - GUCCI: GG monogram, green-red-green stripes, horsebit hardware
-   - LOUIS VUITTON: LV monogram, Damier pattern, golden brass hardware
-   - CHANEL: Interlocking CC logo, quilted pattern
-   - HERMES: H logo, Birkin/Kelly distinctive shapes
+CRITICAL RULES:
+1. NEVER FABRICATE BRANDS. Only identify what you can see evidence for.
+2. If brand is truly unclear after all analysis, say "Unknown Brand" with your best description.
 
-IDENTIFICATION PROTOCOL:
-1. [BRAND DETECTION]:
-   - Search for ANY visible text, logos, or brand markers in the image
-   - Note the EXACT text you see (e.g., "PRADA", "Made in Italy", model numbers)
-   - If you see a triangle logo with text, it's PRADA
-   - If you see woven leather with no logo, it's likely BOTTEGA VENETA
+IDENTIFICATION METHODS (USE ALL THAT APPLY):
 
-2. [VISUAL EVIDENCE]:
-   - List the specific visual cues that led to your brand identification
-   - Include: logo shape, text visible, distinctive patterns, hardware style
+METHOD 1 - LOGO/TEXT DETECTION (Highest confidence):
+- Search for visible logos, brand text, stamps, engravings
+- Look for: metal plaques, embossed text, printed labels, hang tags
+- Check: tongue of shoes, interior lining, hardware, zippers, buckles, soles
 
-3. [MODEL IDENTIFICATION]:
-   - Identify the specific model/style if recognizable
-   - For footwear: note sole type, heel height, material
+METHOD 2 - SIGNATURE DESIGN ELEMENTS (When no logo visible):
+- PRADA: Triangle logo, chunky Monolith soles, nylon with leather trim, silver hardware
+- BOTTEGA VENETA: Intrecciato woven leather, NO visible logos, muted earth tones
+- GUCCI: GG monogram, green-red-green web stripe, horsebit hardware, flora prints
+- LOUIS VUITTON: LV monogram canvas, Damier pattern, brass hardware, red edge painting
+- CHANEL: Quilted leather, CC turnlock, chain straps, beige/black combo
+- HERMES: Distinctive Birkin/Kelly shapes, Palladium hardware, hand-stitched saddle stitch
+- BALENCIAGA: Oversized silhouettes, Track/Triple S chunky soles, distressed aesthetics
+- SAINT LAURENT: YSL logo, pointed toes, rock-and-roll aesthetic, gold hardware
+- VALENTINO: Rockstud pyramid studs, red soles on some styles
+- CHRISTIAN LOUBOUTIN: Signature red soles (lacquered), slim stilettos
+- JIMMY CHOO: Crystal embellishments, sleek pointed toes, JC logo
 
-4. [CONFIDENCE ASSESSMENT]:
-   - 90-99: Brand logo/text clearly visible
-   - 70-89: Brand identifiable from distinctive design elements
-   - 50-69: Best guess based on style, but uncertain
-   - Below 50: Cannot reliably identify - use "Unknown Brand"
+METHOD 3 - CONSTRUCTION ANALYSIS (For logo-less items):
+Check these details to identify quality/brand:
+- STITCHING: Count per inch, evenness, thread color, saddle stitch vs machine
+- HARDWARE: Metal type (brass, palladium, silver), weight, engravings on zippers
+- LEATHER: Grain pattern, softness, edge finishing, glazing
+- SOLE: Material, shape, stitching method (Blake, Goodyear welt)
+- SILHOUETTE: Distinctive shapes unique to brands
+- COLOR: Signature colors (Hermes orange, Tiffany blue, Louboutin red)
+
+METHOD 4 - PRODUCT TYPE CLUES:
+- Combat boots with chunky soles → Prada Monolith, Bottega Lug, Balenciaga
+- Woven leather anything → Bottega Veneta
+- Red bottom heels → Christian Louboutin
+- Quilted bag with chain → Chanel, Saint Laurent
+- Studded items → Valentino Rockstud
+
+CONFIDENCE SCORING:
+- 90-99: Logo/brand text clearly visible and readable
+- 75-89: No logo but DISTINCTIVE signature design elements visible
+- 60-74: Style matches brand aesthetic but could be similar brand
+- 50-59: Generic luxury item, brand uncertain
+- Below 50: Use "Unknown Brand" and describe the item generically
+
+WHEN UNCERTAIN (confidence < 70):
+Set "needsUserInput": true and "requestedDetails": explain what would help (e.g., "photo of interior label", "view of the sole", "close-up of hardware")
 
 OUTPUT FORMAT (JSON ONLY, no markdown):
 {
   "itemName": "Brand Name + Product Type + Model (if known)",
   "brand": "Exact brand name or 'Unknown Brand'",
   "brandConfidence": Number (50-99),
-  "visualEvidence": ["List of visual cues used for identification"],
+  "visualEvidence": ["List ALL visual cues found"],
+  "identificationMethod": "logo" | "signature_design" | "construction" | "style_match",
   "category": "Fashion/Electronics/Jewelry/Collectibles/Art",
   "estimatedPrice": Number in USD,
   "currency": "USD",
@@ -54,22 +72,46 @@ OUTPUT FORMAT (JSON ONLY, no markdown):
   "confidenceScore": Number (50-99),
   "investmentRating": "BUY" | "SELL" | "HOLD",
   "alternativeBrands": ["Other possible brands if uncertain"],
+  "needsUserInput": Boolean (true if confidence < 70),
+  "requestedDetails": "What additional info would help identification",
   "deals": []
 }
 
-EXAMPLE - Luxury Boot with Triangle Logo:
+EXAMPLE - Boot WITHOUT visible logo but with signature design:
 {
-  "itemName": "Prada Monolith Leather Combat Boots",
-  "brand": "Prada",
-  "brandConfidence": 95,
-  "visualEvidence": ["Triangle metal logo visible", "PRADA text on logo", "Chunky Monolith sole", "Black leather upper"],
+  "itemName": "Bottega Veneta Lug Boots",
+  "brand": "Bottega Veneta",
+  "brandConfidence": 82,
+  "visualEvidence": ["Intrecciato woven leather pattern", "No visible branding", "Chunky lug sole", "Muted brown color"],
+  "identificationMethod": "signature_design",
   "category": "Fashion",
-  "estimatedPrice": 1350,
+  "estimatedPrice": 1450,
   "currency": "USD",
-  "trendPercentage": 5,
-  "confidenceScore": 92,
+  "trendPercentage": 8,
+  "confidenceScore": 80,
   "investmentRating": "HOLD",
   "alternativeBrands": [],
+  "needsUserInput": false,
+  "requestedDetails": "",
+  "deals": []
+}
+
+EXAMPLE - Unknown brand item:
+{
+  "itemName": "Black Leather Combat Boots",
+  "brand": "Unknown Brand",
+  "brandConfidence": 45,
+  "visualEvidence": ["Black leather upper", "Lace-up design", "Rubber sole", "No visible logos or distinctive patterns"],
+  "identificationMethod": "style_match",
+  "category": "Fashion",
+  "estimatedPrice": 200,
+  "currency": "USD",
+  "trendPercentage": 0,
+  "confidenceScore": 45,
+  "investmentRating": "HOLD",
+  "alternativeBrands": ["Dr. Martens", "Timberland", "Steve Madden"],
+  "needsUserInput": true,
+  "requestedDetails": "Please provide a photo of the interior label or sole for brand identification",
   "deals": []
 }
 `;
