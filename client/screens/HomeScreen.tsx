@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Image } from "expo-image";
 
 import { Colors, Spacing, Fonts, Typography } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -114,11 +113,9 @@ export default function HomeScreen({ navigation }: Props) {
       <View style={styles.centerSection}>
         <View style={styles.logoContainer}>
           <Animated.View style={[styles.logoGlow, { transform: [{ scale: pulseAnim }] }]} />
-          <Image
-            source={require("@assets/icon.png")}
-            style={styles.logoImage}
-            contentFit="contain"
-          />
+          <View style={styles.logoIcon}>
+            <Feather name="target" size={40} color={Colors.dark.successGreen} />
+          </View>
         </View>
 
         <Text style={styles.heroTitle}>SCOPE</Text>
@@ -296,10 +293,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.successGreen,
     opacity: 0.15,
   },
-  logoImage: {
+  logoIcon: {
     width: 80,
     height: 80,
-    borderRadius: 20,
+    borderRadius: 40,
+    backgroundColor: "rgba(0, 255, 148, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(0, 255, 148, 0.3)",
   },
   heroTitle: {
     fontSize: 52,
