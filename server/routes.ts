@@ -6,43 +6,71 @@ import { insertPortfolioAssetSchema } from "@shared/schema";
 import { searchPricesMultiRegion } from "./serpapi";
 
 const FORENSIC_ANALYSIS_PROMPT = `
-ROLE: Elite Forensic Asset Authenticator & Global Market Analyst.
-MISSION: Identify the object and perform a BROAD SPECTRUM PRICE ANALYSIS across multiple retailers.
+ROLE: Expert Luxury Product Authenticator & Brand Identification Specialist.
 
-PROTOCOL (EXECUTE IN ORDER):
-1. [IDENTIFICATION]: 
-   - Identify the EXACT model, generation, and variant.
-   - Return a "itemName" that is PRECISE but SEARCH-FRIENDLY.
+CRITICAL RULES - READ CAREFULLY:
+1. NEVER GUESS OR FABRICATE BRANDS. Only identify what you can CLEARLY see.
+2. Look for VISIBLE brand indicators: logos, text, distinctive design elements, hardware, stitching patterns.
+3. If brand is unclear, say "Unknown Brand" - DO NOT substitute with a similar luxury brand.
+4. DIFFERENTIATE between similar luxury brands carefully:
+   - PRADA: Triangle metal logo, "PRADA MILANO" text, distinctive chunky soles on boots
+   - BOTTEGA VENETA: Intrecciato woven leather pattern, minimal branding, no visible logos
+   - GUCCI: GG monogram, green-red-green stripes, horsebit hardware
+   - LOUIS VUITTON: LV monogram, Damier pattern, golden brass hardware
+   - CHANEL: Interlocking CC logo, quilted pattern
+   - HERMES: H logo, Birkin/Kelly distinctive shapes
 
-2. [MULTI-RETAILER PRICE SEARCH]:
-   - Estimate the current market pricing based on your knowledge.
-   - CHECK PRICES at: Amazon, Best Buy, Walmart, eBay, Official Brand Store.
-   - Provide realistic price estimates for each retailer.
+IDENTIFICATION PROTOCOL:
+1. [BRAND DETECTION]:
+   - Search for ANY visible text, logos, or brand markers in the image
+   - Note the EXACT text you see (e.g., "PRADA", "Made in Italy", model numbers)
+   - If you see a triangle logo with text, it's PRADA
+   - If you see woven leather with no logo, it's likely BOTTEGA VENETA
 
-3. [DATA SYNTHESIS]:
-   - Compile a "deals" list (3-5 distinct retailers).
-   - "isBestDeal": Mark the lowest price.
-   - "estimatedPrice": Weighted average of findings.
+2. [VISUAL EVIDENCE]:
+   - List the specific visual cues that led to your brand identification
+   - Include: logo shape, text visible, distinctive patterns, hardware style
+
+3. [MODEL IDENTIFICATION]:
+   - Identify the specific model/style if recognizable
+   - For footwear: note sole type, heel height, material
+
+4. [CONFIDENCE ASSESSMENT]:
+   - 90-99: Brand logo/text clearly visible
+   - 70-89: Brand identifiable from distinctive design elements
+   - 50-69: Best guess based on style, but uncertain
+   - Below 50: Cannot reliably identify - use "Unknown Brand"
 
 OUTPUT FORMAT (JSON ONLY, no markdown):
 {
-  "itemName": "String",
-  "category": "String (e.g. Electronics, Fashion, Collectibles, Art, Jewelry, etc.)",
-  "estimatedPrice": Number,
+  "itemName": "Brand Name + Product Type + Model (if known)",
+  "brand": "Exact brand name or 'Unknown Brand'",
+  "brandConfidence": Number (50-99),
+  "visualEvidence": ["List of visual cues used for identification"],
+  "category": "Fashion/Electronics/Jewelry/Collectibles/Art",
+  "estimatedPrice": Number in USD,
   "currency": "USD",
-  "trendPercentage": Number (between -15 and +25),
-  "confidenceScore": Number (between 70 and 99),
+  "trendPercentage": Number (-15 to +25),
+  "confidenceScore": Number (50-99),
   "investmentRating": "BUY" | "SELL" | "HOLD",
-  "deals": [
-    {
-      "storeName": "String",
-      "price": Number,
-      "currency": "USD",
-      "url": "String (search URL for the product)",
-      "region": "US",
-      "isBestDeal": Boolean
-    }
-  ]
+  "alternativeBrands": ["Other possible brands if uncertain"],
+  "deals": []
+}
+
+EXAMPLE - Luxury Boot with Triangle Logo:
+{
+  "itemName": "Prada Monolith Leather Combat Boots",
+  "brand": "Prada",
+  "brandConfidence": 95,
+  "visualEvidence": ["Triangle metal logo visible", "PRADA text on logo", "Chunky Monolith sole", "Black leather upper"],
+  "category": "Fashion",
+  "estimatedPrice": 1350,
+  "currency": "USD",
+  "trendPercentage": 5,
+  "confidenceScore": 92,
+  "investmentRating": "HOLD",
+  "alternativeBrands": [],
+  "deals": []
 }
 `;
 
