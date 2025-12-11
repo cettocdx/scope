@@ -60,6 +60,9 @@ shared/
 - ROI display in Vault header with trend indicator
 - Real portfolio value history in charts aggregated from asset history arrays
 - Added analytics button to Vault screen header
+- Fixed Gemini model name (gemini-2.0-flash) for valid API compatibility
+- Added image validation and mime type detection for camera captures
+- Enhanced error handling in analyze endpoint with webp support
 
 ## Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string
