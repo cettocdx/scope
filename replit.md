@@ -7,7 +7,7 @@ SCOPE is a mobile app for scanning, identifying, and tracking valuable assets. I
 - **Frontend**: Expo React Native with React Navigation
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **AI**: Google Gemini (via @google/genai)
+- **AI**: Google Gemini (via @google/genai) + Ximilar Fashion AI
 - **Price Data**: SerpAPI for multi-region real-time pricing
 - **State Management**: TanStack React Query
 
@@ -88,6 +88,7 @@ shared/
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Session secret key
 - `SERPAPI_KEY`: SerpAPI key for real-time price searches
+- `XIMILAR_API_KEY`: Ximilar Fashion AI for product recognition
 
 ## Running the App
 - Dev server: `npm run all:dev`

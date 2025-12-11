@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
 import { insertPortfolioAssetSchema } from "@shared/schema";
 import { searchPricesMultiRegion } from "./serpapi";
+import { analyzeWithXimilar, type XimilarAnalysisResult } from "./ximilar";
 
 const FORENSIC_ANALYSIS_PROMPT = `
 ROLE: Expert Luxury Product Authenticator & Brand Identification Specialist.
@@ -226,25 +227,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processing image: ${mimeType}, size: ${base64Data.length} chars`);
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType,
-                  data: base64Data,
+      const [ximilarResult, geminiResponse] = await Promise.all([
+        analyzeWithXimilar(base64Data).catch(err => {
+          console.error("Ximilar analysis failed:", err);
+          return null as XimilarAnalysisResult | null;
+        }),
+        ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  inlineData: {
+                    mimeType,
+                    data: base64Data,
+                  },
                 },
-              },
-              { text: FORENSIC_ANALYSIS_PROMPT },
-            ],
-          },
-        ],
-      });
+                { text: FORENSIC_ANALYSIS_PROMPT },
+              ],
+            },
+          ],
+        })
+      ]);
 
-      const text = response.text;
+      if (ximilarResult?.success) {
+        console.log("Ximilar analysis:", {
+          category: ximilarResult.category,
+          subcategory: ximilarResult.subcategory,
+          color: ximilarResult.color,
+          material: ximilarResult.material,
+          style: ximilarResult.style,
+          tags: ximilarResult.tags.slice(0, 10)
+        });
+      }
+
+      const text = geminiResponse.text;
       if (!text) {
         return res.status(500).json({ error: "No response from AI" });
       }
@@ -257,6 +275,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (e) {
         console.error("JSON Parse Error:", text);
         return res.status(500).json({ error: "Failed to parse market data" });
+      }
+
+      if (ximilarResult?.success) {
+        data.ximilarData = {
+          category: ximilarResult.category,
+          subcategory: ximilarResult.subcategory,
+          color: ximilarResult.color,
+          material: ximilarResult.material,
+          style: ximilarResult.style,
+          pattern: ximilarResult.pattern,
+          gender: ximilarResult.gender,
+          tags: ximilarResult.tags,
+          confidence: ximilarResult.confidence
+        };
+        
+        if (!data.visualEvidence) {
+          data.visualEvidence = [];
+        }
+        if (ximilarResult.color) {
+          data.visualEvidence.push(`Color: ${ximilarResult.color}`);
+        }
+        if (ximilarResult.material) {
+          data.visualEvidence.push(`Material: ${ximilarResult.material}`);
+        }
+        if (ximilarResult.pattern) {
+          data.visualEvidence.push(`Pattern: ${ximilarResult.pattern}`);
+        }
+        if (ximilarResult.subcategory) {
+          data.visualEvidence.push(`Type: ${ximilarResult.subcategory}`);
+        }
       }
 
       if (data.deals && data.deals.length > 0) {
