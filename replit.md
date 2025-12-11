@@ -8,6 +8,7 @@ SCOPE is a mobile app for scanning, identifying, and tracking valuable assets. I
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
 - **AI**: Google Gemini (via @google/genai)
+- **Price Data**: SerpAPI for multi-region real-time pricing
 - **State Management**: TanStack React Query
 
 ## Project Structure
@@ -25,6 +26,7 @@ server/
 ├── db.ts             # Database connection
 ├── index.ts          # Express app setup
 ├── routes.ts         # API routes
+├── serpapi.ts        # SerpAPI multi-region price search
 ├── storage.ts        # Database operations
 └── templates/        # HTML templates
 
@@ -60,13 +62,18 @@ shared/
 - ROI display in Vault header with trend indicator
 - Real portfolio value history in charts aggregated from asset history arrays
 - Added analytics button to Vault screen header
-- Fixed Gemini model name (gemini-2.0-flash) for valid API compatibility
+- Fixed Gemini model name (gemini-2.5-flash) for valid API compatibility
 - Added image validation and mime type detection for camera captures
 - Enhanced error handling in analyze endpoint with webp support
+- Added SerpAPI integration for real-time multi-region price comparison
+- Implemented multi-region price search (USA, Turkey, Europe/Germany)
+- Added region-grouped price display in ResultScreen with color-coded sections
+- Currency conversion to USD for unified price comparison
 
 ## Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Session secret key
+- `SERPAPI_KEY`: SerpAPI key for real-time price searches
 
 ## Running the App
 - Dev server: `npm run all:dev`

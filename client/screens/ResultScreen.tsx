@@ -249,27 +249,44 @@ Analyzed by SCOPE - AI Asset Scanner
 
           <Text style={styles.sectionTitle}>GLOBAL MARKETS</Text>
 
-          {assetData.deals?.map((deal, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.dealCard}
-              onPress={() => openLink(deal.url)}
-              activeOpacity={0.7}
-            >
-              <View>
-                <Text style={styles.storeName}>{deal.storeName}</Text>
-                {deal.isBestDeal && (
-                  <Text style={styles.bestDealText}>BEST PRICE</Text>
-                )}
+          {[
+            { code: "US", name: "USA", flag: "flag", color: "#60A5FA" },
+            { code: "TR", name: "TURKEY", flag: "map-pin", color: "#EF4444" },
+            { code: "DE", name: "EUROPE", flag: "globe", color: "#A855F7" },
+          ].map((region) => {
+            const regionDeals = assetData.deals?.filter((d: any) => d.region === region.code) || [];
+            if (regionDeals.length === 0) return null;
+            
+            return (
+              <View key={region.code} style={styles.regionSection}>
+                <View style={styles.regionHeader}>
+                  <Feather name={region.flag as any} size={14} color={region.color} />
+                  <Text style={[styles.regionTitle, { color: region.color }]}>{region.name}</Text>
+                </View>
+                {regionDeals.map((deal: any, index: number) => (
+                  <TouchableOpacity
+                    key={`${region.code}-${index}`}
+                    style={styles.dealCard}
+                    onPress={() => openLink(deal.url)}
+                    activeOpacity={0.7}
+                  >
+                    <View>
+                      <Text style={styles.storeName}>{deal.storeName}</Text>
+                      {deal.isBestDeal && (
+                        <Text style={styles.bestDealText}>BEST PRICE</Text>
+                      )}
+                    </View>
+                    <View style={styles.dealRight}>
+                      <Text style={styles.dealPrice}>
+                        ${deal.price.toLocaleString()}
+                      </Text>
+                      <Feather name="external-link" size={14} color={Colors.dark.textTertiary} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <View style={styles.dealRight}>
-                <Text style={styles.dealPrice}>
-                  ${deal.price.toLocaleString()}
-                </Text>
-                <Feather name="external-link" size={14} color={Colors.dark.textTertiary} />
-              </View>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
 
           <TouchableOpacity style={styles.shareButton} activeOpacity={0.7} onPress={handleShareReport}>
             <Feather name="share-2" size={14} color={Colors.dark.textTertiary} />
@@ -416,6 +433,24 @@ const styles = StyleSheet.create({
     color: Colors.dark.textTertiary,
     fontFamily: Fonts?.mono,
     marginBottom: Spacing.md,
+  },
+  regionSection: {
+    marginBottom: Spacing.lg,
+  },
+  regionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  regionTitle: {
+    fontSize: Typography.label.fontSize,
+    fontWeight: "700",
+    fontFamily: Fonts?.mono,
+    letterSpacing: 1,
   },
   dealCard: {
     backgroundColor: Colors.dark.backgroundTertiary,
