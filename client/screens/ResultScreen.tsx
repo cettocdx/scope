@@ -8,20 +8,55 @@ import {
   Dimensions,
   Linking,
   Alert,
+  Platform,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import { Platform } from "react-native";
 
 import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
+import { addAssetToPortfolio } from "@/services/portfolioService";
 
-const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const generatePromoContent = (itemName: string, price: number, rating: string, trend: number, category: string) => {
+  const trendEmoji = trend > 0 ? "+" : "";
+  const ratingTags = {
+    BUY: "HOT INVESTMENT",
+    SELL: "QUICK FLIP",
+    HOLD: "STABLE ASSET"
+  };
+
+  const taglines = [
+    `Discover the ${itemName} - Your next smart investment!`,
+    `${itemName}: Market analysis says ${rating.toUpperCase()}!`,
+    `Trending ${trendEmoji}${trend}% - ${itemName} is moving!`,
+    `Smart money moves: ${itemName} at $${price.toLocaleString()}`,
+  ];
+
+  const randomTagline = taglines[Math.floor(Math.random() * taglines.length)];
+
+  return `
+${ratingTags[rating as keyof typeof ratingTags] || "FEATURED ASSET"}
+
+${randomTagline}
+
+Current Market Value: $${price.toLocaleString()}
+Category: ${category}
+24H Trend: ${trendEmoji}${trend}%
+AI Rating: ${rating}
+
+Analyzed by SCOPE
+The AI-Powered Asset Intelligence Platform
+
+Scan. Analyze. Capitalize.
+#SCOPE #AssetIntelligence #SmartInvesting
+`.trim();
+};
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 
@@ -49,10 +84,7 @@ export default function ResultScreen({ navigation, route }: Props) {
         imageBase64,
       };
 
-      const saved = await AsyncStorage.getItem(PORTFOLIO_STORAGE_KEY);
-      const portfolio: PortfolioAsset[] = saved ? JSON.parse(saved) : [];
-      portfolio.unshift(newAsset);
-      await AsyncStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(portfolio));
+      await addAssetToPortfolio(newAsset);
 
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -68,6 +100,69 @@ export default function ResultScreen({ navigation, route }: Props) {
 
   const openLink = (url: string) => {
     Linking.openURL(url).catch(() => {});
+  };
+
+  const handleGeneratePromo = async () => {
+    try {
+      const promoContent = generatePromoContent(
+        assetData.itemName,
+        assetData.estimatedPrice,
+        assetData.investmentRating,
+        assetData.trendPercentage,
+        assetData.category
+      );
+
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+
+      await Share.share({
+        message: promoContent,
+        title: `SCOPE Promo: ${assetData.itemName}`,
+      });
+    } catch (e) {
+      console.error('Promo share error:', e);
+    }
+  };
+
+  const handleShareReport = async () => {
+    try {
+      const bestDeal = assetData.deals?.find(d => d.isBestDeal);
+      const dealsSummary = assetData.deals
+        ?.map(d => `${d.storeName}: $${d.price}${d.isBestDeal ? ' (Best Price)' : ''}`)
+        .join('\n') || '';
+
+      const reportText = `
+SCOPE Asset Analysis Report
+
+${assetData.itemName}
+Category: ${assetData.category}
+
+MARKET VALUATION
+Estimated Value: $${assetData.estimatedPrice.toLocaleString()}
+Trend: ${assetData.trendPercentage > 0 ? '+' : ''}${assetData.trendPercentage}% (24H)
+AI Confidence: ${assetData.confidenceScore}%
+Investment Rating: ${assetData.investmentRating}
+
+GLOBAL MARKET PRICES
+${dealsSummary}
+
+${bestDeal ? `Best Deal: ${bestDeal.storeName} at $${bestDeal.price}` : ''}
+
+Analyzed by SCOPE - AI Asset Scanner
+`.trim();
+
+      if (Platform.OS !== "web") {
+        Haptics.selectionAsync().catch(() => {});
+      }
+
+      await Share.share({
+        message: reportText,
+        title: `SCOPE Analysis: ${assetData.itemName}`,
+      });
+    } catch (e) {
+      console.error('Share error:', e);
+    }
   };
 
   return (
@@ -143,6 +238,13 @@ export default function ResultScreen({ navigation, route }: Props) {
                 {isSaving ? "SAVING..." : "ADD TO VAULT"}
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.promoButton}
+              onPress={handleGeneratePromo}
+              activeOpacity={0.8}
+            >
+              <Feather name="zap" size={18} color={Colors.dark.successGreen} />
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionTitle}>GLOBAL MARKETS</Text>
@@ -169,7 +271,7 @@ export default function ResultScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           ))}
 
-          <TouchableOpacity style={styles.shareButton} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.shareButton} activeOpacity={0.7} onPress={handleShareReport}>
             <Feather name="share-2" size={14} color={Colors.dark.textTertiary} />
             <Text style={styles.shareText}>SHARE REPORT</Text>
           </TouchableOpacity>
@@ -296,6 +398,16 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "700",
     fontFamily: Fonts?.mono,
+  },
+  promoButton: {
+    width: Spacing.buttonHeight,
+    height: Spacing.buttonHeight,
+    backgroundColor: "rgba(0, 255, 148, 0.15)",
+    borderRadius: BorderRadius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0, 255, 148, 0.3)",
   },
   sectionTitle: {
     fontSize: Typography.micro.fontSize,

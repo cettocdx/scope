@@ -7,20 +7,19 @@ import {
   ScrollView,
   Image,
   Alert,
+  Platform,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import { Platform } from "react-native";
 
 import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
-
-const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
+import { removeAssetFromPortfolio } from "@/services/portfolioService";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AssetDetail">;
 
@@ -29,6 +28,47 @@ export default function AssetDetailScreen({ navigation, route }: Props) {
   const { asset } = route.params;
   const profit = asset.estimatedPrice - asset.purchasePrice;
   const isProfit = profit >= 0;
+
+  const handleShareAsset = async () => {
+    try {
+      const profit = asset.estimatedPrice - asset.purchasePrice;
+      const profitText = profit >= 0 ? `+$${profit.toFixed(2)}` : `-$${Math.abs(profit).toFixed(2)}`;
+      const roiPercent = asset.purchasePrice > 0 ? ((profit / asset.purchasePrice) * 100).toFixed(1) : '0';
+
+      const reportText = `
+SCOPE Portfolio Asset
+
+${asset.itemName}
+Category: ${asset.category}
+
+VALUATION
+Current Value: $${asset.estimatedPrice.toLocaleString()}
+Purchase Price: $${asset.purchasePrice.toLocaleString()}
+Unrealized P/L: ${profitText} (${profit >= 0 ? '+' : ''}${roiPercent}%)
+
+INVESTMENT ANALYSIS
+AI Rating: ${asset.investmentRating}
+Confidence: ${asset.confidenceScore}%
+Trend: ${asset.trendPercentage > 0 ? '+' : ''}${asset.trendPercentage}% (24H)
+Status: ${asset.isAuthentic ? 'VERIFIED' : 'UNVERIFIED'}
+
+Acquired: ${new Date(asset.dateAdded).toLocaleDateString()}
+
+Tracked by SCOPE - AI Asset Scanner
+`.trim();
+
+      if (Platform.OS !== "web") {
+        Haptics.selectionAsync().catch(() => {});
+      }
+
+      await Share.share({
+        message: reportText,
+        title: `SCOPE Asset: ${asset.itemName}`,
+      });
+    } catch (e) {
+      console.error('Share error:', e);
+    }
+  };
 
   const handleLiquidate = () => {
     Alert.alert(
@@ -41,12 +81,7 @@ export default function AssetDetailScreen({ navigation, route }: Props) {
           style: "destructive",
           onPress: async () => {
             try {
-              const saved = await AsyncStorage.getItem(PORTFOLIO_STORAGE_KEY);
-              if (saved) {
-                const portfolio: PortfolioAsset[] = JSON.parse(saved);
-                const updated = portfolio.filter((p) => p.id !== asset.id);
-                await AsyncStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(updated));
-              }
+              await removeAssetFromPortfolio(asset.id);
 
               if (Platform.OS !== "web") {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
@@ -68,8 +103,8 @@ export default function AssetDetailScreen({ navigation, route }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
           <Feather name="chevron-left" size={24} color="#FFF" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton}>
-          <Feather name="more-horizontal" size={24} color="#FFF" />
+        <TouchableOpacity style={styles.iconButton} onPress={handleShareAsset}>
+          <Feather name="share-2" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
 
