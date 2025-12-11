@@ -89,6 +89,7 @@ shared/
 - `SESSION_SECRET`: Session secret key
 - `SERPAPI_KEY`: SerpAPI key for real-time price searches
 - `XIMILAR_API_KEY`: Ximilar Fashion AI for product recognition
+- `CLARIFAI_API_KEY`: Clarifai for general image recognition and concepts
 
 ## Running the App
 - Dev server: `npm run all:dev`
