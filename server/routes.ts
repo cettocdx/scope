@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertPortfolioAssetSchema } from "@shared/schema";
 import { searchPricesMultiRegion } from "./serpapi";
 import { analyzeWithXimilar, type XimilarAnalysisResult } from "./ximilar";
+import { analyzeWithClarifai, type ClarifaiAnalysisResult } from "./clarifai";
 
 const FORENSIC_ANALYSIS_PROMPT = `
 ROLE: Expert Luxury Product Authenticator & Brand Identification Specialist.
@@ -227,10 +228,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processing image: ${mimeType}, size: ${base64Data.length} chars`);
 
-      const [ximilarResult, geminiResponse] = await Promise.all([
+      const [ximilarResult, clarifaiResult, geminiResponse] = await Promise.all([
         analyzeWithXimilar(base64Data).catch(err => {
           console.error("Ximilar analysis failed:", err);
           return null as XimilarAnalysisResult | null;
+        }),
+        analyzeWithClarifai(base64Data).catch(err => {
+          console.error("Clarifai analysis failed:", err);
+          return null as ClarifaiAnalysisResult | null;
         }),
         ai.models.generateContent({
           model: "gemini-2.5-flash",
@@ -262,6 +267,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      if (clarifaiResult?.success) {
+        console.log("Clarifai analysis:", {
+          topCategory: clarifaiResult.topCategory,
+          conceptsCount: clarifaiResult.concepts.length,
+          suggestedBrands: clarifaiResult.suggestedBrands,
+          colors: clarifaiResult.colors,
+          materials: clarifaiResult.materials
+        });
+      }
+
       const text = geminiResponse.text;
       if (!text) {
         return res.status(500).json({ error: "No response from AI" });
@@ -277,6 +292,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Failed to parse market data" });
       }
 
+      if (!data.visualEvidence) {
+        data.visualEvidence = [];
+      }
+
       if (ximilarResult?.success) {
         data.ximilarData = {
           category: ximilarResult.category,
@@ -290,21 +309,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           confidence: ximilarResult.confidence
         };
         
-        if (!data.visualEvidence) {
-          data.visualEvidence = [];
-        }
         if (ximilarResult.color) {
-          data.visualEvidence.push(`Color: ${ximilarResult.color}`);
+          data.visualEvidence.push(`Ximilar Color: ${ximilarResult.color}`);
         }
         if (ximilarResult.material) {
-          data.visualEvidence.push(`Material: ${ximilarResult.material}`);
+          data.visualEvidence.push(`Ximilar Material: ${ximilarResult.material}`);
         }
         if (ximilarResult.pattern) {
-          data.visualEvidence.push(`Pattern: ${ximilarResult.pattern}`);
+          data.visualEvidence.push(`Ximilar Pattern: ${ximilarResult.pattern}`);
         }
         if (ximilarResult.subcategory) {
-          data.visualEvidence.push(`Type: ${ximilarResult.subcategory}`);
+          data.visualEvidence.push(`Ximilar Type: ${ximilarResult.subcategory}`);
         }
+      }
+
+      if (clarifaiResult?.success) {
+        data.clarifaiData = {
+          topCategory: clarifaiResult.topCategory,
+          concepts: clarifaiResult.concepts.slice(0, 20),
+          suggestedBrands: clarifaiResult.suggestedBrands,
+          colors: clarifaiResult.colors,
+          materials: clarifaiResult.materials,
+          styles: clarifaiResult.styles
+        };
+        
+        if (clarifaiResult.suggestedBrands.length > 0 && data.brand === "Unknown Brand") {
+          data.alternativeBrands = [...new Set([...(data.alternativeBrands || []), ...clarifaiResult.suggestedBrands])];
+        }
+        
+        clarifaiResult.colors.forEach(color => {
+          if (!data.visualEvidence.some((e: string) => e.toLowerCase().includes(color))) {
+            data.visualEvidence.push(`Clarifai Color: ${color}`);
+          }
+        });
+        
+        clarifaiResult.materials.forEach(material => {
+          if (!data.visualEvidence.some((e: string) => e.toLowerCase().includes(material))) {
+            data.visualEvidence.push(`Clarifai Material: ${material}`);
+          }
+        });
       }
 
       if (data.deals && data.deals.length > 0) {
