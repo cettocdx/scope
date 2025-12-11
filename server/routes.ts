@@ -1,11 +1,170 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
+import { GoogleGenAI } from "@google/genai";
+
+const FORENSIC_ANALYSIS_PROMPT = `
+ROLE: Elite Forensic Asset Authenticator & Global Market Analyst.
+MISSION: Identify the object and perform a BROAD SPECTRUM PRICE ANALYSIS across multiple retailers.
+
+PROTOCOL (EXECUTE IN ORDER):
+1. [IDENTIFICATION]: 
+   - Identify the EXACT model, generation, and variant.
+   - Return a "itemName" that is PRECISE but SEARCH-FRIENDLY.
+
+2. [MULTI-RETAILER PRICE SEARCH]:
+   - Estimate the current market pricing based on your knowledge.
+   - CHECK PRICES at: Amazon, Best Buy, Walmart, eBay, Official Brand Store.
+   - Provide realistic price estimates for each retailer.
+
+3. [DATA SYNTHESIS]:
+   - Compile a "deals" list (3-5 distinct retailers).
+   - "isBestDeal": Mark the lowest price.
+   - "estimatedPrice": Weighted average of findings.
+
+OUTPUT FORMAT (JSON ONLY, no markdown):
+{
+  "itemName": "String",
+  "category": "String (e.g. Electronics, Fashion, Collectibles, Art, Jewelry, etc.)",
+  "estimatedPrice": Number,
+  "currency": "USD",
+  "trendPercentage": Number (between -15 and +25),
+  "confidenceScore": Number (between 70 and 99),
+  "investmentRating": "BUY" | "SELL" | "HOLD",
+  "deals": [
+    {
+      "storeName": "String",
+      "price": Number,
+      "currency": "USD",
+      "url": "String (search URL for the product)",
+      "region": "US",
+      "isBestDeal": Boolean
+    }
+  ]
+}
+`;
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  app.post("/api/analyze", async (req, res) => {
+    try {
+      const { image } = req.body;
+
+      if (!image) {
+        return res.status(400).json({ error: "No image provided" });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
+      });
+
+      const base64Data = image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: base64Data,
+                },
+              },
+              { text: FORENSIC_ANALYSIS_PROMPT },
+            ],
+          },
+        ],
+      });
+
+      const text = response.text;
+      if (!text) {
+        return res.status(500).json({ error: "No response from AI" });
+      }
+
+      const cleanJson = text.replace(/```json|```/g, "").trim();
+      
+      let data;
+      try {
+        data = JSON.parse(cleanJson);
+      } catch (e) {
+        console.error("JSON Parse Error:", text);
+        return res.status(500).json({ error: "Failed to parse market data" });
+      }
+
+      if (data.deals && data.deals.length > 0) {
+        const cleanItemName = data.itemName.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+        const encodedItem = encodeURIComponent(cleanItemName);
+
+        data.deals = data.deals.map((deal: any) => {
+          if (deal.url && deal.url.startsWith("http")) {
+            return deal;
+          }
+
+          const storeLower = deal.storeName.toLowerCase();
+          let searchUrl = "";
+
+          if (storeLower.includes("amazon")) {
+            searchUrl = `https://www.amazon.com/s?k=${encodedItem}`;
+          } else if (storeLower.includes("walmart")) {
+            searchUrl = `https://www.walmart.com/search?q=${encodedItem}`;
+          } else if (storeLower.includes("ebay")) {
+            searchUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodedItem}`;
+          } else if (storeLower.includes("best buy") || storeLower.includes("bestbuy")) {
+            searchUrl = `https://www.bestbuy.com/site/searchpage.jsp?st=${encodedItem}`;
+          } else if (storeLower.includes("target")) {
+            searchUrl = `https://www.target.com/s?searchTerm=${encodedItem}`;
+          } else {
+            searchUrl = `https://www.google.com/search?tbm=shop&q=${encodedItem}+${encodeURIComponent(deal.storeName)}`;
+          }
+
+          return { ...deal, url: searchUrl };
+        });
+      }
+
+      if (!data.deals || data.deals.length === 0) {
+        const encodedItem = encodeURIComponent(data.itemName);
+        data.deals = [
+          {
+            storeName: "Amazon",
+            price: data.estimatedPrice,
+            currency: "USD",
+            url: `https://www.amazon.com/s?k=${encodedItem}`,
+            isBestDeal: true,
+            region: "US",
+          },
+          {
+            storeName: "eBay",
+            price: Math.round(data.estimatedPrice * 0.95),
+            currency: "USD",
+            url: `https://www.ebay.com/sch/i.html?_nkw=${encodedItem}`,
+            isBestDeal: false,
+            region: "US",
+          },
+          {
+            storeName: "Google Shopping",
+            price: Math.round(data.estimatedPrice * 1.02),
+            currency: "USD",
+            url: `https://www.google.com/search?tbm=shop&q=${encodedItem}`,
+            isBestDeal: false,
+            region: "GLOBAL",
+          },
+        ];
+      }
+
+      res.json({
+        ...data,
+        currency: "USD",
+      });
+    } catch (error: any) {
+      console.error("Gemini Analysis Error:", error);
+      res.status(500).json({ error: error.message || "Analysis failed" });
+    }
+  });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }
