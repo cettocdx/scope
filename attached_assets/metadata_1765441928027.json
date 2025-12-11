@@ -1,0 +1,7 @@
+{
+  "name": "SCOPE - Asset Vision",
+  "description": "High-frequency asset analysis and valuation utility.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
