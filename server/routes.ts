@@ -207,6 +207,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Gemini Analysis Error:", error);
+      
+      if (error.status === 429 || error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
+        return res.status(429).json({ 
+          error: "Too many requests. Please wait a moment and try again.",
+          isRateLimit: true 
+        });
+      }
+      
       res.status(500).json({ error: error.message || "Analysis failed" });
     }
   });
