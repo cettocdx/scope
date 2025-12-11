@@ -11,14 +11,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { Colors, Spacing, Typography, Fonts, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
-
-const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
+import { syncPortfolio, getLocalPortfolio } from "@/services/portfolioService";
 const { width } = Dimensions.get("window");
 
 type Props = NativeStackScreenProps<RootStackParamList, "Vault">;
@@ -29,10 +26,12 @@ export default function VaultScreen({ navigation }: Props) {
 
   const loadPortfolio = useCallback(async () => {
     try {
-      const saved = await AsyncStorage.getItem(PORTFOLIO_STORAGE_KEY);
-      if (saved) {
-        setAssets(JSON.parse(saved));
-      }
+      const localAssets = await getLocalPortfolio();
+      setAssets(localAssets);
+      
+      syncPortfolio().then(syncedAssets => {
+        setAssets(syncedAssets);
+      }).catch(console.error);
     } catch (e) {
       console.error(e);
     }
@@ -45,9 +44,32 @@ export default function VaultScreen({ navigation }: Props) {
   }, [navigation, loadPortfolio]);
 
   const totalValue = assets.reduce((acc, curr) => acc + curr.estimatedPrice, 0);
-  const historyData = assets.length > 0 
-    ? [100, 102, 105, 103, 108, 112, 115, 118, 120, 125]
-    : [0, 0, 0, 0, 0];
+  const totalPurchaseValue = assets.reduce((acc, curr) => acc + curr.purchasePrice, 0);
+  const totalGainLoss = totalValue - totalPurchaseValue;
+  const roiPercentage = totalPurchaseValue > 0 ? ((totalGainLoss / totalPurchaseValue) * 100) : 0;
+  
+  const historyData = React.useMemo(() => {
+    if (assets.length === 0) return [0, 0, 0, 0, 0];
+    
+    const maxHistoryLength = Math.max(...assets.map(a => a.history?.length || 0), 7);
+    const aggregatedHistory: number[] = [];
+    
+    for (let i = 0; i < maxHistoryLength; i++) {
+      let totalAtPoint = 0;
+      for (const asset of assets) {
+        if (asset.history && asset.history[i] !== undefined) {
+          totalAtPoint += asset.history[i];
+        } else if (asset.history && asset.history.length > 0) {
+          totalAtPoint += asset.history[asset.history.length - 1];
+        } else {
+          totalAtPoint += asset.estimatedPrice;
+        }
+      }
+      aggregatedHistory.push(totalAtPoint);
+    }
+    
+    return aggregatedHistory.length > 0 ? aggregatedHistory : [totalValue];
+  }, [assets, totalValue]);
 
   const handleSelectAsset = (asset: PortfolioAsset) => {
     navigation.navigate("AssetDetail", { asset });
@@ -119,17 +141,38 @@ export default function VaultScreen({ navigation }: Props) {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.xl }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Feather name="chevron-left" size={24} color={Colors.dark.textSecondary} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+            >
+              <Feather name="chevron-left" size={24} color={Colors.dark.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Analytics")}
+              style={styles.analyticsButton}
+            >
+              <Feather name="bar-chart-2" size={20} color={Colors.dark.successGreen} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.netWorthSection}>
             <Text style={styles.label}>NET WORTH</Text>
             <Text style={styles.netWorth}>
               ${totalValue.toLocaleString()}
             </Text>
+            {assets.length > 0 && (
+              <View style={[
+                styles.roiBadge,
+                { backgroundColor: totalGainLoss >= 0 ? "rgba(0, 255, 148, 0.15)" : "rgba(255, 59, 48, 0.15)" }
+              ]}>
+                <Text style={[
+                  styles.roiText,
+                  { color: totalGainLoss >= 0 ? Colors.dark.successGreen : Colors.dark.alertRed }
+                ]}>
+                  {totalGainLoss >= 0 ? "+" : ""}{roiPercentage.toFixed(1)}% ROI
+                </Text>
+              </View>
+            )}
           </View>
         </View>
         <FinancialChart data={historyData} height={80} color={Colors.dark.successGreen} />
@@ -178,11 +221,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: Spacing.xl,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  analyticsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 255, 148, 0.1)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -200,6 +256,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: Colors.dark.text,
+    fontFamily: Fonts?.mono,
+  },
+  roiBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  roiText: {
+    fontSize: Typography.micro.fontSize,
+    fontWeight: "700",
     fontFamily: Fonts?.mono,
   },
   listContent: {

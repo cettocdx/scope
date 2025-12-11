@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { GoogleGenAI } from "@google/genai";
+import { storage } from "./storage";
+import { insertPortfolioAssetSchema } from "@shared/schema";
 
 const FORENSIC_ANALYSIS_PROMPT = `
 ROLE: Elite Forensic Asset Authenticator & Global Market Analyst.
@@ -162,6 +164,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Gemini Analysis Error:", error);
       res.status(500).json({ error: error.message || "Analysis failed" });
+    }
+  });
+
+  app.get("/api/portfolio/:deviceId", async (req, res) => {
+    try {
+      const { deviceId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: "Device ID required" });
+      }
+      const assets = await storage.getPortfolioAssets(deviceId);
+      res.json(assets);
+    } catch (error: any) {
+      console.error("Portfolio fetch error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch portfolio" });
+    }
+  });
+
+  app.post("/api/portfolio/:deviceId", async (req, res) => {
+    try {
+      const { deviceId } = req.params;
+      const assetData = req.body;
+
+      if (!deviceId || !assetData) {
+        return res.status(400).json({ error: "Device ID and asset data required" });
+      }
+
+      if (assetData.id) {
+        const existing = await storage.getPortfolioAsset(assetData.id);
+        if (existing) {
+          const updated = await storage.updatePortfolioAsset(assetData.id, {
+            ...assetData,
+            deviceId,
+          });
+          return res.json(updated);
+        }
+      }
+
+      const asset = await storage.createPortfolioAsset({
+        ...assetData,
+        deviceId,
+        dateAdded: assetData.dateAdded ? new Date(assetData.dateAdded) : new Date(),
+      });
+
+      res.json(asset);
+    } catch (error: any) {
+      console.error("Portfolio create error:", error);
+      res.status(500).json({ error: error.message || "Failed to create asset" });
+    }
+  });
+
+  app.put("/api/portfolio/:deviceId/:assetId", async (req, res) => {
+    try {
+      const { assetId } = req.params;
+      const updates = req.body;
+
+      const asset = await storage.updatePortfolioAsset(assetId, updates);
+      if (!asset) {
+        return res.status(404).json({ error: "Asset not found" });
+      }
+
+      res.json(asset);
+    } catch (error: any) {
+      console.error("Portfolio update error:", error);
+      res.status(500).json({ error: error.message || "Failed to update asset" });
+    }
+  });
+
+  app.delete("/api/portfolio/:deviceId/:assetId", async (req, res) => {
+    try {
+      const { deviceId, assetId } = req.params;
+
+      const deleted = await storage.deletePortfolioAsset(assetId, deviceId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Asset not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Portfolio delete error:", error);
+      res.status(500).json({ error: error.message || "Failed to delete asset" });
+    }
+  });
+
+  app.post("/api/portfolio/:deviceId/sync", async (req, res) => {
+    try {
+      const { deviceId } = req.params;
+      const { assets } = req.body;
+
+      if (!deviceId || !Array.isArray(assets)) {
+        return res.status(400).json({ error: "Device ID and assets array required" });
+      }
+
+      const syncedAssets = [];
+      for (const asset of assets) {
+        const existing = await storage.getPortfolioAssets(deviceId);
+        const match = existing.find(e => e.itemName === asset.itemName && e.dateAdded === asset.dateAdded);
+        
+        if (match) {
+          const updated = await storage.updatePortfolioAsset(match.id, asset);
+          if (updated) syncedAssets.push(updated);
+        } else {
+          const created = await storage.createPortfolioAsset({
+            ...asset,
+            deviceId,
+            dateAdded: asset.dateAdded ? new Date(asset.dateAdded) : new Date(),
+          });
+          syncedAssets.push(created);
+        }
+      }
+
+      res.json(syncedAssets);
+    } catch (error: any) {
+      console.error("Portfolio sync error:", error);
+      res.status(500).json({ error: error.message || "Failed to sync portfolio" });
     }
   });
 

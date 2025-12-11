@@ -9,6 +9,7 @@ import ReviewScreen from "@/screens/ReviewScreen";
 import AnalyzingScreen from "@/screens/AnalyzingScreen";
 import ResultScreen from "@/screens/ResultScreen";
 import AssetDetailScreen from "@/screens/AssetDetailScreen";
+import AnalyticsScreen from "@/screens/AnalyticsScreen";
 
 export type RootStackParamList = {
   Home: undefined;
@@ -18,6 +19,7 @@ export type RootStackParamList = {
   Analyzing: { imageBase64: string };
   Result: { imageBase64: string; assetData: AssetData };
   AssetDetail: { asset: PortfolioAsset };
+  Analytics: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -52,6 +54,11 @@ export default function RootStackNavigator() {
       <Stack.Screen 
         name="AssetDetail" 
         component={AssetDetailScreen}
+        options={{ animation: "slide_from_right" }}
+      />
+      <Stack.Screen 
+        name="Analytics" 
+        component={AnalyticsScreen}
         options={{ animation: "slide_from_right" }}
       />
     </Stack.Navigator>
