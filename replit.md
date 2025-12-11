@@ -70,6 +70,20 @@ shared/
 - Added region-grouped price display in ResultScreen with color-coded sections
 - Currency conversion to USD for unified price comparison
 
+### AI Optimization (Dec 11, 2024)
+- Enhanced Gemini AI prompt for luxury brand identification accuracy
+  - Added specific visual identifiers for Prada, Bottega Veneta, Gucci, LV, Chanel, Hermes
+  - Added confidence scoring (50-99) with visual evidence requirements
+  - Prevents brand fabrication/guessing with strict rules
+- Added region-specific store allowlists:
+  - Turkey: Trendyol, Hepsiburada, Beymen, Boyner, Vakko, etc.
+  - USA: Amazon, Nordstrom, Saks, Neiman Marcus, etc.
+  - Europe: Zalando, Mytheresa, Breuninger, etc.
+- Implemented store filtering to only show real stores per region
+- Added blocked store list (Il Duomo, Bobo, Luxe Cheshire, etc.)
+- Global luxury platforms (Farfetch, Net-a-Porter, SSENSE) allowed in all regions
+- Better rate limit error handling (429 errors)
+
 ## Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Session secret key
