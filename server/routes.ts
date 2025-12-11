@@ -62,17 +62,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
-      const base64Data = image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+      const base64Data = image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+
+      // Validate base64 data
+      if (!base64Data || base64Data.length < 100) {
+        console.error("Invalid image data - too short:", base64Data.substring(0, 50));
+        return res.status(400).json({ error: "Invalid image data" });
+      }
+
+      // Check if it's valid base64
+      const base64Regex = /^[A-Za-z0-9+/=]+$/;
+      if (!base64Regex.test(base64Data.substring(0, 100))) {
+        console.error("Invalid base64 format");
+        return res.status(400).json({ error: "Invalid image format" });
+      }
+
+      const mimeType = image.includes("data:image/png") ? "image/png" 
+        : image.includes("data:image/webp") ? "image/webp" 
+        : "image/jpeg";
+
+      console.log(`Processing image: ${mimeType}, size: ${base64Data.length} chars`);
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         contents: [
           {
             role: "user",
             parts: [
               {
                 inlineData: {
-                  mimeType: "image/jpeg",
+                  mimeType,
                   data: base64Data,
                 },
               },
