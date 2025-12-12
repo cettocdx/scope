@@ -19,7 +19,7 @@ const ANALYSIS_STEPS = [
 ];
 
 export default function AnalyzingScreen({ navigation, route }: Props) {
-  const { imageBase64 } = route.params;
+  const { imageBase64, refinements } = route.params;
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function AnalyzingScreen({ navigation, route }: Props) {
 
     const analyze = async () => {
       try {
-        const result = await analyzeImage(imageBase64);
+        const result = await analyzeImage(imageBase64, refinements);
         
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});

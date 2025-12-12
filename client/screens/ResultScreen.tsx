@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Share,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -73,8 +74,13 @@ export default function ResultScreen({ navigation, route }: Props) {
     confidenceScore: assetData?.confidenceScore || 0,
     category: assetData?.category || "General",
     investmentRating: assetData?.investmentRating || "HOLD",
+    ratingReason: assetData?.ratingReason || "",
     deals: assetData?.deals || [],
+    priceRange: assetData?.priceRange || { min: 0, median: 0, max: 0, currency: "USD" },
+    outlierCount: assetData?.outlierCount || 0,
   };
+
+  const [showRatingSheet, setShowRatingSheet] = useState(false);
 
   const handleClose = () => {
     navigation.popToTop();
@@ -237,6 +243,55 @@ Analyzed by SCOPE - AI Asset Scanner
             </View>
           </View>
 
+          {safeAssetData.priceRange.min > 0 && (
+            <View style={styles.priceRangeContainer}>
+              <Text style={styles.priceRangeTitle}>MARKET PRICE RANGE</Text>
+              <View style={styles.priceRangeRow}>
+                <View style={styles.priceRangeItem}>
+                  <Text style={styles.priceRangeLabel}>MIN</Text>
+                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.min.toLocaleString()}</Text>
+                </View>
+                <View style={[styles.priceRangeItem, styles.priceRangeMedian]}>
+                  <Text style={styles.priceRangeLabel}>MEDIAN</Text>
+                  <Text style={[styles.priceRangeValue, styles.priceRangeMedianValue]}>
+                    ${safeAssetData.priceRange.median.toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.priceRangeItem}>
+                  <Text style={styles.priceRangeLabel}>MAX</Text>
+                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.max.toLocaleString()}</Text>
+                </View>
+              </View>
+              {safeAssetData.outlierCount > 0 && (
+                <Text style={styles.outlierInfo}>
+                  {safeAssetData.outlierCount} outlier{safeAssetData.outlierCount > 1 ? 's' : ''} excluded from calculation
+                </Text>
+              )}
+            </View>
+          )}
+
+          <View style={styles.ratingContainer}>
+            <View style={styles.ratingBadge}>
+              <Feather 
+                name={safeAssetData.investmentRating === 'BUY' ? 'trending-up' : safeAssetData.investmentRating === 'SELL' ? 'trending-down' : 'minus'} 
+                size={16} 
+                color={safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow} 
+              />
+              <Text style={[styles.ratingText, {
+                color: safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow
+              }]}>
+                AI RATING: {safeAssetData.investmentRating}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.whyButton}
+              onPress={() => setShowRatingSheet(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.whyButtonText}>Why?</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.primaryButton}
@@ -277,18 +332,25 @@ Analyzed by SCOPE - AI Asset Scanner
                 {regionDeals.map((deal: any, index: number) => (
                   <TouchableOpacity
                     key={`${region.code}-${index}`}
-                    style={styles.dealCard}
+                    style={[styles.dealCard, deal.isOutlier && styles.dealCardOutlier]}
                     onPress={() => openLink(deal.url)}
                     activeOpacity={0.7}
                   >
-                    <View>
-                      <Text style={styles.storeName}>{deal.storeName}</Text>
-                      {deal.isBestDeal && (
+                    <View style={styles.dealLeft}>
+                      <View style={styles.storeRow}>
+                        <Text style={styles.storeName}>{deal.storeName}</Text>
+                        {deal.isOutlier && (
+                          <View style={styles.outlierBadge}>
+                            <Text style={styles.outlierBadgeText}>OUTLIER</Text>
+                          </View>
+                        )}
+                      </View>
+                      {deal.isBestDeal && !deal.isOutlier && (
                         <Text style={styles.bestDealText}>BEST PRICE</Text>
                       )}
                     </View>
                     <View style={styles.dealRight}>
-                      <Text style={styles.dealPrice}>
+                      <Text style={[styles.dealPrice, deal.isOutlier && styles.dealPriceOutlier]}>
                         ${deal.price.toLocaleString()}
                       </Text>
                       <Feather name="external-link" size={14} color={Colors.dark.textTertiary} />
@@ -307,6 +369,114 @@ Analyzed by SCOPE - AI Asset Scanner
           <View style={{ height: 50 }} />
         </ScrollView>
       </View>
+
+      <Modal
+        visible={showRatingSheet}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowRatingSheet(false)}
+      >
+        <View style={styles.ratingSheetOverlay}>
+          <View style={[styles.ratingSheetContainer, { paddingBottom: insets.bottom + Spacing.xl }]}>
+            <View style={styles.handleContainer}>
+              <View style={styles.handle} />
+            </View>
+            
+            <View style={styles.ratingSheetHeader}>
+              <Text style={styles.ratingSheetTitle}>AI Rating Explanation</Text>
+              <TouchableOpacity 
+                onPress={() => setShowRatingSheet(false)}
+                style={styles.closeButton}
+              >
+                <Feather name="x" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.ratingSheetContent}>
+              <View style={[styles.ratingBadgeLarge, {
+                backgroundColor: safeAssetData.investmentRating === 'BUY' 
+                  ? 'rgba(0, 255, 148, 0.15)' 
+                  : safeAssetData.investmentRating === 'SELL' 
+                    ? 'rgba(255, 59, 48, 0.15)' 
+                    : 'rgba(250, 204, 21, 0.15)'
+              }]}>
+                <Feather 
+                  name={safeAssetData.investmentRating === 'BUY' ? 'trending-up' : safeAssetData.investmentRating === 'SELL' ? 'trending-down' : 'minus'} 
+                  size={32} 
+                  color={safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow} 
+                />
+                <Text style={[styles.ratingBadgeLargeText, {
+                  color: safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow
+                }]}>
+                  {safeAssetData.investmentRating}
+                </Text>
+              </View>
+
+              <Text style={styles.ratingExplanationTitle}>Why {safeAssetData.investmentRating}?</Text>
+              
+              <View style={styles.ratingFactorsList}>
+                {safeAssetData.investmentRating === 'BUY' ? (
+                  <>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
+                      <Text style={styles.ratingFactorText}>Strong brand value retention</Text>
+                    </View>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
+                      <Text style={styles.ratingFactorText}>Positive market trend ({safeAssetData.trendPercentage > 0 ? '+' : ''}{safeAssetData.trendPercentage}%)</Text>
+                    </View>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
+                      <Text style={styles.ratingFactorText}>High authenticity confidence ({safeAssetData.confidenceScore}%)</Text>
+                    </View>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
+                      <Text style={styles.ratingFactorText}>Below median market price</Text>
+                    </View>
+                  </>
+                ) : safeAssetData.investmentRating === 'SELL' ? (
+                  <>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="alert-circle" size={16} color={Colors.dark.alertRed} />
+                      <Text style={styles.ratingFactorText}>Negative market trend ({safeAssetData.trendPercentage}%)</Text>
+                    </View>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="alert-circle" size={16} color={Colors.dark.alertRed} />
+                      <Text style={styles.ratingFactorText}>Above median market price</Text>
+                    </View>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="alert-circle" size={16} color={Colors.dark.alertRed} />
+                      <Text style={styles.ratingFactorText}>Consider quick liquidation</Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="minus-circle" size={16} color={Colors.dark.warningYellow} />
+                      <Text style={styles.ratingFactorText}>Stable market value</Text>
+                    </View>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="minus-circle" size={16} color={Colors.dark.warningYellow} />
+                      <Text style={styles.ratingFactorText}>Near median market price</Text>
+                    </View>
+                    <View style={styles.ratingFactor}>
+                      <Feather name="minus-circle" size={16} color={Colors.dark.warningYellow} />
+                      <Text style={styles.ratingFactorText}>Monitor for better opportunity</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              <View style={styles.disclaimerBox}>
+                <Text style={styles.disclaimerText}>
+                  AI ratings are based on market data analysis and should not be considered financial advice. 
+                  Always do your own research before making investment decisions.
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -505,5 +675,195 @@ const styles = StyleSheet.create({
     fontSize: Typography.label.fontSize,
     color: Colors.dark.textTertiary,
     fontFamily: Fonts?.mono,
+  },
+  priceRangeContainer: {
+    backgroundColor: Colors.dark.backgroundTertiary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.dark.cardBorder,
+  },
+  priceRangeTitle: {
+    fontSize: Typography.micro.fontSize,
+    fontWeight: "700",
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+    letterSpacing: 1,
+    marginBottom: Spacing.md,
+  },
+  priceRangeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  priceRangeItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  priceRangeMedian: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: Colors.dark.cardBorder,
+  },
+  priceRangeLabel: {
+    fontSize: Typography.micro.fontSize,
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+    marginBottom: Spacing.xs,
+  },
+  priceRangeValue: {
+    fontSize: Typography.body.fontSize,
+    fontWeight: "700",
+    color: Colors.dark.textSecondary,
+  },
+  priceRangeMedianValue: {
+    color: Colors.dark.successGreen,
+    fontSize: Typography.h3.fontSize,
+  },
+  outlierInfo: {
+    fontSize: Typography.micro.fontSize,
+    color: Colors.dark.warningYellow,
+    fontFamily: Fonts?.mono,
+    textAlign: "center",
+    marginTop: Spacing.md,
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: Colors.dark.backgroundTertiary,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.dark.cardBorder,
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  ratingText: {
+    fontSize: Typography.label.fontSize,
+    fontWeight: "700",
+    fontFamily: Fonts?.mono,
+  },
+  whyButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: BorderRadius.sm,
+  },
+  whyButtonText: {
+    fontSize: Typography.label.fontSize,
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts?.mono,
+  },
+  dealCardOutlier: {
+    opacity: 0.6,
+    borderColor: Colors.dark.warningYellow,
+  },
+  dealLeft: {
+    flex: 1,
+  },
+  storeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  outlierBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    backgroundColor: "rgba(250, 204, 21, 0.2)",
+    borderRadius: 4,
+  },
+  outlierBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.dark.warningYellow,
+    fontFamily: Fonts?.mono,
+  },
+  dealPriceOutlier: {
+    color: Colors.dark.textTertiary,
+    textDecorationLine: "line-through",
+  },
+  ratingSheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "flex-end",
+  },
+  ratingSheetContainer: {
+    backgroundColor: Colors.dark.backgroundSecondary,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    maxHeight: SCREEN_HEIGHT * 0.7,
+  },
+  ratingSheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: Spacing["2xl"],
+    paddingBottom: Spacing.lg,
+  },
+  ratingSheetTitle: {
+    fontSize: Typography.h2.fontSize,
+    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts?.mono,
+  },
+  ratingSheetContent: {
+    paddingHorizontal: Spacing["2xl"],
+    paddingBottom: Spacing["2xl"],
+  },
+  ratingBadgeLarge: {
+    alignSelf: "center",
+    alignItems: "center",
+    paddingHorizontal: Spacing["3xl"],
+    paddingVertical: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  ratingBadgeLargeText: {
+    fontSize: Typography.h1.fontSize,
+    fontWeight: "700",
+    fontFamily: Fonts?.mono,
+  },
+  ratingExplanationTitle: {
+    fontSize: Typography.h3.fontSize,
+    fontWeight: "700",
+    color: Colors.dark.text,
+    textAlign: "center",
+    marginBottom: Spacing.xl,
+  },
+  ratingFactorsList: {
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  ratingFactor: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    backgroundColor: Colors.dark.backgroundTertiary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  ratingFactorText: {
+    flex: 1,
+    fontSize: Typography.body.fontSize,
+    color: Colors.dark.text,
+  },
+  disclaimerBox: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.dark.cardBorder,
+  },
+  disclaimerText: {
+    fontSize: Typography.small.fontSize,
+    color: Colors.dark.textTertiary,
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
