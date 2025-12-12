@@ -1,6 +1,30 @@
 export type Condition = 'NEW' | 'USED' | 'LIKE_NEW';
 export type Country = 'USA' | 'TURKEY' | 'EUROPE';
 export type Currency = 'USD' | 'TRY' | 'EUR';
+export type ProductCategory = 'Electronics' | 'Fashion' | 'Watch' | 'Jewelry' | 'Footwear' | 'Bags' | 'Accessories' | 'Other';
+
+export interface ProductDNA {
+  title: string;
+  category: ProductCategory;
+  brand?: string;
+  model?: string;
+  variant?: Record<string, string>;
+  identifiers?: {
+    gtin?: string;
+    sku?: string;
+    serial?: string;
+  };
+  condition: Condition;
+  confidence: {
+    visual: number;
+    ocr: number;
+    barcode: number;
+    overall: number;
+  };
+  searchQueries: string[];
+  mustHaveTokens: string[];
+  imageHash?: string;
+}
 
 export interface ProductDeal {
   storeName: string;
@@ -47,6 +71,9 @@ export interface AssetData {
   country?: Country;
   attributes?: AssetAttributes;
   outlierCount?: number;
+  dna?: ProductDNA;
+  brand?: string;
+  model?: string;
 }
 
 export interface PortfolioAsset extends AssetData {

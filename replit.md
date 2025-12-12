@@ -72,6 +72,15 @@ shared/
 - Added region-grouped price display in ResultScreen with color-coded sections
 - Currency conversion to USD for unified price comparison
 
+### Product DNA System (Dec 12, 2024)
+- Implemented ProductDNA structure for precise product identification and matching
+- DNA includes: title, category, brand, model, variant (size/color/material/capacity), condition
+- Confidence scoring: visual, OCR, barcode, overall weighted average
+- AI generates 5-10 searchQueries from most specific to generic for marketplace search
+- mustHaveTokens ensure offer matching accuracy (e.g. "45mm", "Series 9", "GPS")
+- SerpAPI now uses DNA searchQueries instead of generic itemName for better price matching
+- Enhanced Gemini prompt with DNA output format and examples (Apple Watch, Prada Wallet)
+
 ### Valuation & UX Features (Dec 12, 2024)
 - Added Confirm & Refine screen with variant selectors (size, color, material) and condition picker
 - Implemented valuation endpoint with min/median/max calculation using IQR outlier detection
@@ -81,7 +90,7 @@ shared/
 - Updated navigation flow: Scanner → Review → Confirm (optional) → Analyzing → Result
 - ReviewScreen now offers Quick Analyze or Confirm & Refine options
 - Outlier deals marked with yellow badges and crossed-out prices
-- Enhanced types with Condition, Country, Currency, PriceRange, AssetAttributes
+- Enhanced types with Condition, Country, Currency, PriceRange, AssetAttributes, ProductDNA
 
 ### AI Optimization (Dec 11, 2024)
 - Enhanced Gemini AI prompt for luxury brand identification accuracy
