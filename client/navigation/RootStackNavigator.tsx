@@ -47,7 +47,7 @@ export default function RootStackNavigator() {
         name="Result" 
         component={ResultScreen}
         options={{ 
-          presentation: "transparentModal",
+          presentation: "modal",
           animation: "slide_from_bottom",
         }}
       />
