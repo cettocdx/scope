@@ -226,10 +226,11 @@ OUTPUT FORMAT (JSON ONLY, no markdown):
 {
   "itemName": "Brand Name + Product Type + Model (if known)",
   "brand": "Exact brand name or 'Unknown Brand'",
+  "model": "Specific model name if identifiable",
   "brandConfidence": Number (50-99),
   "visualEvidence": ["List ALL visual cues found"],
   "identificationMethod": "logo" | "signature_design" | "construction" | "style_match",
-  "category": "Fashion/Electronics/Jewelry/Collectibles/Art",
+  "category": "Fashion" | "Electronics" | "Watch" | "Jewelry" | "Footwear" | "Bags" | "Accessories" | "Other",
   "estimatedPrice": Number in USD,
   "currency": "USD",
   "trendPercentage": Number (-15 to +25),
@@ -238,45 +239,109 @@ OUTPUT FORMAT (JSON ONLY, no markdown):
   "alternativeBrands": ["Other possible brands if uncertain"],
   "needsUserInput": Boolean (true if confidence < 70),
   "requestedDetails": "What additional info would help identification",
-  "deals": []
+  "deals": [],
+  "dna": {
+    "title": "Full precise product name e.g. 'Apple Watch Series 9 45mm GPS Midnight Aluminum'",
+    "category": "Electronics" | "Fashion" | "Watch" | "Jewelry" | "Footwear" | "Bags" | "Accessories" | "Other",
+    "brand": "Brand name",
+    "model": "Model/series name",
+    "variant": {
+      "size": "Size if visible (e.g. 45mm, M, 42)",
+      "color": "Color name (e.g. Midnight, Black, Cream)",
+      "material": "Material (e.g. Aluminum, Leather, Canvas)",
+      "capacity": "Storage if applicable (e.g. 256GB)",
+      "connectivity": "If applicable (e.g. GPS, Cellular)"
+    },
+    "condition": "NEW" | "USED" | "LIKE_NEW",
+    "confidence": {
+      "visual": Number (0-100) - confidence from visual analysis,
+      "ocr": Number (0-100) - confidence from text/logo detection,
+      "barcode": Number (0-100) - 0 if no barcode visible,
+      "overall": Number (0-100) - weighted average
+    },
+    "searchQueries": [
+      "Generate 5-10 marketplace search queries from most specific to generic",
+      "Example: 'Apple Watch Series 9 45mm GPS Midnight Aluminum'",
+      "Example: 'Apple Watch Series 9 45mm GPS'",
+      "Example: 'Apple Watch Series 9 45mm'",
+      "Example: 'Apple Watch Series 9'"
+    ],
+    "mustHaveTokens": ["Critical tokens that MUST appear in matching offers", "e.g. '45mm', 'Series 9', 'GPS'"]
+  }
 }
 
-EXAMPLE - Boot WITHOUT visible logo but with signature design:
+EXAMPLE - Apple Watch:
 {
-  "itemName": "Bottega Veneta Lug Boots",
-  "brand": "Bottega Veneta",
-  "brandConfidence": 82,
-  "visualEvidence": ["Intrecciato woven leather pattern", "No visible branding", "Chunky lug sole", "Muted brown color"],
-  "identificationMethod": "signature_design",
-  "category": "Fashion",
-  "estimatedPrice": 1450,
+  "itemName": "Apple Watch Series 9 45mm GPS",
+  "brand": "Apple",
+  "model": "Series 9",
+  "brandConfidence": 95,
+  "visualEvidence": ["Apple logo on crown", "Series 9 display", "45mm case size visible", "GPS model (no cellular antenna)"],
+  "identificationMethod": "logo",
+  "category": "Electronics",
+  "estimatedPrice": 429,
   "currency": "USD",
-  "trendPercentage": 8,
-  "confidenceScore": 80,
+  "trendPercentage": -2,
+  "confidenceScore": 95,
   "investmentRating": "HOLD",
   "alternativeBrands": [],
   "needsUserInput": false,
   "requestedDetails": "",
-  "deals": []
+  "deals": [],
+  "dna": {
+    "title": "Apple Watch Series 9 45mm GPS Midnight Aluminum",
+    "category": "Electronics",
+    "brand": "Apple",
+    "model": "Series 9",
+    "variant": {"size": "45mm", "color": "Midnight", "material": "Aluminum", "connectivity": "GPS"},
+    "condition": "LIKE_NEW",
+    "confidence": {"visual": 95, "ocr": 90, "barcode": 0, "overall": 92},
+    "searchQueries": [
+      "Apple Watch Series 9 45mm GPS Midnight Aluminum",
+      "Apple Watch Series 9 45mm GPS Midnight",
+      "Apple Watch Series 9 45mm GPS",
+      "Apple Watch Series 9 45mm",
+      "Apple Watch Series 9"
+    ],
+    "mustHaveTokens": ["Apple Watch", "Series 9", "45mm", "GPS"]
+  }
 }
 
-EXAMPLE - Unknown brand item:
+EXAMPLE - Luxury Fashion:
 {
-  "itemName": "Black Leather Combat Boots",
-  "brand": "Unknown Brand",
-  "brandConfidence": 45,
-  "visualEvidence": ["Black leather upper", "Lace-up design", "Rubber sole", "No visible logos or distinctive patterns"],
-  "identificationMethod": "style_match",
+  "itemName": "Prada Saffiano Leather Wallet",
+  "brand": "Prada",
+  "model": "Saffiano",
+  "brandConfidence": 88,
+  "visualEvidence": ["Triangle Prada logo", "Saffiano cross-hatch leather texture", "Gold hardware", "PRADA MILANO text"],
+  "identificationMethod": "logo",
   "category": "Fashion",
-  "estimatedPrice": 200,
+  "estimatedPrice": 650,
   "currency": "USD",
-  "trendPercentage": 0,
-  "confidenceScore": 45,
+  "trendPercentage": 5,
+  "confidenceScore": 88,
   "investmentRating": "HOLD",
-  "alternativeBrands": ["Dr. Martens", "Timberland", "Steve Madden"],
-  "needsUserInput": true,
-  "requestedDetails": "Please provide a photo of the interior label or sole for brand identification",
-  "deals": []
+  "alternativeBrands": [],
+  "needsUserInput": false,
+  "requestedDetails": "",
+  "deals": [],
+  "dna": {
+    "title": "Prada Saffiano Leather Bifold Wallet Black",
+    "category": "Fashion",
+    "brand": "Prada",
+    "model": "Saffiano Bifold",
+    "variant": {"color": "Black", "material": "Saffiano Leather"},
+    "condition": "LIKE_NEW",
+    "confidence": {"visual": 88, "ocr": 85, "barcode": 0, "overall": 87},
+    "searchQueries": [
+      "Prada Saffiano Leather Bifold Wallet Black",
+      "Prada Saffiano Leather Wallet Black",
+      "Prada Saffiano Wallet",
+      "Prada Leather Wallet",
+      "Prada Wallet"
+    ],
+    "mustHaveTokens": ["Prada", "Saffiano", "Wallet"]
+  }
 }
 `;
 
@@ -476,27 +541,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        // Build enhanced search query using refinements if available
-        let searchQuery = data.itemName;
-        if (refinements) {
-          const parts = [data.itemName];
-          if (refinements.condition && refinements.condition !== 'any') {
-            parts.push(refinements.condition);
+        // Use DNA searchQueries for precise marketplace matching
+        let searchQueries: string[] = [];
+        
+        if (data.dna?.searchQueries && data.dna.searchQueries.length > 0) {
+          // Use AI-generated search queries from DNA
+          searchQueries = data.dna.searchQueries.slice(0, 3); // Use top 3 queries
+          console.log("Using DNA searchQueries:", searchQueries);
+        } else {
+          // Fallback: Build query from itemName + refinements
+          let searchQuery = data.itemName;
+          if (refinements) {
+            const parts = [data.itemName];
+            if (refinements.condition && refinements.condition !== 'any') {
+              parts.push(refinements.condition);
+            }
+            if (refinements.attributes?.color) {
+              parts.push(refinements.attributes.color);
+            }
+            if (refinements.attributes?.size) {
+              parts.push(refinements.attributes.size);
+            }
+            if (refinements.attributes?.material) {
+              parts.push(refinements.attributes.material);
+            }
+            searchQuery = parts.join(' ');
           }
-          if (refinements.attributes?.color) {
-            parts.push(refinements.attributes.color);
-          }
-          if (refinements.attributes?.size) {
-            parts.push(refinements.attributes.size);
-          }
-          if (refinements.attributes?.material) {
-            parts.push(refinements.attributes.material);
-          }
-          searchQuery = parts.join(' ');
+          searchQueries = [searchQuery];
         }
         
-        console.log(`Fetching SerpAPI prices for: ${searchQuery}`);
-        const serpResults = await searchPricesMultiRegion(searchQuery, ["US", "TR", "DE"]);
+        // Use the most specific query first
+        const primaryQuery = searchQueries[0];
+        console.log(`Fetching SerpAPI prices for: ${primaryQuery}`);
+        const serpResults = await searchPricesMultiRegion(primaryQuery, ["US", "TR", "DE"]);
         
         if (serpResults.length > 0) {
           data.deals = serpResults;
