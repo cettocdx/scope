@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-import { Colors, Spacing, Fonts, BorderRadius } from "@/constants/theme";
+import { Colors, Spacing, Fonts, BorderRadius, Typography } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Review">;
@@ -17,8 +17,12 @@ export default function ReviewScreen({ navigation, route }: Props) {
     navigation.replace("Scanner");
   };
 
-  const handleAnalyze = () => {
+  const handleQuickAnalyze = () => {
     navigation.replace("Analyzing", { imageBase64 });
+  };
+
+  const handleRefine = () => {
+    navigation.replace("Confirm", { imageBase64 });
   };
 
   return (
@@ -28,27 +32,64 @@ export default function ReviewScreen({ navigation, route }: Props) {
         style={StyleSheet.absoluteFill}
         resizeMode="contain"
       />
+      
+      <View style={[styles.topOverlay, { paddingTop: insets.top + Spacing.md }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleRetake}
+          activeOpacity={0.8}
+        >
+          <Feather name="arrow-left" size={24} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Review Photo</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <View
         style={[
           styles.overlay,
           { paddingBottom: insets.bottom + Spacing.md },
         ]}
       >
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={handleRetake}
-          activeOpacity={0.8}
-        >
-          <Feather name="refresh-cw" size={20} color="#FFF" />
-          <Text style={styles.buttonText}>RETAKE</Text>
-        </TouchableOpacity>
+        <Text style={styles.choiceLabel}>Choose Analysis Type</Text>
+        
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={handleAnalyze}
+          onPress={handleQuickAnalyze}
           activeOpacity={0.8}
         >
-          <Feather name="check" size={20} color="#000" />
-          <Text style={styles.primaryButtonText}>ANALYZE</Text>
+          <View style={styles.buttonContent}>
+            <Feather name="zap" size={20} color="#000" />
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.primaryButtonText}>QUICK ANALYZE</Text>
+              <Text style={styles.buttonSubtext}>AI identifies item instantly</Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={20} color="#000" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.refineButton}
+          onPress={handleRefine}
+          activeOpacity={0.8}
+        >
+          <View style={styles.buttonContent}>
+            <Feather name="sliders" size={20} color={Colors.dark.successGreen} />
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.refineButtonText}>CONFIRM & REFINE</Text>
+              <Text style={styles.buttonSubtextLight}>Add condition, size, color for better accuracy</Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={20} color={Colors.dark.textSecondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.retakeLink}
+          onPress={handleRetake}
+          activeOpacity={0.7}
+        >
+          <Feather name="refresh-cw" size={14} color={Colors.dark.textTertiary} />
+          <Text style={styles.retakeLinkText}>Retake Photo</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -60,44 +101,113 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
+  topOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: Typography.h3.fontSize,
+    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts?.mono,
+  },
   overlay: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    padding: Spacing["3xl"],
-    flexDirection: "row",
-    gap: Spacing.lg,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    padding: Spacing.xl,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+  },
+  choiceLabel: {
+    fontSize: Typography.micro.fontSize,
+    fontWeight: "700",
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+    letterSpacing: 1,
+    marginBottom: Spacing.md,
+    textAlign: "center",
   },
   primaryButton: {
-    flex: 1,
-    height: 50,
+    height: 70,
     backgroundColor: Colors.dark.successGreen,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.sm,
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  secondaryButton: {
+  refineButton: {
+    height: 70,
+    backgroundColor: Colors.dark.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.dark.cardBorder,
+    marginBottom: Spacing.lg,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
     flex: 1,
-    height: 50,
-    backgroundColor: Colors.dark.cardBorderLight,
-    borderRadius: BorderRadius.md,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.sm,
   },
-  buttonText: {
-    color: "#FFF",
-    fontWeight: "700",
-    fontFamily: Fonts?.mono,
+  buttonTextContainer: {
+    flex: 1,
   },
   primaryButtonText: {
     color: "#000",
     fontWeight: "700",
+    fontFamily: Fonts?.mono,
+    fontSize: Typography.body.fontSize,
+  },
+  refineButtonText: {
+    color: Colors.dark.text,
+    fontWeight: "700",
+    fontFamily: Fonts?.mono,
+    fontSize: Typography.body.fontSize,
+  },
+  buttonSubtext: {
+    color: "rgba(0, 0, 0, 0.6)",
+    fontSize: Typography.micro.fontSize,
+    fontFamily: Fonts?.mono,
+    marginTop: 2,
+  },
+  buttonSubtextLight: {
+    color: Colors.dark.textTertiary,
+    fontSize: Typography.micro.fontSize,
+    fontFamily: Fonts?.mono,
+    marginTop: 2,
+  },
+  retakeLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  retakeLinkText: {
+    color: Colors.dark.textTertiary,
+    fontSize: Typography.label.fontSize,
     fontFamily: Fonts?.mono,
   },
 });

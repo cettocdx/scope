@@ -1,7 +1,18 @@
-import { AssetData } from "@/types";
+import { AssetData, Condition, Country, AssetAttributes } from "@/types";
 import { getApiUrl } from "@/lib/query-client";
 
-export async function analyzeImage(imageBase64: string): Promise<AssetData> {
+export interface RefinementData {
+  condition?: Condition;
+  country?: Country;
+  attributes?: AssetAttributes;
+  itemName?: string;
+  category?: string;
+}
+
+export async function analyzeImage(
+  imageBase64: string, 
+  refinements?: RefinementData
+): Promise<AssetData> {
   const apiUrl = getApiUrl();
   const url = new URL("/api/analyze", apiUrl);
 
@@ -10,7 +21,10 @@ export async function analyzeImage(imageBase64: string): Promise<AssetData> {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ image: imageBase64 }),
+    body: JSON.stringify({ 
+      image: imageBase64,
+      refinements: refinements || undefined,
+    }),
   });
 
   if (!response.ok) {

@@ -51,6 +51,8 @@ shared/
 - `POST /api/portfolio` - Add/update portfolio asset
 - `DELETE /api/portfolio/:id` - Remove asset from portfolio
 - `POST /api/analyze` - Analyze image with Gemini AI
+- `GET /api/fx?base=USD&quote=TRY` - Get currency exchange rate
+- `POST /api/valuate` - Calculate valuation with outlier detection
 
 ## Recent Changes (Dec 2024)
 - Added Analytics screen with portfolio metrics, best/worst performers, category breakdown, and AI recommendations
@@ -69,6 +71,17 @@ shared/
 - Implemented multi-region price search (USA, Turkey, Europe/Germany)
 - Added region-grouped price display in ResultScreen with color-coded sections
 - Currency conversion to USD for unified price comparison
+
+### Valuation & UX Features (Dec 12, 2024)
+- Added Confirm & Refine screen with variant selectors (size, color, material) and condition picker
+- Implemented valuation endpoint with min/median/max calculation using IQR outlier detection
+- Added FX endpoint for USD/TRY/EUR currency conversion
+- Updated Result screen to show price range (min/median/max) with outlier badges
+- Added AI Rating explanation sheet with "Why?" button showing rating factors
+- Updated navigation flow: Scanner → Review → Confirm (optional) → Analyzing → Result
+- ReviewScreen now offers Quick Analyze or Confirm & Refine options
+- Outlier deals marked with yellow badges and crossed-out prices
+- Enhanced types with Condition, Country, Currency, PriceRange, AssetAttributes
 
 ### AI Optimization (Dec 11, 2024)
 - Enhanced Gemini AI prompt for luxury brand identification accuracy

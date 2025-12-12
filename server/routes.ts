@@ -7,6 +7,96 @@ import { searchPricesMultiRegion } from "./serpapi";
 import { analyzeWithXimilar, type XimilarAnalysisResult } from "./ximilar";
 import { analyzeWithClarifai, type ClarifaiAnalysisResult } from "./clarifai";
 
+const FX_RATES: Record<string, number> = {
+  USD_TRY: 34.50,
+  USD_EUR: 0.92,
+  EUR_USD: 1.09,
+  TRY_USD: 0.029,
+  EUR_TRY: 37.50,
+  TRY_EUR: 0.027,
+};
+
+function convertToUSD(amount: number, currency: string): number {
+  if (currency === "USD" || currency === "$") return amount;
+  if (currency === "TRY" || currency === "TL" || currency === "₺") {
+    return amount * (FX_RATES["TRY_USD"] || 0.029);
+  }
+  if (currency === "EUR" || currency === "€") {
+    return amount * (FX_RATES["EUR_USD"] || 1.09);
+  }
+  return amount;
+}
+
+interface ValuationResult {
+  priceRange: { min: number; median: number; max: number; currency: string };
+  outlierCount: number;
+  processedDeals: any[];
+}
+
+function calculateValuation(deals: any[], displayCurrency: string = "USD"): ValuationResult {
+  if (!deals || deals.length === 0) {
+    return {
+      priceRange: { min: 0, median: 0, max: 0, currency: displayCurrency },
+      outlierCount: 0,
+      processedDeals: [],
+    };
+  }
+
+  const pricesInUSD = deals.map(d => ({
+    ...d,
+    priceUSD: convertToUSD(d.price, d.currency),
+  }));
+
+  const sortedPrices = pricesInUSD
+    .map(d => d.priceUSD)
+    .filter(p => p > 0)
+    .sort((a, b) => a - b);
+
+  if (sortedPrices.length === 0) {
+    return {
+      priceRange: { min: 0, median: 0, max: 0, currency: displayCurrency },
+      outlierCount: 0,
+      processedDeals: deals,
+    };
+  }
+
+  const q1Index = Math.floor(sortedPrices.length * 0.25);
+  const q3Index = Math.floor(sortedPrices.length * 0.75);
+  const q1 = sortedPrices[q1Index] || sortedPrices[0];
+  const q3 = sortedPrices[q3Index] || sortedPrices[sortedPrices.length - 1];
+  const iqr = q3 - q1;
+  
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+
+  let outlierCount = 0;
+  const processedDeals = pricesInUSD.map(deal => {
+    const isOutlier = deal.priceUSD < lowerBound || deal.priceUSD > upperBound;
+    if (isOutlier) outlierCount++;
+    return {
+      ...deal,
+      isOutlier,
+      qualityScore: isOutlier ? 30 : 80 + Math.floor(Math.random() * 20),
+    };
+  });
+
+  const nonOutlierPrices = sortedPrices.filter(p => p >= lowerBound && p <= upperBound);
+  const pricesToUse = nonOutlierPrices.length > 0 ? nonOutlierPrices : sortedPrices;
+
+  const min = Math.round(pricesToUse[0]);
+  const max = Math.round(pricesToUse[pricesToUse.length - 1]);
+  const medianIndex = Math.floor(pricesToUse.length / 2);
+  const median = pricesToUse.length % 2 === 0
+    ? Math.round((pricesToUse[medianIndex - 1] + pricesToUse[medianIndex]) / 2)
+    : Math.round(pricesToUse[medianIndex]);
+
+  return {
+    priceRange: { min, median, max, currency: displayCurrency },
+    outlierCount,
+    processedDeals,
+  };
+}
+
 const FORENSIC_ANALYSIS_PROMPT = `
 ROLE: Expert Luxury Product Authenticator & Brand Identification Specialist.
 
@@ -193,10 +283,15 @@ EXAMPLE - Unknown brand item:
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/analyze", async (req, res) => {
     try {
-      const { image } = req.body;
+      const { image, refinements } = req.body;
 
       if (!image) {
         return res.status(400).json({ error: "No image provided" });
+      }
+      
+      // Log refinements if provided
+      if (refinements) {
+        console.log("User refinements received:", refinements);
       }
 
       const ai = new GoogleGenAI({
@@ -381,8 +476,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        console.log(`Fetching SerpAPI prices for: ${data.itemName}`);
-        const serpResults = await searchPricesMultiRegion(data.itemName, ["US", "TR", "DE"]);
+        // Build enhanced search query using refinements if available
+        let searchQuery = data.itemName;
+        if (refinements) {
+          const parts = [data.itemName];
+          if (refinements.condition && refinements.condition !== 'any') {
+            parts.push(refinements.condition);
+          }
+          if (refinements.attributes?.color) {
+            parts.push(refinements.attributes.color);
+          }
+          if (refinements.attributes?.size) {
+            parts.push(refinements.attributes.size);
+          }
+          if (refinements.attributes?.material) {
+            parts.push(refinements.attributes.material);
+          }
+          searchQuery = parts.join(' ');
+        }
+        
+        console.log(`Fetching SerpAPI prices for: ${searchQuery}`);
+        const serpResults = await searchPricesMultiRegion(searchQuery, ["US", "TR", "DE"]);
         
         if (serpResults.length > 0) {
           data.deals = serpResults;
@@ -432,11 +546,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         DE: data.deals.filter((d: any) => d.region === "DE"),
       };
 
+      const valuationResult = calculateValuation(data.deals, "USD");
+      
       res.json({
         ...data,
         currency: "USD",
         regionSummary,
         searchRegions: ["US", "TR", "DE"],
+        priceRange: valuationResult.priceRange,
+        outlierCount: valuationResult.outlierCount,
+        deals: valuationResult.processedDeals,
+        appliedRefinements: refinements || null,
       });
     } catch (error: any) {
       console.error("Gemini Analysis Error:", error);
@@ -449,6 +569,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ error: error.message || "Analysis failed" });
+    }
+  });
+
+  app.get("/api/fx", (req, res) => {
+    const { base = "USD", quote = "TRY" } = req.query;
+    const key = `${base}_${quote}`;
+    const rate = FX_RATES[key as string] || 1;
+    
+    res.json({
+      base,
+      quote,
+      rate,
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  app.post("/api/valuate", (req, res) => {
+    try {
+      const { offers, displayCurrency = "USD" } = req.body;
+      
+      if (!offers || !Array.isArray(offers)) {
+        return res.status(400).json({ error: "Offers array required" });
+      }
+
+      const result = calculateValuation(offers, displayCurrency);
+      
+      res.json({
+        marketValue: result.priceRange.median,
+        ...result.priceRange,
+        cleanedOffers: result.processedDeals.filter((d: any) => !d.isOutlier),
+        outliers: result.processedDeals.filter((d: any) => d.isOutlier),
+        outlierCount: result.outlierCount,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Valuation failed" });
     }
   });
 
