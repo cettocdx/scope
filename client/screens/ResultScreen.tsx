@@ -65,6 +65,17 @@ export default function ResultScreen({ navigation, route }: Props) {
   const { imageBase64, assetData } = route.params;
   const [isSaving, setIsSaving] = useState(false);
 
+  const safeAssetData = {
+    itemName: assetData?.itemName || "Unknown Item",
+    estimatedPrice: assetData?.estimatedPrice || 0,
+    currency: assetData?.currency || "USD",
+    trendPercentage: assetData?.trendPercentage || 0,
+    confidenceScore: assetData?.confidenceScore || 0,
+    category: assetData?.category || "General",
+    investmentRating: assetData?.investmentRating || "HOLD",
+    deals: assetData?.deals || [],
+  };
+
   const handleClose = () => {
     navigation.popToTop();
   };
@@ -73,14 +84,14 @@ export default function ResultScreen({ navigation, route }: Props) {
     setIsSaving(true);
     try {
       const newAsset: PortfolioAsset = {
-        ...assetData,
+        ...safeAssetData,
         id: `asset-${Date.now()}`,
         dateAdded: new Date().toISOString(),
-        purchasePrice: assetData.estimatedPrice,
-        isAuthentic: assetData.confidenceScore > 80,
+        purchasePrice: safeAssetData.estimatedPrice,
+        isAuthentic: safeAssetData.confidenceScore > 80,
         history: Array(7)
           .fill(0)
-          .map(() => assetData.estimatedPrice * (0.95 + Math.random() * 0.1)),
+          .map(() => safeAssetData.estimatedPrice * (0.95 + Math.random() * 0.1)),
         imageBase64,
       };
 
@@ -105,11 +116,11 @@ export default function ResultScreen({ navigation, route }: Props) {
   const handleGeneratePromo = async () => {
     try {
       const promoContent = generatePromoContent(
-        assetData.itemName,
-        assetData.estimatedPrice,
-        assetData.investmentRating,
-        assetData.trendPercentage,
-        assetData.category
+        safeAssetData.itemName,
+        safeAssetData.estimatedPrice,
+        safeAssetData.investmentRating,
+        safeAssetData.trendPercentage,
+        safeAssetData.category
       );
 
       if (Platform.OS !== "web") {
@@ -118,7 +129,7 @@ export default function ResultScreen({ navigation, route }: Props) {
 
       await Share.share({
         message: promoContent,
-        title: `SCOPE Promo: ${assetData.itemName}`,
+        title: `SCOPE Promo: ${safeAssetData.itemName}`,
       });
     } catch (e) {
       console.error('Promo share error:', e);
@@ -127,22 +138,22 @@ export default function ResultScreen({ navigation, route }: Props) {
 
   const handleShareReport = async () => {
     try {
-      const bestDeal = assetData.deals?.find(d => d.isBestDeal);
-      const dealsSummary = assetData.deals
+      const bestDeal = safeAssetData.deals?.find(d => d.isBestDeal);
+      const dealsSummary = safeAssetData.deals
         ?.map(d => `${d.storeName}: $${d.price}${d.isBestDeal ? ' (Best Price)' : ''}`)
         .join('\n') || '';
 
       const reportText = `
 SCOPE Asset Analysis Report
 
-${assetData.itemName}
-Category: ${assetData.category}
+${safeAssetData.itemName}
+Category: ${safeAssetData.category}
 
 MARKET VALUATION
-Estimated Value: $${assetData.estimatedPrice.toLocaleString()}
-Trend: ${assetData.trendPercentage > 0 ? '+' : ''}${assetData.trendPercentage}% (24H)
-AI Confidence: ${assetData.confidenceScore}%
-Investment Rating: ${assetData.investmentRating}
+Estimated Value: $${safeAssetData.estimatedPrice.toLocaleString()}
+Trend: ${safeAssetData.trendPercentage > 0 ? '+' : ''}${safeAssetData.trendPercentage}% (24H)
+AI Confidence: ${safeAssetData.confidenceScore}%
+Investment Rating: ${safeAssetData.investmentRating}
 
 GLOBAL MARKET PRICES
 ${dealsSummary}
@@ -158,7 +169,7 @@ Analyzed by SCOPE - AI Asset Scanner
 
       await Share.share({
         message: reportText,
-        title: `SCOPE Analysis: ${assetData.itemName}`,
+        title: `SCOPE Analysis: ${safeAssetData.itemName}`,
       });
     } catch (e) {
       console.error('Share error:', e);
@@ -176,16 +187,16 @@ Analyzed by SCOPE - AI Asset Scanner
           <View style={styles.headerLeft}>
             <View style={styles.tagRow}>
               <View style={styles.categoryTag}>
-                <Text style={styles.categoryText}>{assetData.category}</Text>
+                <Text style={styles.categoryText}>{safeAssetData.category}</Text>
               </View>
-              {assetData.confidenceScore > 85 && (
+              {safeAssetData.confidenceScore > 85 && (
                 <View style={styles.matchTag}>
                   <Text style={styles.matchText}>99% MATCH</Text>
                 </View>
               )}
             </View>
             <Text style={styles.title} numberOfLines={2}>
-              {assetData.itemName}
+              {safeAssetData.itemName}
             </Text>
           </View>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
@@ -196,14 +207,14 @@ Analyzed by SCOPE - AI Asset Scanner
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.priceRow}>
             <Text style={styles.price}>
-              ${assetData.estimatedPrice.toLocaleString()}
+              ${safeAssetData.estimatedPrice.toLocaleString()}
             </Text>
             <View
               style={[
                 styles.trendBadge,
                 {
                   backgroundColor:
-                    assetData.trendPercentage >= 0
+                    safeAssetData.trendPercentage >= 0
                       ? "rgba(0, 255, 148, 0.2)"
                       : "rgba(255, 59, 48, 0.2)",
                 },
@@ -214,14 +225,14 @@ Analyzed by SCOPE - AI Asset Scanner
                   styles.trendText,
                   {
                     color:
-                      assetData.trendPercentage >= 0
+                      safeAssetData.trendPercentage >= 0
                         ? Colors.dark.successGreen
                         : Colors.dark.alertRed,
                   },
                 ]}
               >
-                {assetData.trendPercentage > 0 ? "+" : ""}
-                {assetData.trendPercentage}% (24H)
+                {safeAssetData.trendPercentage > 0 ? "+" : ""}
+                {safeAssetData.trendPercentage}% (24H)
               </Text>
             </View>
           </View>
@@ -254,7 +265,7 @@ Analyzed by SCOPE - AI Asset Scanner
             { code: "TR", name: "TURKEY", flag: "map-pin", color: "#EF4444" },
             { code: "DE", name: "EUROPE", flag: "globe", color: "#A855F7" },
           ].map((region) => {
-            const regionDeals = assetData.deals?.filter((d: any) => d.region === region.code) || [];
+            const regionDeals = safeAssetData.deals?.filter((d: any) => d.region === region.code) || [];
             if (regionDeals.length === 0) return null;
             
             return (
