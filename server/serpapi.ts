@@ -10,6 +10,26 @@ interface SerpApiResult {
   originalCurrency?: string;
 }
 
+/**
+ * Minimal shape of a single entry in SerpAPI's `shopping_results` array. Only
+ * the fields we actually read are declared; everything is optional because the
+ * upstream payload is untrusted and may omit any of them.
+ */
+interface SerpShoppingResult {
+  source?: string;
+  seller?: string;
+  price?: string;
+  extracted_price?: number;
+  link?: string;
+  product_link?: string;
+  thumbnail?: string;
+}
+
+/** Minimal shape of the SerpAPI search response we consume. */
+interface SerpApiResponse {
+  shopping_results?: SerpShoppingResult[];
+}
+
 interface RegionConfig {
   code: string;
   name: string;
@@ -251,25 +271,25 @@ export async function searchPricesMultiRegion(
         continue;
       }
 
-      const data = await response.json();
-      
+      const data = (await response.json()) as SerpApiResponse;
+
       if (data.shopping_results && Array.isArray(data.shopping_results)) {
         // Filter and process results - only include stores valid for this region
         const validResults = data.shopping_results
-          .filter((item: any) => {
+          .filter((item: SerpShoppingResult) => {
             const storeName = item.source || item.seller || "";
             // Check if store is valid for this region
             return isValidStoreForRegion(storeName, regionCode);
           })
           .slice(0, 3);
-        
+
         // If no valid stores found, skip this region. We never fabricate prices.
         if (validResults.length === 0) {
           console.log(`No valid stores found for ${regionCode}, skipping`);
           continue;
         }
 
-        const regionResults = validResults.map((item: any) => {
+        const regionResults = validResults.map((item: SerpShoppingResult) => {
           let priceValue: number;
           let priceCurrency: string;
           

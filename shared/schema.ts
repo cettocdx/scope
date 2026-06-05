@@ -3,6 +3,26 @@ import { pgTable, text, varchar, integer, real, boolean, timestamp, jsonb, index
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+/**
+ * A single store offer / deal for an item. Defined here (rather than importing
+ * from server/) so the jsonb column type below can reference it without a
+ * circular import between shared and server code.
+ */
+export interface Deal {
+  storeName: string;
+  price: number;
+  currency: string;
+  url: string;
+  region: string;
+  isBestDeal?: boolean;
+  isOutlier?: boolean;
+  qualityScore?: number;
+  priceUSD?: number;
+  originalPrice?: number;
+  originalCurrency?: string;
+  thumbnail?: string;
+}
+
 export const users = pgTable("users", {
   id: varchar("id")
     .primaryKey()
@@ -26,7 +46,7 @@ export const portfolioAssets = pgTable("portfolio_assets", {
   investmentRating: varchar("investment_rating", { length: 10 }).notNull(),
   isAuthentic: boolean("is_authentic").notNull().default(true),
   history: jsonb("history").$type<number[]>().notNull().default([]),
-  deals: jsonb("deals").$type<any[]>().default([]),
+  deals: jsonb("deals").$type<Deal[]>().default([]),
   imageBase64: text("image_base64"),
   dateAdded: timestamp("date_added").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

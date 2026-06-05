@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
-import { insertPortfolioAssetSchema } from "@shared/schema";
+import { insertPortfolioAssetSchema, type Deal } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { searchPricesMultiRegion } from "./serpapi";
@@ -132,13 +132,35 @@ export function convertToUSD(amount: number, currency: string): number {
   return amount;
 }
 
+/**
+ * Accepted input for valuation: only `price` and `currency` are required; any
+ * other Deal fields may be present and are preserved/augmented on output.
+ */
+type ValuationInput = Pick<Deal, "price" | "currency"> & Partial<Deal>;
+
 interface ValuationResult {
   priceRange: { min: number; median: number; max: number; currency: string };
   outlierCount: number;
-  processedDeals: any[];
+  processedDeals: Deal[];
 }
 
-export function calculateValuation(deals: any[], displayCurrency: string = "USD"): ValuationResult {
+/**
+ * Narrow an unknown thrown value into a safe { message, status } shape so we
+ * never access properties on an untyped `any`. Mirrors the pattern used by the
+ * central error handler in index.ts.
+ */
+function getErrorInfo(e: unknown): { message: string; status?: number } {
+  if (e && typeof e === "object") {
+    const err = e as { message?: unknown; status?: unknown; statusCode?: unknown };
+    const message = typeof err.message === "string" ? err.message : String(e);
+    const rawStatus = err.status ?? err.statusCode;
+    const status = typeof rawStatus === "number" ? rawStatus : undefined;
+    return { message, status };
+  }
+  return { message: String(e) };
+}
+
+export function calculateValuation(deals: ValuationInput[], displayCurrency: string = "USD"): ValuationResult {
   if (!deals || deals.length === 0) {
     return {
       priceRange: { min: 0, median: 0, max: 0, currency: displayCurrency },
@@ -161,7 +183,9 @@ export function calculateValuation(deals: any[], displayCurrency: string = "USD"
     return {
       priceRange: { min: 0, median: 0, max: 0, currency: displayCurrency },
       outlierCount: 0,
-      processedDeals: deals,
+      // Inputs are full Deals in the real flow; price/currency-only objects only
+      // occur in unit tests where the extra fields are not asserted.
+      processedDeals: deals as Deal[],
     };
   }
 
@@ -198,7 +222,7 @@ export function calculateValuation(deals: any[], displayCurrency: string = "USD"
   return {
     priceRange: { min, median, max, currency: displayCurrency },
     outlierCount,
-    processedDeals,
+    processedDeals: processedDeals as Deal[],
   };
 }
 
@@ -573,17 +597,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const text = geminiResponse.text;
       if (!text) {
-        return res.status(500).json({ error: "No response from AI" });
+        // Upstream AI returned an empty body — treat as a bad gateway response.
+        return res.status(502).json({ error: "No response from AI" });
       }
 
       const cleanJson = text.replace(/```json|```/g, "").trim();
-      
+
       let data;
       try {
         data = JSON.parse(cleanJson);
       } catch (e) {
         console.error("JSON Parse Error. Output preview:", cleanJson.slice(0, 200));
-        return res.status(500).json({ error: "Failed to parse market data" });
+        // The upstream AI produced output we cannot parse — a bad gateway, not a
+        // server fault on our side.
+        return res.status(502).json({ error: "Failed to parse AI response" });
       }
 
       if (!data.visualEvidence) {
@@ -648,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const cleanItemName = data.itemName.replace(/[^a-zA-Z0-9 ]/g, "").trim();
         const encodedItem = encodeURIComponent(cleanItemName);
 
-        data.deals = data.deals.map((deal: any) => {
+        data.deals = data.deals.map((deal: Deal) => {
           if (deal.url && deal.url.startsWith("http")) {
             return deal;
           }
@@ -752,9 +779,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const regionSummary = {
-        US: data.deals.filter((d: any) => d.region === "US"),
-        TR: data.deals.filter((d: any) => d.region === "TR"),
-        DE: data.deals.filter((d: any) => d.region === "DE"),
+        US: data.deals.filter((d: Deal) => d.region === "US"),
+        TR: data.deals.filter((d: Deal) => d.region === "TR"),
+        DE: data.deals.filter((d: Deal) => d.region === "DE"),
       };
 
       const valuationResult = calculateValuation(data.deals, "USD");
@@ -769,16 +796,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deals: valuationResult.processedDeals,
         appliedRefinements: refinements || null,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Gemini Analysis Error:", error);
-      
-      if (error.status === 429 || error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
-        return res.status(429).json({ 
+
+      const { message, status } = getErrorInfo(error);
+
+      if (status === 429 || message.includes("429") || message.includes("RESOURCE_EXHAUSTED")) {
+        return res.status(429).json({
           error: "Too many requests. Please wait a moment and try again.",
-          isRateLimit: true 
+          isRateLimit: true
         });
       }
-      
+
+      // Distinguish upstream (Gemini) failures from our own faults. A timeout on
+      // the Gemini call or a 5xx/upstream status maps to 502 (bad gateway); we
+      // never leak the internal detail to the client.
+      const isUpstreamTimeout = message.includes("Gemini request timed out");
+      const isUpstreamStatus = typeof status === "number" && status >= 500;
+      if (isUpstreamTimeout || isUpstreamStatus) {
+        return res.status(502).json({ error: "Analysis failed" });
+      }
+
       res.status(500).json({ error: "Analysis failed" });
     }
   });
@@ -809,11 +847,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         marketValue: result.priceRange.median,
         ...result.priceRange,
-        cleanedOffers: result.processedDeals.filter((d: any) => !d.isOutlier),
-        outliers: result.processedDeals.filter((d: any) => d.isOutlier),
+        cleanedOffers: result.processedDeals.filter((d: Deal) => !d.isOutlier),
+        outliers: result.processedDeals.filter((d: Deal) => d.isOutlier),
         outlierCount: result.outlierCount,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Valuation error:", error);
       res.status(500).json({ error: "Valuation failed" });
     }
@@ -827,7 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const assets = await storage.getPortfolioAssets(deviceId);
       res.json(assets);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Portfolio fetch error:", error);
       res.status(500).json({ error: "Failed to fetch portfolio" });
     }
@@ -875,7 +913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(asset);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Portfolio create error:", error);
       res.status(500).json({ error: "Failed to create asset" });
     }
@@ -903,7 +941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(asset);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Portfolio update error:", error);
       res.status(500).json({ error: "Failed to update asset" });
     }
@@ -919,7 +957,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Portfolio delete error:", error);
       res.status(500).json({ error: "Failed to delete asset" });
     }
@@ -962,7 +1000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(syncedAssets);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Portfolio sync error:", error);
       res.status(500).json({ error: "Failed to sync portfolio" });
     }

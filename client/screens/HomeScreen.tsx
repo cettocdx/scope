@@ -159,6 +159,8 @@ export default function HomeScreen({ navigation }: Props) {
           style={styles.mainButton}
           onPress={handleStartScanner}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Start scanning. Point camera at any object"
         >
           <View style={styles.mainButtonGlow} />
           <View style={styles.mainButtonContent}>
@@ -179,6 +181,8 @@ export default function HomeScreen({ navigation }: Props) {
           style={styles.vaultButton}
           onPress={handleOpenVault}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Access vault, ${assetCount} assets`}
         >
           <Feather name="lock" size={16} color={Colors.dark.textSecondary} />
           <Text style={styles.vaultButtonText}>ACCESS VAULT</Text>
