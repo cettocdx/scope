@@ -18,13 +18,15 @@ import { Condition, Country, AssetAttributes } from "@/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Confirm">;
 
-const CONDITIONS: { value: Condition; label: string; icon: string }[] = [
+type FeatherIconName = React.ComponentProps<typeof Feather>["name"];
+
+const CONDITIONS: { value: Condition; label: string; icon: FeatherIconName }[] = [
   { value: "NEW", label: "New", icon: "package" },
   { value: "LIKE_NEW", label: "Like New", icon: "check-circle" },
   { value: "USED", label: "Used", icon: "clock" },
 ];
 
-const COUNTRIES: { value: Country; label: string; flag: string }[] = [
+const COUNTRIES: { value: Country; label: string; flag: FeatherIconName }[] = [
   { value: "USA", label: "USA", flag: "flag" },
   { value: "TURKEY", label: "Turkey", flag: "map-pin" },
   { value: "EUROPE", label: "Europe", flag: "globe" },
@@ -123,6 +125,9 @@ export default function ConfirmScreen({ navigation, route }: Props) {
                 onSelect(selected === option ? "" : option);
               }}
               activeOpacity={0.7}
+              accessibilityRole="radio"
+              accessibilityLabel={`${title}: ${option}`}
+              accessibilityState={{ selected: selected === option }}
             >
               <Text
                 style={[
@@ -142,7 +147,12 @@ export default function ConfirmScreen({ navigation, route }: Props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Feather name="arrow-left" size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Confirm Details</Text>
@@ -185,9 +195,12 @@ export default function ConfirmScreen({ navigation, route }: Props) {
                 setCondition(c.value);
               }}
               activeOpacity={0.7}
+              accessibilityRole="radio"
+              accessibilityLabel={`Condition: ${c.label}`}
+              accessibilityState={{ selected: condition === c.value }}
             >
               <Feather
-                name={c.icon as any}
+                name={c.icon}
                 size={20}
                 color={condition === c.value ? Colors.dark.successGreen : Colors.dark.textSecondary}
               />
@@ -219,9 +232,12 @@ export default function ConfirmScreen({ navigation, route }: Props) {
                 setCountry(c.value);
               }}
               activeOpacity={0.7}
+              accessibilityRole="radio"
+              accessibilityLabel={`Market region: ${c.label}`}
+              accessibilityState={{ selected: country === c.value }}
             >
               <Feather
-                name={c.flag as any}
+                name={c.flag}
                 size={18}
                 color={country === c.value ? Colors.dark.successGreen : Colors.dark.textSecondary}
               />
@@ -249,6 +265,8 @@ export default function ConfirmScreen({ navigation, route }: Props) {
           style={styles.continueButton}
           onPress={handleContinue}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Update valuation"
         >
           <Text style={styles.continueButtonText}>UPDATE VALUATION</Text>
           <Feather name="arrow-right" size={20} color="#000" />

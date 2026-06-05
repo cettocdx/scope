@@ -19,7 +19,7 @@ import * as Haptics from "expo-haptics";
 
 import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { PortfolioAsset } from "@/types";
+import { PortfolioAsset, ProductDeal } from "@/types";
 import { addAssetToPortfolio } from "@/services/portfolioService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -324,21 +324,26 @@ Analyzed by SCOPE - AI Asset Scanner
 
           <Text style={styles.sectionTitle}>GLOBAL MARKETS</Text>
 
-          {[
+          {([
             { code: "US", name: "USA", flag: "flag", color: "#60A5FA" },
             { code: "TR", name: "TURKEY", flag: "map-pin", color: "#EF4444" },
             { code: "DE", name: "EUROPE", flag: "globe", color: "#A855F7" },
-          ].map((region) => {
-            const regionDeals = safeAssetData.deals?.filter((d: any) => d.region === region.code) || [];
+          ] as {
+            code: string;
+            name: string;
+            flag: React.ComponentProps<typeof Feather>["name"];
+            color: string;
+          }[]).map((region) => {
+            const regionDeals = safeAssetData.deals?.filter((d: ProductDeal) => d.region === region.code) || [];
             if (regionDeals.length === 0) return null;
             
             return (
               <View key={region.code} style={styles.regionSection}>
                 <View style={styles.regionHeader}>
-                  <Feather name={region.flag as any} size={14} color={region.color} />
+                  <Feather name={region.flag} size={14} color={region.color} />
                   <Text style={[styles.regionTitle, { color: region.color }]}>{region.name}</Text>
                 </View>
-                {regionDeals.map((deal: any, index: number) => (
+                {regionDeals.map((deal: ProductDeal, index: number) => (
                   <TouchableOpacity
                     key={`${region.code}-${index}`}
                     style={[styles.dealCard, deal.isOutlier && styles.dealCardOutlier]}

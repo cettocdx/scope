@@ -136,8 +136,8 @@ export async function fetchCloudPortfolio(): Promise<PortfolioAsset[]> {
       return [];
     }
 
-    const cloudAssets = await response.json();
-    return cloudAssets.map((a: any) => ({
+    const cloudAssets: PortfolioAsset[] = await response.json();
+    return cloudAssets.map((a) => ({
       ...a,
       dateAdded: a.dateAdded || new Date().toISOString(),
     }));

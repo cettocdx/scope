@@ -21,10 +21,10 @@ export async function fetchWithTimeout(
 
   try {
     return await fetch(input, { ...init, signal: controller.signal });
-  } catch (e: any) {
+  } catch (e: unknown) {
     // AbortController surfaces an AbortError when the timer fires; translate it
     // into a clear, user-facing message instead of a generic "Aborted".
-    if (e?.name === "AbortError") {
+    if (e instanceof Error && e.name === "AbortError") {
       throw new Error(timeoutError);
     }
     throw e;
