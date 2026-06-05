@@ -12,6 +12,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Colors, Spacing, Fonts, Typography } from "@/constants/theme";
+import { LogoMark } from "@/components/Logo";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 
@@ -88,9 +89,6 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + Spacing.xl }]}>
-      <Animated.View style={[styles.glowOrb, { opacity: glowAnim }]} />
-      <Animated.View style={[styles.glowOrb2, { opacity: glowAnim }]} />
-
       <View style={styles.topSection}>
         <View style={styles.headerRow}>
           <View>
@@ -109,10 +107,10 @@ export default function HomeScreen({ navigation }: Props) {
 
       <View style={styles.centerSection}>
         <View style={styles.logoContainer}>
-          <Animated.View style={[styles.logoGlow, { transform: [{ scale: pulseAnim }] }]} />
-          <View style={styles.logoIcon}>
-            <Feather name="target" size={40} color={Colors.dark.successGreen} />
-          </View>
+          <Animated.View
+            style={[styles.logoGlow, { transform: [{ scale: pulseAnim }], opacity: glowAnim }]}
+          />
+          <LogoMark size={76} />
         </View>
 
         <Text style={styles.heroTitle}>SCOPE</Text>
@@ -144,11 +142,11 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={styles.pillText}>SCAN</Text>
           </View>
           <View style={styles.pill}>
-            <Feather name="cpu" size={12} color="#60A5FA" />
+            <Feather name="cpu" size={12} color={Colors.dark.textTertiary} />
             <Text style={styles.pillText}>AI ANALYZE</Text>
           </View>
           <View style={styles.pill}>
-            <Feather name="dollar-sign" size={12} color="#C084FC" />
+            <Feather name="dollar-sign" size={12} color={Colors.dark.textTertiary} />
             <Text style={styles.pillText}>VALUATE</Text>
           </View>
         </View>
@@ -203,26 +201,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.backgroundRoot,
     paddingHorizontal: Spacing["2xl"],
     justifyContent: "space-between",
-  },
-  glowOrb: {
-    position: "absolute",
-    top: -100,
-    right: -100,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: Colors.dark.successGreen,
-    opacity: 0.15,
-  },
-  glowOrb2: {
-    position: "absolute",
-    bottom: 100,
-    left: -150,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "#60A5FA",
-    opacity: 0.1,
   },
   topSection: {
     marginTop: Spacing.xl,
@@ -288,26 +266,16 @@ const styles = StyleSheet.create({
   },
   logoGlow: {
     position: "absolute",
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: Colors.dark.successGreen,
-    opacity: 0.15,
-  },
-  logoIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(0, 255, 148, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(0, 255, 148, 0.3)",
+    opacity: 0.1,
   },
   heroTitle: {
-    fontSize: 52,
+    fontSize: 50,
     fontWeight: "800",
-    letterSpacing: 12,
+    letterSpacing: 8,
     color: Colors.dark.text,
     fontFamily: Fonts?.mono,
   },
