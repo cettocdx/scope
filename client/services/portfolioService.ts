@@ -1,14 +1,43 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { PortfolioAsset } from "@/types";
 
 const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
 const DEVICE_ID_KEY = "scope_device_id";
 
+// Cloud sync is best-effort; bound each request so a stalled network never
+// leaves a fire-and-forget promise hanging forever.
+const CLOUD_TIMEOUT_MS = 10_000;
+
+function generateDeviceId(): string {
+  // Build a long, high-entropy UUID-like id without adding dependencies.
+  // Prefer a native crypto UUID when available, otherwise combine multiple
+  // random segments so the id is not trivially enumerable.
+  const cryptoObj = (globalThis as any)?.crypto;
+  if (cryptoObj?.randomUUID) {
+    return `device-${cryptoObj.randomUUID()}`;
+  }
+
+  if (cryptoObj?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    cryptoObj.getRandomValues(bytes);
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `device-${hex}`;
+  }
+
+  // Fallback: 4 random segments (~52 bits each from Math.random) gives a
+  // 32+ character unpredictable hex-like string.
+  const segment = () => Math.random().toString(16).slice(2).padStart(13, "0");
+  return `device-${segment()}${segment()}${segment()}`;
+}
+
 async function getDeviceId(): Promise<string> {
   let deviceId = await AsyncStorage.getItem(DEVICE_ID_KEY);
   if (!deviceId) {
-    deviceId = `device-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // Existing (legacy) device ids are preserved; only freshly generated ids
+    // use the stronger format.
+    deviceId = generateDeviceId();
     await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId);
   }
   return deviceId;
@@ -54,7 +83,7 @@ async function syncToCloud(asset: PortfolioAsset): Promise<void> {
     const apiUrl = getApiUrl();
     const url = new URL(`/api/portfolio/${deviceId}`, apiUrl);
 
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -73,7 +102,7 @@ async function syncToCloud(asset: PortfolioAsset): Promise<void> {
         imageBase64: asset.imageBase64,
         dateAdded: asset.dateAdded,
       }),
-    });
+    }, CLOUD_TIMEOUT_MS);
 
     if (!response.ok) {
       console.error("Cloud sync failed:", await response.text());
@@ -89,7 +118,7 @@ async function deleteFromCloud(assetId: string): Promise<void> {
     const apiUrl = getApiUrl();
     const url = new URL(`/api/portfolio/${deviceId}/${assetId}`, apiUrl);
 
-    await fetch(url.toString(), { method: "DELETE" });
+    await fetchWithTimeout(url.toString(), { method: "DELETE" }, CLOUD_TIMEOUT_MS);
   } catch (e) {
     console.error("Cloud delete error:", e);
   }
@@ -101,7 +130,7 @@ export async function fetchCloudPortfolio(): Promise<PortfolioAsset[]> {
     const apiUrl = getApiUrl();
     const url = new URL(`/api/portfolio/${deviceId}`, apiUrl);
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithTimeout(url.toString(), {}, CLOUD_TIMEOUT_MS);
     if (!response.ok) {
       console.error("Cloud fetch failed:", await response.text());
       return [];

@@ -4,9 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Platform,
   Animated,
-  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -18,7 +16,6 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 
 const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
-const { width } = Dimensions.get("window");
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 

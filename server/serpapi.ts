@@ -19,6 +19,23 @@ interface RegionConfig {
   hl: string;
 }
 
+// Wraps fetch with an AbortController-based timeout so external calls can never
+// hang indefinitely. On timeout the request is aborted and the call rejects
+// (an AbortError), which existing try/catch fallbacks treat as a normal failure.
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 9000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const REGIONS: Record<string, RegionConfig> = {
   US: {
     code: "US",
@@ -144,7 +161,7 @@ function convertToUSD(price: number, currency: string): number {
   return Math.round(price * rate * 100) / 100;
 }
 
-function extractPrice(priceStr: string): { value: number; currency: string } {
+export function extractPrice(priceStr: string): { value: number; currency: string } {
   let currency = "USD";
   if (priceStr.includes("₺") || priceStr.includes("TL") || priceStr.includes("TRY")) {
     currency = "TRY";
@@ -155,24 +172,42 @@ function extractPrice(priceStr: string): { value: number; currency: string } {
   }
 
   let cleaned = priceStr.replace(/[^\d.,]/g, "");
-  
-  const lastComma = cleaned.lastIndexOf(",");
-  const lastDot = cleaned.lastIndexOf(".");
-  
-  if (lastComma > lastDot) {
-    cleaned = cleaned.replace(/\./g, "").replace(",", ".");
-  } else if (lastDot > lastComma) {
-    cleaned = cleaned.replace(/,/g, "");
-  } else if (lastComma !== -1 && lastDot === -1) {
-    if (cleaned.indexOf(",") !== cleaned.lastIndexOf(",")) {
-      cleaned = cleaned.replace(/,/g, "");
+
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+
+  if (hasComma && hasDot) {
+    // Both separators present: the LAST one to appear is the decimal separator,
+    // the other is the thousands separator. e.g. "1.234,56" -> 1234.56,
+    // "1,234.56" -> 1234.56.
+    const lastComma = cleaned.lastIndexOf(",");
+    const lastDot = cleaned.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, "").replace(",", ".");
     } else {
-      const afterComma = cleaned.split(",")[1];
-      if (afterComma && afterComma.length <= 2) {
-        cleaned = cleaned.replace(",", ".");
-      } else {
-        cleaned = cleaned.replace(/,/g, "");
-      }
+      cleaned = cleaned.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    // Only commas. A single comma followed by EXACTLY 2 digits is a decimal
+    // separator (e.g. "19,99" -> 19.99); anything else (3+ trailing digits or
+    // multiple groups) is a thousands separator (e.g. "1,299" -> 1299,
+    // "1,234,567" -> 1234567).
+    const parts = cleaned.split(",");
+    if (parts.length === 2 && parts[1].length === 2) {
+      cleaned = cleaned.replace(",", ".");
+    } else {
+      cleaned = cleaned.replace(/,/g, "");
+    }
+  } else if (hasDot) {
+    // Only dots. A single dot followed by EXACTLY 2 digits is a decimal
+    // separator (e.g. "19.99" -> 19.99); a single dot followed by 3 digits is a
+    // thousands separator (e.g. "1.234" -> 1234); multiple dots are thousands
+    // separators (e.g. "1.234.567" -> 1234567).
+    const parts = cleaned.split(".");
+    if (parts.length === 2 && parts[1].length === 2) {
+      // keep as-is, it is already a valid decimal
+    } else {
+      cleaned = cleaned.replace(/\./g, "");
     }
   }
 
@@ -185,10 +220,12 @@ export async function searchPricesMultiRegion(
   regions: string[] = ["US", "TR", "DE"]
 ): Promise<SerpApiResult[]> {
   const apiKey = process.env.SERPAPI_KEY;
-  
+
   if (!apiKey) {
-    console.warn("SERPAPI_KEY not configured, using fallback prices");
-    return generateFallbackPrices(query, regions);
+    // No API key: do NOT fabricate prices. Return empty so callers fall back to
+    // AI-estimated pricing instead of made-up numbers.
+    console.warn("SERPAPI_KEY not configured, returning no results");
+    return [];
   }
 
   const allResults: SerpApiResult[] = [];
@@ -207,7 +244,7 @@ export async function searchPricesMultiRegion(
         num: "5",
       });
 
-      const response = await fetch(`https://serpapi.com/search?${params}`);
+      const response = await fetchWithTimeout(`https://serpapi.com/search?${params}`);
       
       if (!response.ok) {
         console.error(`SerpAPI error for ${regionCode}:`, response.status);
@@ -226,11 +263,9 @@ export async function searchPricesMultiRegion(
           })
           .slice(0, 3);
         
-        // If no valid stores found, use fallback stores for this region
+        // If no valid stores found, skip this region. We never fabricate prices.
         if (validResults.length === 0) {
-          console.log(`No valid stores found for ${regionCode}, using fallback`);
-          const fallbackForRegion = generateFallbackPricesForRegion(query, regionCode);
-          allResults.push(...fallbackForRegion);
+          console.log(`No valid stores found for ${regionCode}, skipping`);
           continue;
         }
 
@@ -270,10 +305,6 @@ export async function searchPricesMultiRegion(
     }
   }
 
-  if (allResults.length === 0) {
-    return generateFallbackPrices(query, regions);
-  }
-
   if (allResults.length > 0) {
     const minPrice = Math.min(...allResults.map(r => r.price));
     allResults.forEach(r => {
@@ -282,86 +313,6 @@ export async function searchPricesMultiRegion(
   }
 
   return allResults;
-}
-
-const FALLBACK_STORES: Record<string, { stores: string[]; multiplier: number; urls: Record<string, string> }> = {
-  US: {
-    stores: ["Amazon", "Nordstrom", "Saks Fifth Avenue"],
-    multiplier: 1,
-    urls: {
-      "Amazon": "https://www.amazon.com/s?k=",
-      "Nordstrom": "https://www.nordstrom.com/sr?keyword=",
-      "Saks Fifth Avenue": "https://www.saksfifthavenue.com/search?q=",
-    }
-  },
-  TR: {
-    stores: ["Trendyol", "Hepsiburada", "Beymen"],
-    multiplier: 0.85,
-    urls: {
-      "Trendyol": "https://www.trendyol.com/sr?q=",
-      "Hepsiburada": "https://www.hepsiburada.com/ara?q=",
-      "Beymen": "https://www.beymen.com/arama?q=",
-    }
-  },
-  DE: {
-    stores: ["Zalando", "Mytheresa", "Breuninger"],
-    multiplier: 1.1,
-    urls: {
-      "Zalando": "https://www.zalando.de/suche/?q=",
-      "Mytheresa": "https://www.mytheresa.com/search?q=",
-      "Breuninger": "https://www.breuninger.com/de/suche/?q=",
-    }
-  },
-  UK: {
-    stores: ["Selfridges", "Harrods", "Farfetch"],
-    multiplier: 1.05,
-    urls: {
-      "Selfridges": "https://www.selfridges.com/search?search=",
-      "Harrods": "https://www.harrods.com/search?q=",
-      "Farfetch": "https://www.farfetch.com/uk/shopping/women/search/items.aspx?q=",
-    }
-  },
-};
-
-function generateFallbackPricesForRegion(query: string, regionCode: string): SerpApiResult[] {
-  const encodedQuery = encodeURIComponent(query);
-  const basePrice = 500 + Math.random() * 1000; // Higher base for luxury items
-  
-  const config = FALLBACK_STORES[regionCode];
-  if (!config) return [];
-  
-  return config.stores.map((store, index) => {
-    const variation = 0.9 + Math.random() * 0.2;
-    const price = Math.round(basePrice * config.multiplier * variation);
-    const url = config.urls[store] ? config.urls[store] + encodedQuery : `https://www.google.com/search?tbm=shop&q=${encodedQuery}`;
-    
-    return {
-      storeName: store,
-      price,
-      currency: "USD",
-      url,
-      region: regionCode,
-      isBestDeal: false,
-    };
-  });
-}
-
-function generateFallbackPrices(query: string, regions: string[]): SerpApiResult[] {
-  const results: SerpApiResult[] = [];
-
-  for (const regionCode of regions) {
-    const regionResults = generateFallbackPricesForRegion(query, regionCode);
-    results.push(...regionResults);
-  }
-
-  if (results.length > 0) {
-    const minPrice = Math.min(...results.map(r => r.price));
-    results.forEach(r => {
-      r.isBestDeal = r.price === minPrice;
-    });
-  }
-
-  return results;
 }
 
 export { REGIONS, EXCHANGE_RATES, convertToUSD };

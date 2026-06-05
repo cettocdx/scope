@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "./serpapi";
+
 interface XimilarTag {
   name: string;
   prob: number;
@@ -59,7 +61,7 @@ export async function analyzeWithXimilar(imageBase64: string): Promise<XimilarAn
   }
 
   try {
-    const response = await fetch("https://api.ximilar.com/tagging/fashion/v2/tags", {
+    const response = await fetchWithTimeout("https://api.ximilar.com/tagging/fashion/v2/tags", {
       method: "POST",
       headers: {
         "Authorization": `Token ${apiKey}`,
@@ -159,43 +161,5 @@ export async function analyzeWithXimilar(imageBase64: string): Promise<XimilarAn
       confidence: 0,
       error: error instanceof Error ? error.message : "Unknown error"
     };
-  }
-}
-
-export async function searchSimilarProducts(imageBase64: string): Promise<any[]> {
-  const apiKey = process.env.XIMILAR_API_KEY;
-  
-  if (!apiKey) {
-    console.error("XIMILAR_API_KEY not configured for visual search");
-    return [];
-  }
-
-  try {
-    const response = await fetch("https://api.ximilar.com/similarity/fashion/v2/visualSearch", {
-      method: "POST",
-      headers: {
-        "Authorization": `Token ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        records: [
-          {
-            _base64: imageBase64
-          }
-        ],
-        k: 10
-      })
-    });
-
-    if (!response.ok) {
-      console.error("Ximilar visual search error:", response.status);
-      return [];
-    }
-
-    const data = await response.json();
-    return data.records?.[0]?._similar || [];
-  } catch (error) {
-    console.error("Ximilar visual search error:", error);
-    return [];
   }
 }

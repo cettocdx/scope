@@ -187,24 +187,29 @@ Tracked by SCOPE - AI Asset Scanner
                 <Text style={styles.statLabel}>12 MONTH PROJECTION</Text>
               </View>
             </View>
-            <FinancialChart data={asset.history} height={200} showPrediction />
+            {asset.history && asset.history.length > 1 ? (
+              <FinancialChart data={asset.history} height={200} showPrediction />
+            ) : (
+              <View style={styles.chartEmptyState}>
+                <Feather name="bar-chart-2" size={20} color={Colors.dark.textTertiary} />
+                <Text style={styles.chartEmptyText}>Not enough history to chart yet</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.infoBlock}>
             <Text style={styles.infoTitle}>ASSET SPECS</Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Condition</Text>
-              <Text style={styles.infoValue}>Excellent (AI)</Text>
-            </View>
+            {asset.condition && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Condition</Text>
+                <Text style={styles.infoValue}>{asset.condition}</Text>
+              </View>
+            )}
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Acquired</Text>
               <Text style={styles.infoValue}>
                 {new Date(asset.dateAdded).toLocaleDateString()}
               </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Volatility</Text>
-              <Text style={styles.volatilityValue}>High</Text>
             </View>
           </View>
         </View>
@@ -378,6 +383,21 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     alignItems: "center",
   },
+  chartEmptyState: {
+    height: 200,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    backgroundColor: Colors.dark.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.dark.cardBorder,
+  },
+  chartEmptyText: {
+    fontSize: Typography.label.fontSize,
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+  },
   infoBlock: {
     padding: Spacing.xl,
     backgroundColor: Colors.dark.backgroundSecondary,
@@ -405,11 +425,6 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: Typography.label.fontSize,
     color: Colors.dark.text,
-    fontFamily: Fonts?.mono,
-  },
-  volatilityValue: {
-    fontSize: Typography.label.fontSize,
-    color: Colors.dark.alertRed,
     fontFamily: Fonts?.mono,
   },
   footer: {

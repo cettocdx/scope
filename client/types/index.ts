@@ -97,18 +97,6 @@ export interface FXRate {
   updatedAt: string;
 }
 
-export enum AppState {
-  HOME = 'HOME',
-  VAULT = 'VAULT',
-  ASSET_DETAIL = 'ASSET_DETAIL',
-  SCANNING = 'SCANNING',
-  REVIEW = 'REVIEW',
-  CONFIRM = 'CONFIRM',
-  ANALYZING = 'ANALYZING',
-  RESULT = 'RESULT',
-  ERROR = 'ERROR'
-}
-
 export interface VariantOption {
   label: string;
   value: string;

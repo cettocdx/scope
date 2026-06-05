@@ -1,5 +1,7 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
@@ -24,6 +26,24 @@ function setupCors(app: express.Application) {
     if (process.env.REPLIT_DOMAINS) {
       process.env.REPLIT_DOMAINS.split(",").forEach((d) => {
         origins.add(`https://${d.trim()}`);
+      });
+    }
+
+    // Optional explicit local domain override.
+    if (process.env.LOCAL_DOMAIN) {
+      origins.add(process.env.LOCAL_DOMAIN.trim());
+    }
+
+    // Local development fallback: allow localhost origins when not on Replit
+    // so the app works on a developer machine without Replit env vars.
+    if (
+      process.env.NODE_ENV !== "production" &&
+      !process.env.REPLIT_DEV_DOMAIN &&
+      !process.env.REPLIT_DOMAINS
+    ) {
+      ["8081", "19006", "5000", "3000"].forEach((p) => {
+        origins.add(`http://localhost:${p}`);
+        origins.add(`http://127.0.0.1:${p}`);
       });
     }
 
@@ -64,29 +84,14 @@ function setupRequestLogging(app: express.Application) {
   app.use((req, res, next) => {
     const start = Date.now();
     const path = req.path;
-    let capturedJsonResponse: Record<string, unknown> | undefined = undefined;
-
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
 
     res.on("finish", () => {
       if (!path.startsWith("/api")) return;
 
       const duration = Date.now() - start;
 
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      // Log only metadata, never the response body (may contain sensitive data).
+      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     });
 
     next();
@@ -209,16 +214,43 @@ function setupErrorHandler(app: express.Application) {
     };
 
     const status = error.status || error.statusCode || 500;
-    const message = error.message || "Internal Server Error";
 
+    // Log the real error server-side; never leak details to the client.
+    console.error("Unhandled error:", err);
+
+    const message = status < 500 ? error.message || "Request error" : "Internal Server Error";
     res.status(status).json({ message });
-
-    throw err;
   });
+}
+
+function setupSecurity(app: express.Application) {
+  app.use(helmet());
+
+  // Strict limiter for expensive AI endpoints.
+  const aiLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please slow down." },
+  });
+  app.use("/api/analyze", aiLimiter);
+  app.use("/api/valuate", aiLimiter);
+
+  // Looser limiter for the rest of the API surface.
+  const apiLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please slow down." },
+  });
+  app.use("/api", apiLimiter);
 }
 
 (async () => {
   setupCors(app);
+  setupSecurity(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
 

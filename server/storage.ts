@@ -8,11 +8,10 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   
   getPortfolioAssets(deviceId: string): Promise<PortfolioAsset[]>;
-  getPortfolioAsset(id: string): Promise<PortfolioAsset | undefined>;
+  getPortfolioAsset(id: string, deviceId: string): Promise<PortfolioAsset | undefined>;
   createPortfolioAsset(asset: InsertPortfolioAsset): Promise<PortfolioAsset>;
-  updatePortfolioAsset(id: string, updates: Partial<InsertPortfolioAsset>): Promise<PortfolioAsset | undefined>;
+  updatePortfolioAsset(id: string, deviceId: string, updates: Partial<InsertPortfolioAsset>): Promise<PortfolioAsset | undefined>;
   deletePortfolioAsset(id: string, deviceId: string): Promise<boolean>;
-  syncPortfolio(deviceId: string, assets: InsertPortfolioAsset[]): Promise<PortfolioAsset[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -42,11 +41,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(portfolioAssets.dateAdded));
   }
 
-  async getPortfolioAsset(id: string): Promise<PortfolioAsset | undefined> {
+  async getPortfolioAsset(id: string, deviceId: string): Promise<PortfolioAsset | undefined> {
     const [asset] = await db
       .select()
       .from(portfolioAssets)
-      .where(eq(portfolioAssets.id, id));
+      .where(and(eq(portfolioAssets.id, id), eq(portfolioAssets.deviceId, deviceId)));
     return asset || undefined;
   }
 
@@ -75,11 +74,11 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updatePortfolioAsset(id: string, updates: Partial<InsertPortfolioAsset>): Promise<PortfolioAsset | undefined> {
+  async updatePortfolioAsset(id: string, deviceId: string, updates: Partial<InsertPortfolioAsset>): Promise<PortfolioAsset | undefined> {
     const [updated] = await db
       .update(portfolioAssets)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(portfolioAssets.id, id))
+      .where(and(eq(portfolioAssets.id, id), eq(portfolioAssets.deviceId, deviceId)))
       .returning();
     return updated || undefined;
   }
@@ -90,22 +89,6 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(portfolioAssets.id, id), eq(portfolioAssets.deviceId, deviceId)))
       .returning();
     return result.length > 0;
-  }
-
-  async syncPortfolio(deviceId: string, assets: InsertPortfolioAsset[]): Promise<PortfolioAsset[]> {
-    const synced: PortfolioAsset[] = [];
-    
-    for (const asset of assets) {
-      if (!asset.id) continue;
-      
-      const created = await this.createPortfolioAsset({
-        ...asset,
-        deviceId,
-      });
-      synced.push(created);
-    }
-    
-    return synced;
   }
 }
 

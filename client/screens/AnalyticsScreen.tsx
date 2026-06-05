@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -16,8 +15,6 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
 import { getLocalPortfolio, syncPortfolio } from "@/services/portfolioService";
-
-const { width } = Dimensions.get("window");
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analytics">;
 

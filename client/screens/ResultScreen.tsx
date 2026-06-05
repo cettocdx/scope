@@ -95,9 +95,7 @@ export default function ResultScreen({ navigation, route }: Props) {
         dateAdded: new Date().toISOString(),
         purchasePrice: safeAssetData.estimatedPrice,
         isAuthentic: safeAssetData.confidenceScore > 80,
-        history: Array(7)
-          .fill(0)
-          .map(() => safeAssetData.estimatedPrice * (0.95 + Math.random() * 0.1)),
+        history: safeAssetData.estimatedPrice > 0 ? [safeAssetData.estimatedPrice] : [],
         imageBase64,
       };
 
@@ -197,7 +195,7 @@ Analyzed by SCOPE - AI Asset Scanner
               </View>
               {safeAssetData.confidenceScore > 85 && (
                 <View style={styles.matchTag}>
-                  <Text style={styles.matchText}>99% MATCH</Text>
+                  <Text style={styles.matchText}>{safeAssetData.confidenceScore}% MATCH</Text>
                 </View>
               )}
             </View>
@@ -413,57 +411,22 @@ Analyzed by SCOPE - AI Asset Scanner
               </View>
 
               <Text style={styles.ratingExplanationTitle}>Why {safeAssetData.investmentRating}?</Text>
-              
+
               <View style={styles.ratingFactorsList}>
-                {safeAssetData.investmentRating === 'BUY' ? (
-                  <>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
-                      <Text style={styles.ratingFactorText}>Strong brand value retention</Text>
-                    </View>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
-                      <Text style={styles.ratingFactorText}>Positive market trend ({safeAssetData.trendPercentage > 0 ? '+' : ''}{safeAssetData.trendPercentage}%)</Text>
-                    </View>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
-                      <Text style={styles.ratingFactorText}>High authenticity confidence ({safeAssetData.confidenceScore}%)</Text>
-                    </View>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="check-circle" size={16} color={Colors.dark.successGreen} />
-                      <Text style={styles.ratingFactorText}>Below median market price</Text>
-                    </View>
-                  </>
-                ) : safeAssetData.investmentRating === 'SELL' ? (
-                  <>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="alert-circle" size={16} color={Colors.dark.alertRed} />
-                      <Text style={styles.ratingFactorText}>Negative market trend ({safeAssetData.trendPercentage}%)</Text>
-                    </View>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="alert-circle" size={16} color={Colors.dark.alertRed} />
-                      <Text style={styles.ratingFactorText}>Above median market price</Text>
-                    </View>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="alert-circle" size={16} color={Colors.dark.alertRed} />
-                      <Text style={styles.ratingFactorText}>Consider quick liquidation</Text>
-                    </View>
-                  </>
+                {safeAssetData.ratingReason ? (
+                  <View style={styles.ratingFactor}>
+                    <Feather
+                      name={safeAssetData.investmentRating === 'BUY' ? 'check-circle' : safeAssetData.investmentRating === 'SELL' ? 'alert-circle' : 'minus-circle'}
+                      size={16}
+                      color={safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow}
+                    />
+                    <Text style={styles.ratingFactorText}>{safeAssetData.ratingReason}</Text>
+                  </View>
                 ) : (
-                  <>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="minus-circle" size={16} color={Colors.dark.warningYellow} />
-                      <Text style={styles.ratingFactorText}>Stable market value</Text>
-                    </View>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="minus-circle" size={16} color={Colors.dark.warningYellow} />
-                      <Text style={styles.ratingFactorText}>Near median market price</Text>
-                    </View>
-                    <View style={styles.ratingFactor}>
-                      <Feather name="minus-circle" size={16} color={Colors.dark.warningYellow} />
-                      <Text style={styles.ratingFactorText}>Monitor for better opportunity</Text>
-                    </View>
-                  </>
+                  <View style={styles.ratingFactor}>
+                    <Feather name="info" size={16} color={Colors.dark.textTertiary} />
+                    <Text style={styles.ratingFactorText}>No explanation available for this rating.</Text>
+                  </View>
                 )}
               </View>
 
