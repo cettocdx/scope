@@ -3,11 +3,32 @@ import { createServer, type Server } from "node:http";
 import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
 import { insertPortfolioAssetSchema } from "@shared/schema";
+import { z } from "zod";
+import { fromZodError } from "zod-validation-error";
 import { searchPricesMultiRegion } from "./serpapi";
+
+const analyzeRequestSchema = z.object({
+  image: z.string().min(1, "image is required"),
+  refinements: z.any().optional(),
+});
+
+const offerSchema = z.object({
+  price: z.number(),
+  currency: z.string(),
+}).passthrough();
+
+const valuateRequestSchema = z.object({
+  offers: z.array(offerSchema),
+  displayCurrency: z.string().optional(),
+});
+
+const syncRequestSchema = z.object({
+  assets: z.array(insertPortfolioAssetSchema.partial({ deviceId: true })),
+});
 import { analyzeWithXimilar, type XimilarAnalysisResult } from "./ximilar";
 import { analyzeWithClarifai, type ClarifaiAnalysisResult } from "./clarifai";
 
-const FX_RATES: Record<string, number> = {
+export const FX_RATES: Record<string, number> = {
   USD_TRY: 34.50,
   USD_EUR: 0.92,
   EUR_USD: 1.09,
@@ -16,7 +37,7 @@ const FX_RATES: Record<string, number> = {
   TRY_EUR: 0.027,
 };
 
-function convertToUSD(amount: number, currency: string): number {
+export function convertToUSD(amount: number, currency: string): number {
   if (currency === "USD" || currency === "$") return amount;
   if (currency === "TRY" || currency === "TL" || currency === "₺") {
     return amount * (FX_RATES["TRY_USD"] || 0.029);
@@ -33,7 +54,7 @@ interface ValuationResult {
   processedDeals: any[];
 }
 
-function calculateValuation(deals: any[], displayCurrency: string = "USD"): ValuationResult {
+export function calculateValuation(deals: any[], displayCurrency: string = "USD"): ValuationResult {
   if (!deals || deals.length === 0) {
     return {
       priceRange: { min: 0, median: 0, max: 0, currency: displayCurrency },
@@ -76,7 +97,7 @@ function calculateValuation(deals: any[], displayCurrency: string = "USD"): Valu
     return {
       ...deal,
       isOutlier,
-      qualityScore: isOutlier ? 30 : 80 + Math.floor(Math.random() * 20),
+      qualityScore: isOutlier ? 30 : 80,
     };
   });
 
@@ -348,12 +369,12 @@ EXAMPLE - Luxury Fashion:
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/analyze", async (req, res) => {
     try {
-      const { image, refinements } = req.body;
-
-      if (!image) {
-        return res.status(400).json({ error: "No image provided" });
+      const parsed = analyzeRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: fromZodError(parsed.error).toString() });
       }
-      
+      const { image, refinements } = parsed.data;
+
       // Log refinements if provided
       if (refinements) {
         console.log("User refinements received:", refinements);
@@ -388,6 +409,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processing image: ${mimeType}, size: ${base64Data.length} chars`);
 
+      // The Gemini SDK does not accept an abort signal, so guard it against
+      // hanging by racing the call against a timeout that rejects after 20s.
+      const geminiTimeoutMs = 20000;
+      const geminiTimeout = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`Gemini request timed out after ${geminiTimeoutMs}ms`)),
+          geminiTimeoutMs,
+        );
+      });
+
       const [ximilarResult, clarifaiResult, geminiResponse] = await Promise.all([
         analyzeWithXimilar(base64Data).catch(err => {
           console.error("Ximilar analysis failed:", err);
@@ -397,23 +428,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Clarifai analysis failed:", err);
           return null as ClarifaiAnalysisResult | null;
         }),
-        ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  inlineData: {
-                    mimeType,
-                    data: base64Data,
+        Promise.race([
+          ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType,
+                      data: base64Data,
+                    },
                   },
-                },
-                { text: FORENSIC_ANALYSIS_PROMPT },
-              ],
-            },
-          ],
-        })
+                  { text: FORENSIC_ANALYSIS_PROMPT },
+                ],
+              },
+            ],
+          }),
+          geminiTimeout,
+        ])
       ]);
 
       if (ximilarResult?.success) {
@@ -448,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         data = JSON.parse(cleanJson);
       } catch (e) {
-        console.error("JSON Parse Error:", text);
+        console.error("JSON Parse Error. Output preview:", cleanJson.slice(0, 200));
         return res.status(500).json({ error: "Failed to parse market data" });
       }
 
@@ -645,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.status(500).json({ error: error.message || "Analysis failed" });
+      res.status(500).json({ error: "Analysis failed" });
     }
   });
 
@@ -664,11 +698,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/valuate", (req, res) => {
     try {
-      const { offers, displayCurrency = "USD" } = req.body;
-      
-      if (!offers || !Array.isArray(offers)) {
-        return res.status(400).json({ error: "Offers array required" });
+      const parsed = valuateRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: fromZodError(parsed.error).toString() });
       }
+      const { offers, displayCurrency = "USD" } = parsed.data;
 
       const result = calculateValuation(offers, displayCurrency);
       
@@ -680,7 +714,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         outlierCount: result.outlierCount,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Valuation failed" });
+      console.error("Valuation error:", error);
+      res.status(500).json({ error: "Valuation failed" });
     }
   });
 
@@ -694,23 +729,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(assets);
     } catch (error: any) {
       console.error("Portfolio fetch error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch portfolio" });
+      res.status(500).json({ error: "Failed to fetch portfolio" });
     }
   });
 
   app.post("/api/portfolio/:deviceId", async (req, res) => {
     try {
       const { deviceId } = req.params;
-      const assetData = req.body;
-
-      if (!deviceId || !assetData) {
-        return res.status(400).json({ error: "Device ID and asset data required" });
+      if (!deviceId) {
+        return res.status(400).json({ error: "Device ID required" });
       }
 
+      // deviceId is set by the server from the path, so it may be absent in the body.
+      const parsed = insertPortfolioAssetSchema.safeParse({ ...req.body, deviceId });
+      if (!parsed.success) {
+        return res.status(400).json({ error: fromZodError(parsed.error).toString() });
+      }
+      const assetData = parsed.data;
+
       if (assetData.id) {
-        const existing = await storage.getPortfolioAsset(assetData.id);
+        // Lookup is device-scoped. If a record exists for this id under another
+        // device, this returns undefined and we never touch it (no takeover).
+        const existing = await storage.getPortfolioAsset(assetData.id, deviceId);
         if (existing) {
-          const updated = await storage.updatePortfolioAsset(assetData.id, {
+          // Ownership check (defensive): the scoped lookup already guarantees
+          // ownership, but reject explicitly if it ever mismatches.
+          if (existing.deviceId !== deviceId) {
+            return res.status(403).json({ error: "Forbidden" });
+          }
+          const updated = await storage.updatePortfolioAsset(assetData.id, deviceId, {
             ...assetData,
             deviceId,
           });
@@ -718,25 +765,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // No matching record owned by this device. Drop any client-supplied id so a
+      // create cannot overwrite (take over) another device's asset via id conflict.
+      const { id: _ignoredId, ...createData } = assetData;
       const asset = await storage.createPortfolioAsset({
-        ...assetData,
+        ...createData,
         deviceId,
-        dateAdded: assetData.dateAdded ? new Date(assetData.dateAdded) : new Date(),
+        dateAdded: req.body.dateAdded ? new Date(req.body.dateAdded) : new Date(),
       });
 
       res.json(asset);
     } catch (error: any) {
       console.error("Portfolio create error:", error);
-      res.status(500).json({ error: error.message || "Failed to create asset" });
+      res.status(500).json({ error: "Failed to create asset" });
     }
   });
 
   app.put("/api/portfolio/:deviceId/:assetId", async (req, res) => {
     try {
-      const { assetId } = req.params;
-      const updates = req.body;
+      const { deviceId, assetId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: "Device ID required" });
+      }
 
-      const asset = await storage.updatePortfolioAsset(assetId, updates);
+      const parsed = insertPortfolioAssetSchema
+        .partial()
+        .safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: fromZodError(parsed.error).toString() });
+      }
+      // deviceId is owned by the path, never let the body override it.
+      const { deviceId: _ignoredDeviceId, id: _ignoredId, ...updates } = parsed.data;
+
+      const asset = await storage.updatePortfolioAsset(assetId, deviceId, updates);
       if (!asset) {
         return res.status(404).json({ error: "Asset not found" });
       }
@@ -744,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(asset);
     } catch (error: any) {
       console.error("Portfolio update error:", error);
-      res.status(500).json({ error: error.message || "Failed to update asset" });
+      res.status(500).json({ error: "Failed to update asset" });
     }
   });
 
@@ -760,26 +821,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error: any) {
       console.error("Portfolio delete error:", error);
-      res.status(500).json({ error: error.message || "Failed to delete asset" });
+      res.status(500).json({ error: "Failed to delete asset" });
     }
   });
 
   app.post("/api/portfolio/:deviceId/sync", async (req, res) => {
     try {
       const { deviceId } = req.params;
-      const { assets } = req.body;
-
-      if (!deviceId || !Array.isArray(assets)) {
-        return res.status(400).json({ error: "Device ID and assets array required" });
+      if (!deviceId) {
+        return res.status(400).json({ error: "Device ID required" });
       }
+
+      const parsed = syncRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: fromZodError(parsed.error).toString() });
+      }
+      const { assets } = parsed.data;
 
       const syncedAssets = [];
       for (const asset of assets) {
         const existing = await storage.getPortfolioAssets(deviceId);
         const match = existing.find(e => e.itemName === asset.itemName && e.dateAdded === asset.dateAdded);
-        
+
         if (match) {
-          const updated = await storage.updatePortfolioAsset(match.id, asset);
+          const updated = await storage.updatePortfolioAsset(match.id, deviceId, { ...asset, deviceId });
           if (updated) syncedAssets.push(updated);
         } else {
           const created = await storage.createPortfolioAsset({
@@ -794,7 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(syncedAssets);
     } catch (error: any) {
       console.error("Portfolio sync error:", error);
-      res.status(500).json({ error: error.message || "Failed to sync portfolio" });
+      res.status(500).json({ error: "Failed to sync portfolio" });
     }
   });
 

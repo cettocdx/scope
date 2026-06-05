@@ -13,13 +13,11 @@ const { width } = Dimensions.get("window");
 
 export default function ScannerOverlay({ scanStatus, stability }: ScannerOverlayProps) {
   const [now, setNow] = useState(new Date());
-  const [iso, setIso] = useState(800);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
-      setIso((prev) => (prev === 800 ? 1600 : 800));
-    }, 800);
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -46,15 +44,15 @@ export default function ScannerOverlay({ scanStatus, stability }: ScannerOverlay
             </Text>
           </View>
           <Text style={styles.subText}>
-            ISO {iso} / STABILITY {Math.floor(stability)}%
+            STABILITY {Math.floor(stability)}%
           </Text>
         </View>
         <View style={styles.rightInfo}>
           <View style={styles.row}>
-            <Feather name="wifi" size={12} color={Colors.dark.textSecondary} />
-            <Text style={styles.statusLabel}> 5G</Text>
+            <Feather name="aperture" size={12} color={Colors.dark.textSecondary} />
+            <Text style={styles.statusLabel}> SCOPE</Text>
           </View>
-          <Text style={styles.subText}>LAT: 37.77 / LON: -122.41</Text>
+          <Text style={styles.subText}>SCAN MODE</Text>
         </View>
       </View>
 

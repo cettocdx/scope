@@ -19,7 +19,7 @@ export default function FinancialChart({
   height = 200,
   showPrediction = false,
 }: FinancialChartProps) {
-  const values = data.length > 0 ? data : [0, 0];
+  const values = data.length > 1 ? data : data.length === 1 ? [data[0], data[0]] : [0, 0];
   const min = Math.min(...values) * 0.95;
   const max = Math.max(...values) * 1.05;
   const range = max - min || 1;

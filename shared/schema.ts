@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, real, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -30,7 +30,9 @@ export const portfolioAssets = pgTable("portfolio_assets", {
   imageBase64: text("image_base64"),
   dateAdded: timestamp("date_added").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  deviceIdx: index("idx_portfolio_device").on(table.deviceId, table.dateAdded),
+}));
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,

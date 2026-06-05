@@ -1,5 +1,8 @@
 {
   "extends": "./tsconfig.base.json",
-  "include": ["client/**/*.ts", "client/**/*.tsx", "shared/**/*.ts"],
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["server/**/*.ts", "shared/**/*.ts"],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"]
 }

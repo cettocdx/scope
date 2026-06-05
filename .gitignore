@@ -31,7 +31,13 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.*
+!.env.example
 .env*.local
+
+# eski prototip artıkları (analiz: DX X-K2)
+attached_assets/
 
 # typescript
 *.tsbuildinfo
