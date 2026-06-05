@@ -37,6 +37,90 @@ export const FX_RATES: Record<string, number> = {
   TRY_EUR: 0.027,
 };
 
+/**
+ * Detect the real image type from a decoded buffer by inspecting its magic
+ * bytes. Returns the canonical type or null if the buffer is not a supported
+ * image. This is intentionally permissive: it only rejects data that clearly
+ * is not a JPEG/PNG/WEBP image.
+ */
+export function detectImageType(buffer: Buffer): "jpeg" | "png" | "webp" | null {
+  if (!buffer || buffer.length < 12) {
+    return null;
+  }
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "jpeg";
+  }
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return "png";
+  }
+
+  // WEBP: "RIFF" .... "WEBP"
+  if (
+    buffer[0] === 0x52 && // R
+    buffer[1] === 0x49 && // I
+    buffer[2] === 0x46 && // F
+    buffer[3] === 0x46 && // F
+    buffer[8] === 0x57 && // W
+    buffer[9] === 0x45 && // E
+    buffer[10] === 0x42 && // B
+    buffer[11] === 0x50 // P
+  ) {
+    return "webp";
+  }
+
+  return null;
+}
+
+/**
+ * Normalize a date-like value (Date, ISO string, or null/undefined) into a
+ * numeric epoch timestamp for comparison. Returns null when the value is
+ * absent or unparseable.
+ */
+export function normalizeDateValue(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const time = new Date(value as string | number | Date).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+interface SyncMatchable {
+  id?: string | null;
+  itemName: string;
+  dateAdded?: Date | string | null;
+}
+
+/**
+ * Find the existing asset that a sync candidate should update, if any.
+ * Matching is id-based first (exact id), then falls back to itemName plus a
+ * normalized dateAdded comparison (Date vs string safe). Returns undefined for
+ * a create. Pure and testable; does not touch storage.
+ */
+export function findSyncMatch<T extends SyncMatchable>(
+  existing: T[],
+  candidate: SyncMatchable,
+): T | undefined {
+  if (candidate.id) {
+    const byId = existing.find((e) => e.id === candidate.id);
+    if (byId) return byId;
+  }
+
+  const candidateTime = normalizeDateValue(candidate.dateAdded);
+  return existing.find((e) => {
+    if (e.itemName !== candidate.itemName) return false;
+    return normalizeDateValue(e.dateAdded) === candidateTime;
+  });
+}
+
 export function convertToUSD(amount: number, currency: string): number {
   if (currency === "USD" || currency === "$") return amount;
   if (currency === "TRY" || currency === "TL" || currency === "₺") {
@@ -396,16 +480,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid image data" });
       }
 
-      // Check if it's valid base64
-      const base64Regex = /^[A-Za-z0-9+/=]+$/;
-      if (!base64Regex.test(base64Data.substring(0, 100))) {
-        console.error("Invalid base64 format");
-        return res.status(400).json({ error: "Invalid image format" });
+      // Reject oversized payloads before decoding the whole thing. base64 is
+      // ~33% larger than the decoded bytes, so cap the decoded size at ~12MB.
+      const MAX_DECODED_BYTES = 12 * 1024 * 1024;
+      // Approx decoded size: every 4 base64 chars encode 3 bytes.
+      const approxDecodedBytes = Math.floor((base64Data.length * 3) / 4);
+      if (approxDecodedBytes > MAX_DECODED_BYTES) {
+        console.error("Image too large:", approxDecodedBytes, "bytes (approx)");
+        return res.status(413).json({ error: "Image too large" });
       }
 
-      const mimeType = image.includes("data:image/png") ? "image/png" 
-        : image.includes("data:image/webp") ? "image/webp" 
-        : "image/jpeg";
+      // Decode and verify the real image type from its magic bytes. This is far
+      // stronger than the previous prefix regex and catches non-image payloads.
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      if (imageBuffer.length > MAX_DECODED_BYTES) {
+        console.error("Image too large after decode:", imageBuffer.length, "bytes");
+        return res.status(413).json({ error: "Image too large" });
+      }
+
+      const detectedType = detectImageType(imageBuffer);
+      if (!detectedType) {
+        console.error("Invalid or unsupported image format");
+        return res.status(400).json({ error: "Invalid or unsupported image format" });
+      }
+
+      // Use the type detected from the actual bytes, not the (spoofable) prefix.
+      const mimeType = `image/${detectedType}`;
 
       console.log(`Processing image: ${mimeType}, size: ${base64Data.length} chars`);
 
@@ -838,10 +938,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const { assets } = parsed.data;
 
+      // Fetch the device's assets once (avoids an N+1 query per sync item) and
+      // match in memory. Matching is id-first, then itemName + normalized date,
+      // which is Date-vs-string safe (the previous strict === always failed and
+      // created duplicates).
+      const existing = await storage.getPortfolioAssets(deviceId);
+
       const syncedAssets = [];
       for (const asset of assets) {
-        const existing = await storage.getPortfolioAssets(deviceId);
-        const match = existing.find(e => e.itemName === asset.itemName && e.dateAdded === asset.dateAdded);
+        const match = findSyncMatch(existing, asset);
 
         if (match) {
           const updated = await storage.updatePortfolioAsset(match.id, deviceId, { ...asset, deviceId });

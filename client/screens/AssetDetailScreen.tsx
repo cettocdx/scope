@@ -100,10 +100,20 @@ Tracked by SCOPE - AI Asset Scanner
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.xl }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.iconButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Feather name="chevron-left" size={24} color="#FFF" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton} onPress={handleShareAsset}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={handleShareAsset}
+          accessibilityRole="button"
+          accessibilityLabel="Share asset"
+        >
           <Feather name="share-2" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
