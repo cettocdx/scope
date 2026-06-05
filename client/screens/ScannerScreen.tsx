@@ -129,10 +129,21 @@ export default function ScannerScreen({ navigation }: Props) {
       <ScannerOverlay scanStatus={scanStatus} stability={stability} />
 
       <View style={styles.controls}>
-        <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
+        <TouchableOpacity
+          onPress={handleCancel}
+          style={styles.cancelBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel scan"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Text style={styles.cancelText}>CANCEL</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
+        <TouchableOpacity
+          style={styles.captureBtn}
+          onPress={handleCapture}
+          accessibilityRole="button"
+          accessibilityLabel="Capture photo"
+        >
           <View
             style={[
               styles.captureInner,

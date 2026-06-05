@@ -203,7 +203,13 @@ Analyzed by SCOPE - AI Asset Scanner
               {safeAssetData.itemName}
             </Text>
           </View>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <TouchableOpacity
+            onPress={handleClose}
+            style={styles.closeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Feather name="x" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -281,10 +287,13 @@ Analyzed by SCOPE - AI Asset Scanner
                 AI RATING: {safeAssetData.investmentRating}
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.whyButton}
               onPress={() => setShowRatingSheet(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Why this rating"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Text style={styles.whyButtonText}>Why?</Text>
             </TouchableOpacity>
@@ -306,6 +315,8 @@ Analyzed by SCOPE - AI Asset Scanner
               style={styles.promoButton}
               onPress={handleGeneratePromo}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Create promotional content"
             >
               <Feather name="zap" size={18} color={Colors.dark.successGreen} />
             </TouchableOpacity>
@@ -359,7 +370,14 @@ Analyzed by SCOPE - AI Asset Scanner
             );
           })}
 
-          <TouchableOpacity style={styles.shareButton} activeOpacity={0.7} onPress={handleShareReport}>
+          <TouchableOpacity
+            style={styles.shareButton}
+            activeOpacity={0.7}
+            onPress={handleShareReport}
+            accessibilityRole="button"
+            accessibilityLabel="Share report"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Feather name="share-2" size={14} color={Colors.dark.textTertiary} />
             <Text style={styles.shareText}>SHARE REPORT</Text>
           </TouchableOpacity>
@@ -382,9 +400,12 @@ Analyzed by SCOPE - AI Asset Scanner
             
             <View style={styles.ratingSheetHeader}>
               <Text style={styles.ratingSheetTitle}>AI Rating Explanation</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowRatingSheet(false)}
                 style={styles.closeButton}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Feather name="x" size={20} color="#FFF" />
               </TouchableOpacity>

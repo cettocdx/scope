@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -117,12 +118,14 @@ export default function AnalyticsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [assets, setAssets] = useState<PortfolioAsset[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData>(calculateAnalytics([]));
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
       const localAssets = await getLocalPortfolio();
       setAssets(localAssets);
       setAnalytics(calculateAnalytics(localAssets));
+      setIsLoading(false);
 
       syncPortfolio().then(syncedAssets => {
         setAssets(syncedAssets);
@@ -130,6 +133,7 @@ export default function AnalyticsScreen({ navigation }: Props) {
       }).catch(console.error);
     } catch (e) {
       console.error(e);
+      setIsLoading(false);
     }
   }, []);
 
@@ -164,13 +168,24 @@ export default function AnalyticsScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.xl }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Feather name="chevron-left" size={24} color={Colors.dark.textSecondary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ANALYTICS</Text>
         <View style={styles.placeholder} />
       </View>
 
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.dark.successGreen} />
+          <Text style={styles.loadingText}>CRUNCHING NUMBERS</Text>
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>PORTFOLIO VALUE</Text>
@@ -282,6 +297,7 @@ export default function AnalyticsScreen({ navigation }: Props) {
           </View>
         ))}
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -320,6 +336,18 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.xl,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  loadingText: {
+    fontSize: Typography.label.fontSize,
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+    letterSpacing: 2,
   },
   summaryCard: {
     backgroundColor: Colors.dark.backgroundSecondary,

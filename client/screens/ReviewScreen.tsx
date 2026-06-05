@@ -38,6 +38,9 @@ export default function ReviewScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={handleRetake}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Feather name="arrow-left" size={24} color="#FFF" />
         </TouchableOpacity>
@@ -87,6 +90,9 @@ export default function ReviewScreen({ navigation, route }: Props) {
           style={styles.retakeLink}
           onPress={handleRetake}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Retake photo"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Feather name="refresh-cw" size={14} color={Colors.dark.textTertiary} />
           <Text style={styles.retakeLinkText}>Retake Photo</Text>

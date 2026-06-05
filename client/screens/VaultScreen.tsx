@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -21,17 +22,20 @@ type Props = NativeStackScreenProps<RootStackParamList, "Vault">;
 export default function VaultScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [assets, setAssets] = useState<PortfolioAsset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadPortfolio = useCallback(async () => {
     try {
       const localAssets = await getLocalPortfolio();
       setAssets(localAssets);
-      
+      setIsLoading(false);
+
       syncPortfolio().then(syncedAssets => {
         setAssets(syncedAssets);
       }).catch(console.error);
     } catch (e) {
       console.error(e);
+      setIsLoading(false);
     }
   }, []);
 
@@ -126,14 +130,25 @@ export default function VaultScreen({ navigation }: Props) {
     </TouchableOpacity>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <View style={styles.iconCircle}>
-        <Feather name="briefcase" size={24} color={Colors.dark.textDim} />
+  const renderEmptyState = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={Colors.dark.successGreen} />
+          <Text style={styles.loadingText}>LOADING VAULT</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyState}>
+        <View style={styles.iconCircle}>
+          <Feather name="briefcase" size={24} color={Colors.dark.textDim} />
+        </View>
+        <Text style={styles.emptyText}>VAULT IS EMPTY</Text>
       </View>
-      <Text style={styles.emptyText}>VAULT IS EMPTY</Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -143,12 +158,16 @@ export default function VaultScreen({ navigation }: Props) {
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
               <Feather name="chevron-left" size={24} color={Colors.dark.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate("Analytics")}
               style={styles.analyticsButton}
+              accessibilityRole="button"
+              accessibilityLabel="View analytics"
             >
               <Feather name="bar-chart-2" size={20} color={Colors.dark.successGreen} />
             </TouchableOpacity>
@@ -194,7 +213,13 @@ export default function VaultScreen({ navigation }: Props) {
       />
 
       <View style={[styles.fabContainer, { bottom: 40 + insets.bottom }]}>
-        <TouchableOpacity style={styles.fab} onPress={handleScan} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={handleScan}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Scan new item"
+        >
           <Feather name="crosshair" size={24} color="#000" />
         </TouchableOpacity>
       </View>
@@ -353,6 +378,13 @@ const styles = StyleSheet.create({
     fontSize: Typography.label.fontSize,
     color: Colors.dark.textTertiary,
     fontFamily: Fonts?.mono,
+  },
+  loadingText: {
+    fontSize: Typography.label.fontSize,
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+    letterSpacing: 2,
+    marginTop: Spacing.md,
   },
   fabContainer: {
     position: "absolute",
