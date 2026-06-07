@@ -1,13 +1,13 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Image,
   ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -16,8 +16,72 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { imageSource } from "@/lib/image-store";
+
+// Fixed card geometry lets the list skip measurement (getItemLayout): an 80px
+// image plus 4px padding top/bottom = 88, plus a 12px gap between cards.
+const CARD_HEIGHT = 88;
+const ROW_STRIDE = CARD_HEIGHT + Spacing.md;
 
 type Props = NativeStackScreenProps<RootStackParamList, "Vault">;
+
+const AssetRow = React.memo(function AssetRow({
+  item,
+  onPress,
+}: {
+  item: PortfolioAsset;
+  onPress: (asset: PortfolioAsset) => void;
+}) {
+  const trendUp = item.trendPercentage >= 0;
+  return (
+    <TouchableOpacity
+      style={styles.assetCard}
+      onPress={() => onPress(item)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.itemName}, valued at ${item.estimatedPrice} dollars`}
+    >
+      <Image
+        source={imageSource(item, { thumbnail: true })}
+        style={styles.assetImage}
+        contentFit="cover"
+        recyclingKey={item.id}
+        transition={120}
+      />
+      <View style={styles.assetInfo}>
+        <View>
+          <Text style={styles.assetName} numberOfLines={1}>
+            {item.itemName}
+          </Text>
+          <Text style={styles.assetCategory}>{item.category}</Text>
+        </View>
+        <View style={styles.assetStats}>
+          <Text style={styles.assetPrice}>${item.estimatedPrice.toLocaleString("en-US")}</Text>
+          <View
+            style={[
+              styles.trendPill,
+              {
+                backgroundColor: trendUp
+                  ? "rgba(0, 255, 148, 0.1)"
+                  : "rgba(255, 59, 48, 0.1)",
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.trendText,
+                { color: trendUp ? Colors.dark.successGreen : Colors.dark.alertRed },
+              ]}
+            >
+              {item.trendPercentage > 0 ? "+" : ""}
+              {item.trendPercentage}%
+            </Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function VaultScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -51,61 +115,22 @@ export default function VaultScreen({ navigation }: Props) {
     return aggregatedHistory.length > 0 ? aggregatedHistory : [totalValue];
   }, [assets, totalValue]);
 
-  const handleSelectAsset = (asset: PortfolioAsset) => {
-    navigation.navigate("AssetDetail", { asset });
-  };
+  const handleSelectAsset = useCallback(
+    (asset: PortfolioAsset) => {
+      navigation.navigate("AssetDetail", { asset });
+    },
+    [navigation],
+  );
 
   const handleScan = () => {
     navigation.navigate("Scanner");
   };
 
-  const renderAssetCard = ({ item }: { item: PortfolioAsset }) => (
-    <TouchableOpacity
-      style={styles.assetCard}
-      onPress={() => handleSelectAsset(item)}
-      activeOpacity={0.7}
-    >
-      <Image source={{ uri: item.imageBase64 }} style={styles.assetImage} />
-      <View style={styles.assetInfo}>
-        <View>
-          <Text style={styles.assetName} numberOfLines={1}>
-            {item.itemName}
-          </Text>
-          <Text style={styles.assetCategory}>{item.category}</Text>
-        </View>
-        <View style={styles.assetStats}>
-          <Text style={styles.assetPrice}>
-            ${item.estimatedPrice.toLocaleString()}
-          </Text>
-          <View
-            style={[
-              styles.trendPill,
-              {
-                backgroundColor:
-                  item.trendPercentage >= 0
-                    ? "rgba(0, 255, 148, 0.1)"
-                    : "rgba(255, 59, 48, 0.1)",
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.trendText,
-                {
-                  color:
-                    item.trendPercentage >= 0
-                      ? Colors.dark.successGreen
-                      : Colors.dark.alertRed,
-                },
-              ]}
-            >
-              {item.trendPercentage > 0 ? "+" : ""}
-              {item.trendPercentage}%
-            </Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
+  const renderAssetCard = useCallback(
+    ({ item }: { item: PortfolioAsset }) => (
+      <AssetRow item={item} onPress={handleSelectAsset} />
+    ),
+    [handleSelectAsset],
   );
 
   const renderEmptyState = () => {
@@ -177,6 +202,15 @@ export default function VaultScreen({ navigation }: Props) {
         data={assets}
         keyExtractor={(item) => item.id}
         renderItem={renderAssetCard}
+        getItemLayout={(_data, index) => ({
+          length: ROW_STRIDE,
+          offset: ROW_STRIDE * index,
+          index,
+        })}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: 100 + insets.bottom },
@@ -286,6 +320,7 @@ const styles = StyleSheet.create({
   },
   assetCard: {
     flexDirection: "row",
+    height: CARD_HEIGHT,
     backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xs,

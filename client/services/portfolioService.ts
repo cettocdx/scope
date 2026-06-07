@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { deleteAssetImage } from "@/lib/image-store";
 import { PortfolioAsset } from "@/types";
 
 const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
@@ -181,7 +182,8 @@ async function pushUpsert(asset: PortfolioAsset): Promise<boolean> {
           isAuthentic: asset.isAuthentic,
           history: asset.history,
           deals: asset.deals,
-          imageBase64: asset.imageBase64,
+          // Images live on the device filesystem (imageUri); never ship the
+          // base64 payload to the cloud.
           dateAdded: asset.dateAdded,
         }),
       },
@@ -260,7 +262,11 @@ export async function addAssetToPortfolio(asset: PortfolioAsset): Promise<void> 
 
 export async function removeAssetFromPortfolio(assetId: string): Promise<void> {
   const portfolio = await getLocalPortfolio();
+  const target = portfolio.find((a) => a.id === assetId);
   await saveLocalPortfolio(portfolio.filter((a) => a.id !== assetId));
+
+  // Reclaim the image files; best-effort so it never blocks the delete.
+  if (target) await deleteAssetImage(target);
 
   await enqueue({ kind: "delete", assetId });
   await flushQueue();
@@ -284,8 +290,24 @@ export async function syncPortfolio(): Promise<PortfolioAsset[]> {
   }
 
   // Cloud is the source of truth, plus local adds we have not pushed yet.
+  // Device-local image references (file uris) only exist locally, so carry them
+  // over onto the cloud copy — otherwise a sync would blank out every image.
+  const localById = new Map(local.map((a) => [a.id, a]));
   const byId = new Map<string, PortfolioAsset>();
-  for (const a of cloud) byId.set(a.id, a);
+  for (const a of cloud) {
+    const localA = localById.get(a.id);
+    byId.set(
+      a.id,
+      localA
+        ? {
+            ...a,
+            imageUri: a.imageUri ?? localA.imageUri,
+            thumbnailUri: a.thumbnailUri ?? localA.thumbnailUri,
+            imageBase64: a.imageBase64 ?? localA.imageBase64,
+          }
+        : a,
+    );
+  }
   for (const a of await pendingUpserts()) byId.set(a.id, a);
   for (const id of deletes) byId.delete(id);
 

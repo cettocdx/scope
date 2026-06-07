@@ -21,6 +21,7 @@ import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/th
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset, ProductDeal } from "@/types";
 import { useAddAsset } from "@/hooks/usePortfolio";
+import { persistAssetImage } from "@/lib/image-store";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -90,14 +91,23 @@ export default function ResultScreen({ navigation, route }: Props) {
   const handleAddToVault = async () => {
     setIsSaving(true);
     try {
+      const id = `asset-${Date.now()}`;
+
+      // Persist the captured image to the filesystem and keep only the file
+      // uris on the asset — the base64 never reaches storage or the cloud.
+      const stored = await persistAssetImage(imageBase64, id);
+
       const newAsset: PortfolioAsset = {
         ...safeAssetData,
-        id: `asset-${Date.now()}`,
+        id,
         dateAdded: new Date().toISOString(),
         purchasePrice: safeAssetData.estimatedPrice,
         isAuthentic: safeAssetData.confidenceScore > 80,
         history: safeAssetData.estimatedPrice > 0 ? [safeAssetData.estimatedPrice] : [],
-        imageBase64,
+        imageUri: stored?.imageUri,
+        thumbnailUri: stored?.thumbnailUri,
+        // Fall back to the inline image only if persistence failed.
+        imageBase64: stored ? undefined : imageBase64,
       };
 
       await addAsset.mutateAsync(newAsset);

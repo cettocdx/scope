@@ -5,11 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
   Alert,
   Platform,
   Share,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -19,6 +19,7 @@ import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/th
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import FinancialChart from "@/components/FinancialChart";
 import { useRemoveAsset } from "@/hooks/usePortfolio";
+import { imageSource } from "@/lib/image-store";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AssetDetail">;
 
@@ -120,7 +121,12 @@ Tracked by SCOPE - AI Asset Scanner
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: asset.imageBase64 }} style={styles.heroImage} />
+          <Image
+            source={imageSource(asset)}
+            style={styles.heroImage}
+            contentFit="cover"
+            transition={150}
+          />
           <View style={styles.gradientOverlay} />
           <View style={styles.heroText}>
             <View style={styles.tagRow}>

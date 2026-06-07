@@ -82,7 +82,15 @@ export interface PortfolioAsset extends AssetData {
   purchasePrice: number;
   isAuthentic: boolean;
   history: number[];
-  imageBase64: string;
+  /** Persisted full image on the device filesystem (file:// uri). */
+  imageUri?: string;
+  /** Small resized image for list rendering (file:// uri). */
+  thumbnailUri?: string;
+  /**
+   * Legacy inline image (data: URI). Kept only as a fallback for assets stored
+   * before the filesystem migration; new assets use imageUri/thumbnailUri.
+   */
+  imageBase64?: string;
 }
 
 export interface TrendPoint {
