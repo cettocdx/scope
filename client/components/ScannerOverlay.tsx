@@ -23,7 +23,7 @@ export default function ScannerOverlay({ scanStatus, stability }: ScannerOverlay
 
   const isLocked = scanStatus === "LOCKED";
   const color = isLocked
-    ? Colors.dark.successGreen
+    ? Colors.dark.accent
     : scanStatus === "STABILIZING"
     ? Colors.dark.warningYellow
     : Colors.dark.textSecondary;
@@ -36,7 +36,7 @@ export default function ScannerOverlay({ scanStatus, stability }: ScannerOverlay
             <View
               style={[
                 styles.dot,
-                { backgroundColor: isLocked ? Colors.dark.successGreen : Colors.dark.alertRed },
+                { backgroundColor: isLocked ? Colors.dark.accent : Colors.dark.alertRed },
               ]}
             />
             <Text style={[styles.statusLabel, { color }]}>
@@ -76,7 +76,7 @@ export default function ScannerOverlay({ scanStatus, stability }: ScannerOverlay
             <Feather
               name="lock"
               size={32}
-              color={Colors.dark.successGreen}
+              color={Colors.dark.accent}
               style={styles.lockIcon}
             />
           ) : (
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   barFill: {
     height: "100%",
-    backgroundColor: Colors.dark.successGreen,
+    backgroundColor: Colors.dark.accent,
   },
   timeText: {
     fontSize: Typography.label.fontSize,

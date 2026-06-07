@@ -65,13 +65,13 @@ export default function ReviewScreen({ navigation, route }: Props) {
           accessibilityHint="AI identifies the item instantly"
         >
           <View style={styles.buttonContent}>
-            <Feather name="zap" size={20} color="#000" />
+            <Feather name="zap" size={20} color="#FFF" />
             <View style={styles.buttonTextContainer}>
               <Text style={styles.primaryButtonText}>QUICK ANALYZE</Text>
               <Text style={styles.buttonSubtext}>AI identifies item instantly</Text>
             </View>
           </View>
-          <Feather name="chevron-right" size={20} color="#000" />
+          <Feather name="chevron-right" size={20} color="#FFF" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -83,7 +83,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
           accessibilityHint="Add condition, size and color for better accuracy"
         >
           <View style={styles.buttonContent}>
-            <Feather name="sliders" size={20} color={Colors.dark.successGreen} />
+            <Feather name="sliders" size={20} color={Colors.dark.accent} />
             <View style={styles.buttonTextContainer}>
               <Text style={styles.refineButtonText}>CONFIRM & REFINE</Text>
               <Text style={styles.buttonSubtextLight}>Add condition, size, color for better accuracy</Text>
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     height: 70,
-    backgroundColor: Colors.dark.successGreen,
+    backgroundColor: Colors.dark.accent,
     borderRadius: BorderRadius.lg,
     flexDirection: "row",
     alignItems: "center",
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryButtonText: {
-    color: "#000",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontFamily: Fonts?.mono,
     fontSize: Typography.body.fontSize,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.body.fontSize,
   },
   buttonSubtext: {
-    color: "rgba(0, 0, 0, 0.6)",
+    color: "rgba(255, 255, 255, 0.7)",
     fontSize: Typography.micro.fontSize,
     fontFamily: Fonts?.mono,
     marginTop: 2,

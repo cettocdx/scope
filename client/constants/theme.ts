@@ -28,6 +28,16 @@ export const Colors = {
     glassBorder: "rgba(255, 255, 255, 0.08)",
     cardBorder: "#222222",
     cardBorderLight: "#333333",
+    // --- Scope brand palette (matches the home screen) ---
+    // Blue/violet is the BRAND accent (buttons, highlights, active states);
+    // successGreen / alertRed stay reserved for gain/loss semantics.
+    accent: "#5B7CFF",
+    accentDeep: "#8B5CFF",
+    accentIce: "#B9D4FF",
+    accentTint: "rgba(91, 124, 255, 0.12)",
+    accentTintStrong: "rgba(91, 124, 255, 0.18)",
+    accentBorder: "rgba(91, 124, 255, 0.35)",
+    navyGlow: "#07122A",
   },
   dark: {
     text: "#FFFFFF",
@@ -56,6 +66,16 @@ export const Colors = {
     glassBorder: "rgba(255, 255, 255, 0.08)",
     cardBorder: "#222222",
     cardBorderLight: "#333333",
+    // --- Scope brand palette (matches the home screen) ---
+    // Blue/violet is the BRAND accent (buttons, highlights, active states);
+    // successGreen / alertRed stay reserved for gain/loss semantics.
+    accent: "#5B7CFF",
+    accentDeep: "#8B5CFF",
+    accentIce: "#B9D4FF",
+    accentTint: "rgba(91, 124, 255, 0.12)",
+    accentTintStrong: "rgba(91, 124, 255, 0.18)",
+    accentBorder: "rgba(91, 124, 255, 0.35)",
+    navyGlow: "#07122A",
   },
 };
 

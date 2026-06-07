@@ -8,6 +8,7 @@ import { Colors, Spacing, Fonts, Typography } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { analyzeImage } from "@/services/geminiService";
 import { getApiUrl } from "@/lib/query-client";
+import { ScopeBackground } from "@/components/ScopeBackground";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analyzing">;
 
@@ -67,22 +68,23 @@ export default function AnalyzingScreen({ navigation, route }: Props) {
   }, [imageBase64, navigation]);
 
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={Colors.dark.successGreen} />
-      <Text style={styles.stepText}>{ANALYSIS_STEPS[currentStep]}</Text>
-    </View>
+    <ScopeBackground>
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={Colors.dark.accent} />
+        <Text style={styles.stepText}>{ANALYSIS_STEPS[currentStep]}</Text>
+      </View>
+    </ScopeBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.backgroundRoot,
     justifyContent: "center",
     alignItems: "center",
   },
   stepText: {
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accentIce,
     marginTop: Spacing.xl,
     fontSize: Typography.label.fontSize,
     fontFamily: Fonts?.mono,

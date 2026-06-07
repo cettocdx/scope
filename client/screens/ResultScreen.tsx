@@ -22,6 +22,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset, ProductDeal } from "@/types";
 import { useAddAsset } from "@/hooks/usePortfolio";
 import { persistAssetImage } from "@/lib/image-store";
+import { ScopeBackground } from "@/components/ScopeBackground";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -197,6 +198,7 @@ Analyzed by SCOPE - AI Asset Scanner
   };
 
   return (
+    <ScopeBackground glowY={0.3}>
     <View style={styles.modalOverlay}>
       <View style={[styles.cardContainer, { paddingBottom: insets.bottom + Spacing.xl }]}>
         <View style={styles.handleContainer}>
@@ -349,7 +351,7 @@ Analyzed by SCOPE - AI Asset Scanner
               accessibilityRole="button"
               accessibilityLabel="Create promotional content"
             >
-              <Feather name="zap" size={18} color={Colors.dark.successGreen} />
+              <Feather name="zap" size={18} color={Colors.dark.accent} />
             </TouchableOpacity>
           </View>
 
@@ -512,6 +514,7 @@ Analyzed by SCOPE - AI Asset Scanner
         </View>
       </Modal>
     </View>
+    </ScopeBackground>
   );
 }
 
@@ -519,7 +522,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: Colors.dark.backgroundRoot,
+    backgroundColor: "transparent",
   },
   cardContainer: {
     backgroundColor: Colors.dark.backgroundSecondary,
@@ -577,7 +580,7 @@ const styles = StyleSheet.create({
   matchText: {
     fontSize: Typography.micro.fontSize,
     fontWeight: "700",
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accentIce,
     fontFamily: Fonts?.mono,
   },
   title: {
@@ -701,7 +704,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: Fonts?.mono,
     letterSpacing: 1,
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accentIce,
   },
   dealCard: {
     backgroundColor: Colors.dark.backgroundTertiary,
@@ -721,7 +724,7 @@ const styles = StyleSheet.create({
   },
   bestDealText: {
     fontSize: Typography.micro.fontSize,
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accent,
     fontFamily: Fonts?.mono,
     marginTop: Spacing.xs,
   },
@@ -787,7 +790,7 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
   },
   priceRangeMedianValue: {
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accentIce,
     fontSize: Typography.h3.fontSize,
   },
   outlierInfo: {

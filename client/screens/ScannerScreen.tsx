@@ -177,14 +177,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.mono,
   },
   permissionButton: {
-    backgroundColor: Colors.dark.successGreen,
+    backgroundColor: Colors.dark.accent,
     paddingHorizontal: Spacing["2xl"],
     paddingVertical: Spacing.lg,
     borderRadius: Spacing.md,
     marginBottom: Spacing.md,
   },
   permissionButtonText: {
-    color: "#000",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontFamily: Fonts?.mono,
   },
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   captureInnerLocked: {
-    backgroundColor: Colors.dark.successGreen,
+    backgroundColor: Colors.dark.accent,
   },
   placeholder: {
     width: 80,
