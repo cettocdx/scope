@@ -60,6 +60,9 @@ export default function ReviewScreen({ navigation, route }: Props) {
           style={styles.primaryButton}
           onPress={handleQuickAnalyze}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Quick analyze"
+          accessibilityHint="AI identifies the item instantly"
         >
           <View style={styles.buttonContent}>
             <Feather name="zap" size={20} color="#000" />
@@ -75,6 +78,9 @@ export default function ReviewScreen({ navigation, route }: Props) {
           style={styles.refineButton}
           onPress={handleRefine}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Confirm and refine"
+          accessibilityHint="Add condition, size and color for better accuracy"
         >
           <View style={styles.buttonContent}>
             <Feather name="sliders" size={20} color={Colors.dark.successGreen} />

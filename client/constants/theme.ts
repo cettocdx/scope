@@ -17,6 +17,13 @@ export const Colors = {
     successGreen: "#00FF94",
     alertRed: "#FF3B30",
     warningYellow: "#FACC15",
+    // Semantic tints derived from successGreen / alertRed, so screens stop
+    // hand-writing the same rgba() literals for status pills and badges.
+    successTint: "rgba(0, 255, 148, 0.1)",
+    successTintStrong: "rgba(0, 255, 148, 0.15)",
+    alertTint: "rgba(255, 59, 48, 0.1)",
+    alertTintStrong: "rgba(255, 59, 48, 0.15)",
+    overlayLight: "rgba(255, 255, 255, 0.1)",
     glassSurface: "rgba(20, 20, 20, 0.6)",
     glassBorder: "rgba(255, 255, 255, 0.08)",
     cardBorder: "#222222",
@@ -38,6 +45,13 @@ export const Colors = {
     successGreen: "#00FF94",
     alertRed: "#FF3B30",
     warningYellow: "#FACC15",
+    // Semantic tints derived from successGreen / alertRed, so screens stop
+    // hand-writing the same rgba() literals for status pills and badges.
+    successTint: "rgba(0, 255, 148, 0.1)",
+    successTintStrong: "rgba(0, 255, 148, 0.15)",
+    alertTint: "rgba(255, 59, 48, 0.1)",
+    alertTintStrong: "rgba(255, 59, 48, 0.15)",
+    overlayLight: "rgba(255, 255, 255, 0.1)",
     glassSurface: "rgba(20, 20, 20, 0.6)",
     glassBorder: "rgba(255, 255, 255, 0.08)",
     cardBorder: "#222222",

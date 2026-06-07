@@ -168,7 +168,7 @@ export default function AnalyticsScreen({ navigation }: Props) {
           <Text style={styles.summaryValue}>${analytics.totalValue.toLocaleString()}</Text>
           <View style={[
             styles.roiBadge,
-            { backgroundColor: analytics.totalGainLoss >= 0 ? "rgba(0, 255, 148, 0.15)" : "rgba(255, 59, 48, 0.15)" }
+            { backgroundColor: analytics.totalGainLoss >= 0 ? Colors.dark.successTintStrong : Colors.dark.alertTintStrong }
           ]}>
             <Text style={[
               styles.roiText,
@@ -196,7 +196,7 @@ export default function AnalyticsScreen({ navigation }: Props) {
             <Text style={styles.statLabel}>HOLD</Text>
           </View>
           <View style={styles.statCard}>
-            <View style={[styles.statIconBg, { backgroundColor: "rgba(255, 59, 48, 0.15)" }]}>
+            <View style={[styles.statIconBg, { backgroundColor: Colors.dark.alertTintStrong }]}>
               <Feather name="trending-down" size={16} color={Colors.dark.alertRed} />
             </View>
             <Text style={styles.statValue}>{analytics.ratingCounts.SELL}</Text>
@@ -205,10 +205,12 @@ export default function AnalyticsScreen({ navigation }: Props) {
         </View>
 
         {analytics.bestPerformer && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.performerCard}
             onPress={() => navigateToAsset(analytics.bestPerformer!)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Top performer: ${analytics.bestPerformer.itemName}. Open details.`}
           >
             <View style={styles.performerHeader}>
               <Feather name="award" size={16} color={Colors.dark.successGreen} />
@@ -226,10 +228,12 @@ export default function AnalyticsScreen({ navigation }: Props) {
         )}
 
         {analytics.worstPerformer && analytics.worstPerformer !== analytics.bestPerformer && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.performerCard, { borderColor: "rgba(255, 59, 48, 0.3)" }]}
             onPress={() => navigateToAsset(analytics.worstPerformer!)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Underperformer: ${analytics.worstPerformer.itemName}. Open details.`}
           >
             <View style={styles.performerHeader}>
               <Feather name="alert-triangle" size={16} color={Colors.dark.alertRed} />

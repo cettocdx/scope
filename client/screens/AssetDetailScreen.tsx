@@ -239,6 +239,9 @@ Tracked by SCOPE - AI Asset Scanner
           style={styles.liquidateButton}
           onPress={handleLiquidate}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Liquidate asset"
+          accessibilityHint="Removes this asset from your vault"
         >
           <Feather name="zap" size={18} color="#FFF" />
           <Text style={styles.buttonText}>LIQUIDATE</Text>

@@ -15,6 +15,7 @@ import { Colors, Spacing, Typography, Fonts, BorderRadius } from "@/constants/th
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
+import { TrendPill } from "@/components/TrendPill";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { imageSource } from "@/lib/image-store";
 
@@ -32,7 +33,6 @@ const AssetRow = React.memo(function AssetRow({
   item: PortfolioAsset;
   onPress: (asset: PortfolioAsset) => void;
 }) {
-  const trendUp = item.trendPercentage >= 0;
   return (
     <TouchableOpacity
       style={styles.assetCard}
@@ -57,26 +57,7 @@ const AssetRow = React.memo(function AssetRow({
         </View>
         <View style={styles.assetStats}>
           <Text style={styles.assetPrice}>${item.estimatedPrice.toLocaleString("en-US")}</Text>
-          <View
-            style={[
-              styles.trendPill,
-              {
-                backgroundColor: trendUp
-                  ? "rgba(0, 255, 148, 0.1)"
-                  : "rgba(255, 59, 48, 0.1)",
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.trendText,
-                { color: trendUp ? Colors.dark.successGreen : Colors.dark.alertRed },
-              ]}
-            >
-              {item.trendPercentage > 0 ? "+" : ""}
-              {item.trendPercentage}%
-            </Text>
-          </View>
+          <TrendPill value={item.trendPercentage} />
         </View>
       </View>
     </TouchableOpacity>
@@ -183,7 +164,7 @@ export default function VaultScreen({ navigation }: Props) {
             {assets.length > 0 && (
               <View style={[
                 styles.roiBadge,
-                { backgroundColor: totalGainLoss >= 0 ? "rgba(0, 255, 148, 0.15)" : "rgba(255, 59, 48, 0.15)" }
+                { backgroundColor: totalGainLoss >= 0 ? Colors.dark.successTintStrong : Colors.dark.alertTintStrong }
               ]}>
                 <Text style={[
                   styles.roiText,
@@ -359,15 +340,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.dark.text,
     fontFamily: Fonts?.mono,
-  },
-  trendPill: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: Spacing.xs,
-  },
-  trendText: {
-    fontSize: Typography.micro.fontSize,
-    fontWeight: "700",
   },
   emptyState: {
     height: 200,

@@ -316,6 +316,9 @@ Analyzed by SCOPE - AI Asset Scanner
               onPress={handleAddToVault}
               disabled={isSaving}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={isSaving ? "Saving asset" : "Add to vault"}
+              accessibilityState={{ disabled: isSaving, busy: isSaving }}
             >
               <Feather name="plus-circle" size={18} color="#000" />
               <Text style={styles.primaryButtonText}>
@@ -364,6 +367,8 @@ Analyzed by SCOPE - AI Asset Scanner
                     style={[styles.dealCard, deal.isOutlier && styles.dealCardOutlier]}
                     onPress={() => openLink(deal.url)}
                     activeOpacity={0.7}
+                    accessibilityRole="link"
+                    accessibilityLabel={`${deal.storeName}, ${Math.round(deal.price)} dollars. Opens in browser.`}
                   >
                     <View style={styles.dealLeft}>
                       <View style={styles.storeRow}>
