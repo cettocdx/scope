@@ -17,15 +17,15 @@ import * as Haptics from "expo-haptics";
 
 import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
-import { removeAssetFromPortfolio } from "@/services/portfolioService";
+import { useRemoveAsset } from "@/hooks/usePortfolio";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AssetDetail">;
 
 export default function AssetDetailScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { asset } = route.params;
+  const removeAsset = useRemoveAsset();
   const profit = asset.estimatedPrice - asset.purchasePrice;
   const isProfit = profit >= 0;
 
@@ -81,7 +81,7 @@ Tracked by SCOPE - AI Asset Scanner
           style: "destructive",
           onPress: async () => {
             try {
-              await removeAssetFromPortfolio(asset.id);
+              await removeAsset.mutateAsync(asset.id);
 
               if (Platform.OS !== "web") {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});

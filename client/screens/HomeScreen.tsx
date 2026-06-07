@@ -9,20 +9,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Colors, Spacing, Fonts } from "@/constants/theme";
 import { LogoMark } from "@/components/Logo";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { PortfolioAsset } from "@/types";
-
-const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
+import { usePortfolio } from "@/hooks/usePortfolio";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const [assetCount, setAssetCount] = useState(0);
+  const { assets } = usePortfolio();
+  const assetCount = assets.length;
   const pulseAnim = useState(new Animated.Value(1))[0];
   const glowAnim = useState(new Animated.Value(0.16))[0];
 
@@ -46,25 +44,6 @@ export default function HomeScreen({ navigation }: Props) {
       glow.stop();
     };
   }, [pulseAnim, glowAnim]);
-
-  useEffect(() => {
-    const loadPortfolio = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(PORTFOLIO_STORAGE_KEY);
-        if (saved) {
-          const portfolio: PortfolioAsset[] = JSON.parse(saved);
-          setAssetCount(portfolio.length);
-        } else {
-          setAssetCount(0);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    const unsubscribe = navigation.addListener("focus", loadPortfolio);
-    loadPortfolio();
-    return unsubscribe;
-  }, [navigation]);
 
   return (
     <View

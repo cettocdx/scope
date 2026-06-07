@@ -20,7 +20,7 @@ import * as Haptics from "expo-haptics";
 import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset, ProductDeal } from "@/types";
-import { addAssetToPortfolio } from "@/services/portfolioService";
+import { useAddAsset } from "@/hooks/usePortfolio";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -65,6 +65,7 @@ export default function ResultScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { imageBase64, assetData } = route.params;
   const [isSaving, setIsSaving] = useState(false);
+  const addAsset = useAddAsset();
 
   const safeAssetData = {
     itemName: assetData?.itemName || "Unknown Item",
@@ -99,7 +100,7 @@ export default function ResultScreen({ navigation, route }: Props) {
         imageBase64,
       };
 
-      await addAssetToPortfolio(newAsset);
+      await addAsset.mutateAsync(newAsset);
 
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});

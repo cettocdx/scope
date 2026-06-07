@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -15,35 +15,13 @@ import { Colors, Spacing, Typography, Fonts, BorderRadius } from "@/constants/th
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
-import { syncPortfolio, getLocalPortfolio } from "@/services/portfolioService";
+import { usePortfolio } from "@/hooks/usePortfolio";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Vault">;
 
 export default function VaultScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const [assets, setAssets] = useState<PortfolioAsset[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadPortfolio = useCallback(async () => {
-    try {
-      const localAssets = await getLocalPortfolio();
-      setAssets(localAssets);
-      setIsLoading(false);
-
-      syncPortfolio().then(syncedAssets => {
-        setAssets(syncedAssets);
-      }).catch(console.error);
-    } catch (e) {
-      console.error(e);
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadPortfolio);
-    loadPortfolio();
-    return unsubscribe;
-  }, [navigation, loadPortfolio]);
+  const { assets, isLoading } = usePortfolio();
 
   const totalValue = assets.reduce((acc, curr) => acc + curr.estimatedPrice, 0);
   const totalPurchaseValue = assets.reduce((acc, curr) => acc + curr.purchasePrice, 0);

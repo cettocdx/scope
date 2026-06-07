@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { Colors, Spacing, Typography, Fonts, BorderRadius } from "@/constants/th
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
-import { getLocalPortfolio, syncPortfolio } from "@/services/portfolioService";
+import { usePortfolio } from "@/hooks/usePortfolio";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analytics">;
 
@@ -116,32 +116,8 @@ function calculateAnalytics(assets: PortfolioAsset[]): AnalyticsData {
 
 export default function AnalyticsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const [assets, setAssets] = useState<PortfolioAsset[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsData>(calculateAnalytics([]));
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadData = useCallback(async () => {
-    try {
-      const localAssets = await getLocalPortfolio();
-      setAssets(localAssets);
-      setAnalytics(calculateAnalytics(localAssets));
-      setIsLoading(false);
-
-      syncPortfolio().then(syncedAssets => {
-        setAssets(syncedAssets);
-        setAnalytics(calculateAnalytics(syncedAssets));
-      }).catch(console.error);
-    } catch (e) {
-      console.error(e);
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadData);
-    loadData();
-    return unsubscribe;
-  }, [navigation, loadData]);
+  const { assets, isLoading } = usePortfolio();
+  const analytics = React.useMemo(() => calculateAnalytics(assets), [assets]);
 
   const historyData = React.useMemo(() => {
     if (assets.length === 0) return [0, 0, 0, 0, 0];
