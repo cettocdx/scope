@@ -95,6 +95,7 @@ export default function HomeScreen({ navigation }: Props) {
     }).start();
 
   const handleScope = () => navigation.navigate("Scanner");
+  const handleVault = () => navigation.navigate("Vault");
 
   const orbScale = press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] });
   const glowOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.82] });
@@ -196,8 +197,52 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.hint}>Tap to open camera scan</Text>
           <ScanReticle size={22} color={C.faint} />
         </View>
+
+        {/* Discreet vault access */}
+        <Pressable
+          onPress={handleVault}
+          hitSlop={18}
+          accessibilityRole="button"
+          accessibilityLabel="Open vault"
+          style={({ pressed }) => [styles.vault, { opacity: pressed ? 0.85 : 0.42 }]}
+        >
+          <VaultGlyph size={18} color={C.ice} />
+          <Text style={styles.vaultText}>VAULT</Text>
+        </Pressable>
       </View>
     </View>
+  );
+}
+
+/** Tiny vault/safe glyph: a rounded door with a combination dial. */
+function VaultGlyph({ size, color }: { size: number; color: string }) {
+  const sw = Math.max(1.2, size * 0.085);
+  return (
+    <Svg width={size} height={size}>
+      <Rect
+        x={size * 0.12}
+        y={size * 0.16}
+        width={size * 0.76}
+        height={size * 0.68}
+        rx={size * 0.12}
+        stroke={color}
+        strokeWidth={sw}
+        fill="none"
+      />
+      <Circle cx={size * 0.46} cy={size * 0.5} r={size * 0.16} stroke={color} strokeWidth={sw} fill="none" />
+      <Path
+        d={`M ${size * 0.46} ${size * 0.5} L ${size * 0.46} ${size * 0.34}`}
+        stroke={color}
+        strokeWidth={sw}
+        strokeLinecap="round"
+      />
+      <Path
+        d={`M ${size * 0.72} ${size * 0.4} L ${size * 0.72} ${size * 0.6}`}
+        stroke={color}
+        strokeWidth={sw}
+        strokeLinecap="round"
+      />
+    </Svg>
   );
 }
 
@@ -375,5 +420,17 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     letterSpacing: 0.6,
     color: C.muted,
+  },
+  vault: {
+    marginTop: 26,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  vaultText: {
+    fontSize: 10,
+    letterSpacing: 3,
+    fontWeight: "500",
+    color: C.ice,
   },
 });
