@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 
 import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { ScopeBackground } from "@/components/ScopeBackground";
 import { Condition, Country, AssetAttributes } from "@/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Confirm">;
@@ -145,6 +146,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
   );
 
   return (
+    <ScopeBackground>
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity
@@ -171,7 +173,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
               {initialData?.itemName || "Detected Item"}
             </Text>
             <View style={styles.confidenceRow}>
-              <Feather name="check-circle" size={14} color={Colors.dark.successGreen} />
+              <Feather name="check-circle" size={14} color={Colors.dark.accent} />
               <Text style={styles.confidenceText}>
                 {initialData?.confidenceScore || 0}% Visual Match
               </Text>
@@ -202,7 +204,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
               <Feather
                 name={c.icon}
                 size={20}
-                color={condition === c.value ? Colors.dark.successGreen : Colors.dark.textSecondary}
+                color={condition === c.value ? Colors.dark.accent : Colors.dark.textSecondary}
               />
               <Text
                 style={[
@@ -239,7 +241,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
               <Feather
                 name={c.flag}
                 size={18}
-                color={country === c.value ? Colors.dark.successGreen : Colors.dark.textSecondary}
+                color={country === c.value ? Colors.dark.accent : Colors.dark.textSecondary}
               />
               <Text
                 style={[
@@ -269,17 +271,18 @@ export default function ConfirmScreen({ navigation, route }: Props) {
           accessibilityLabel="Update valuation"
         >
           <Text style={styles.continueButtonText}>UPDATE VALUATION</Text>
-          <Feather name="arrow-right" size={20} color="#000" />
+          <Feather name="arrow-right" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
     </View>
+    </ScopeBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.backgroundRoot,
+    backgroundColor: "transparent",
   },
   header: {
     flexDirection: "row",
@@ -338,7 +341,7 @@ const styles = StyleSheet.create({
   },
   confidenceText: {
     fontSize: Typography.label.fontSize,
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accent,
     fontFamily: Fonts?.mono,
   },
   sectionHeader: {
@@ -365,8 +368,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.cardBorder,
   },
   conditionCardSelected: {
-    borderColor: Colors.dark.successGreen,
-    backgroundColor: "rgba(0, 255, 148, 0.1)",
+    borderColor: Colors.dark.accent,
+    backgroundColor: Colors.dark.accentTint,
   },
   conditionLabel: {
     fontSize: Typography.label.fontSize,
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.mono,
   },
   conditionLabelSelected: {
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accent,
     fontWeight: "700",
   },
   countryRow: {
@@ -394,8 +397,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.cardBorder,
   },
   countryCardSelected: {
-    borderColor: Colors.dark.successGreen,
-    backgroundColor: "rgba(0, 255, 148, 0.1)",
+    borderColor: Colors.dark.accent,
+    backgroundColor: Colors.dark.accentTint,
   },
   countryLabel: {
     fontSize: Typography.label.fontSize,
@@ -403,7 +406,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.mono,
   },
   countryLabelSelected: {
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accent,
     fontWeight: "700",
   },
   selectorSection: {
@@ -428,8 +431,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.cardBorder,
   },
   optionChipSelected: {
-    borderColor: Colors.dark.successGreen,
-    backgroundColor: "rgba(0, 255, 148, 0.15)",
+    borderColor: Colors.dark.accent,
+    backgroundColor: Colors.dark.accentTintStrong,
   },
   optionText: {
     fontSize: Typography.label.fontSize,
@@ -437,7 +440,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.mono,
   },
   optionTextSelected: {
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accent,
     fontWeight: "700",
   },
   footer: {
@@ -447,12 +450,12 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
-    backgroundColor: Colors.dark.backgroundRoot,
+    backgroundColor: "#02040A",
     borderTopWidth: 1,
     borderTopColor: Colors.dark.cardBorder,
   },
   continueButton: {
-    backgroundColor: Colors.dark.successGreen,
+    backgroundColor: Colors.dark.accent,
     borderRadius: BorderRadius.lg,
     height: Spacing.buttonHeight,
     flexDirection: "row",
@@ -463,7 +466,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: Typography.body.fontSize,
     fontWeight: "700",
-    color: "#000",
+    color: "#FFFFFF",
     fontFamily: Fonts?.mono,
   },
 });

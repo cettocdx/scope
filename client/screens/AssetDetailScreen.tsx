@@ -20,6 +20,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import FinancialChart from "@/components/FinancialChart";
 import { useRemoveAsset } from "@/hooks/usePortfolio";
 import { imageSource } from "@/lib/image-store";
+import { ScopeBackground } from "@/components/ScopeBackground";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AssetDetail">;
 
@@ -99,6 +100,7 @@ Tracked by SCOPE - AI Asset Scanner
   };
 
   return (
+    <ScopeBackground>
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.xl }]}>
         <TouchableOpacity
@@ -248,13 +250,14 @@ Tracked by SCOPE - AI Asset Scanner
         </TouchableOpacity>
       </View>
     </View>
+    </ScopeBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.backgroundRoot,
+    backgroundColor: "transparent",
   },
   header: {
     flexDirection: "row",
@@ -341,7 +344,7 @@ const styles = StyleSheet.create({
     marginTop: -Spacing.xl,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: Colors.dark.backgroundRoot,
+    backgroundColor: "#02040A",
   },
   statsGrid: {
     flexDirection: "row",

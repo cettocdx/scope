@@ -18,6 +18,7 @@ import FinancialChart from "@/components/FinancialChart";
 import { TrendPill } from "@/components/TrendPill";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { imageSource } from "@/lib/image-store";
+import { ScopeBackground } from "@/components/ScopeBackground";
 
 // Fixed card geometry lets the list skip measurement (getItemLayout): an 80px
 // image plus 4px padding top/bottom = 88, plus a 12px gap between cards.
@@ -118,7 +119,7 @@ export default function VaultScreen({ navigation }: Props) {
     if (isLoading) {
       return (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={Colors.dark.successGreen} />
+          <ActivityIndicator size="large" color={Colors.dark.accent} />
           <Text style={styles.loadingText}>LOADING VAULT</Text>
         </View>
       );
@@ -135,6 +136,7 @@ export default function VaultScreen({ navigation }: Props) {
   };
 
   return (
+    <ScopeBackground>
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.xl }]}>
         <View style={styles.headerTop}>
@@ -153,7 +155,7 @@ export default function VaultScreen({ navigation }: Props) {
               accessibilityRole="button"
               accessibilityLabel="View analytics"
             >
-              <Feather name="bar-chart-2" size={20} color={Colors.dark.successGreen} />
+              <Feather name="bar-chart-2" size={20} color={Colors.dark.accent} />
             </TouchableOpacity>
           </View>
           <View style={styles.netWorthSection}>
@@ -176,7 +178,7 @@ export default function VaultScreen({ navigation }: Props) {
             )}
           </View>
         </View>
-        <FinancialChart data={historyData} height={80} color={Colors.dark.successGreen} />
+        <FinancialChart data={historyData} height={80} color={Colors.dark.accent} />
       </View>
 
       <FlatList
@@ -213,17 +215,18 @@ export default function VaultScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Scan new item"
         >
-          <Feather name="crosshair" size={24} color="#000" />
+          <Feather name="crosshair" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>
+    </ScopeBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.backgroundRoot,
+    backgroundColor: "transparent",
   },
   header: {
     paddingHorizontal: Spacing.xl,
@@ -254,7 +257,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0, 255, 148, 0.1)",
+    backgroundColor: Colors.dark.accentTint,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -296,7 +299,7 @@ const styles = StyleSheet.create({
   activeCount: {
     fontSize: Typography.micro.fontSize,
     fontWeight: Typography.micro.fontWeight,
-    color: Colors.dark.successGreen,
+    color: Colors.dark.accentIce,
     fontFamily: Fonts?.mono,
   },
   assetCard: {
@@ -379,10 +382,10 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.dark.accent,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#FFFFFF",
+    shadowColor: Colors.dark.accent,
     shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 },

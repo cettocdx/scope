@@ -16,6 +16,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { ScopeBackground } from "@/components/ScopeBackground";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analytics">;
 
@@ -142,6 +143,7 @@ export default function AnalyticsScreen({ navigation }: Props) {
   };
 
   return (
+    <ScopeBackground>
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.xl }]}>
         <TouchableOpacity
@@ -158,7 +160,7 @@ export default function AnalyticsScreen({ navigation }: Props) {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.dark.successGreen} />
+          <ActivityIndicator size="large" color={Colors.dark.accent} />
           <Text style={styles.loadingText}>CRUNCHING NUMBERS</Text>
         </View>
       ) : (
@@ -177,7 +179,7 @@ export default function AnalyticsScreen({ navigation }: Props) {
               {analytics.totalGainLoss >= 0 ? "+" : ""}${analytics.totalGainLoss.toFixed(0)} ({analytics.roiPercentage.toFixed(1)}% ROI)
             </Text>
           </View>
-          <FinancialChart data={historyData} height={100} color={Colors.dark.successGreen} />
+          <FinancialChart data={historyData} height={100} color={Colors.dark.accent} />
         </View>
 
         <View style={styles.statsRow}>
@@ -279,13 +281,14 @@ export default function AnalyticsScreen({ navigation }: Props) {
       </ScrollView>
       )}
     </View>
+    </ScopeBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.backgroundRoot,
+    backgroundColor: "transparent",
   },
   header: {
     flexDirection: "row",
