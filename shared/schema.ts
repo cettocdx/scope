@@ -16,6 +16,8 @@ export interface Deal {
   region: string;
   isBestDeal?: boolean;
   isOutlier?: boolean;
+  /** True when this is a "search on X" link rather than a real priced offer. */
+  isSearchLink?: boolean;
   qualityScore?: number;
   priceUSD?: number;
   originalPrice?: number;

@@ -36,6 +36,8 @@ export interface ProductDeal {
   region: 'US' | 'EU' | 'JP' | 'TR' | 'CN' | 'GLOBAL' | 'DE' | 'UK' | 'FR' | 'NL' | 'ES' | 'IT' | 'AE';
   condition?: Condition;
   isOutlier?: boolean;
+  /** True when this is a "search on X" link rather than a real priced offer. */
+  isSearchLink?: boolean;
   qualityScore?: number;
 }
 
@@ -58,6 +60,8 @@ export interface AssetAttributes {
 export interface AssetData {
   itemName: string;
   estimatedPrice: number;
+  /** True only when at least one real marketplace offer was found. */
+  priceFound?: boolean;
   currency: string;
   trendPercentage: number;
   confidenceScore: number;

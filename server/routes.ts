@@ -226,21 +226,99 @@ export function calculateValuation(deals: ValuationInput[], displayCurrency: str
   };
 }
 
+/**
+ * Price-less "search on X" links shown when no real marketplace offer was found.
+ * These let the user look the item up themselves without us inventing a price.
+ */
+function buildSearchLinks(itemName: string): Deal[] {
+  const q = encodeURIComponent(itemName.replace(/[^a-zA-Z0-9 ]/g, "").trim());
+  return [
+    {
+      storeName: "Google Shopping",
+      price: 0,
+      currency: "USD",
+      url: `https://www.google.com/search?tbm=shop&q=${q}`,
+      region: "US",
+      isSearchLink: true,
+    },
+    {
+      storeName: "Amazon",
+      price: 0,
+      currency: "USD",
+      url: `https://www.amazon.com/s?k=${q}`,
+      region: "US",
+      isSearchLink: true,
+    },
+    {
+      storeName: "eBay",
+      price: 0,
+      currency: "USD",
+      url: `https://www.ebay.com/sch/i.html?_nkw=${q}`,
+      region: "US",
+      isSearchLink: true,
+    },
+    {
+      storeName: "Trendyol",
+      price: 0,
+      currency: "USD",
+      url: `https://www.trendyol.com/sr?q=${q}`,
+      region: "TR",
+      isSearchLink: true,
+    },
+  ];
+}
+
 const FORENSIC_ANALYSIS_PROMPT = `
-ROLE: Expert Luxury Product Authenticator & Brand Identification Specialist.
+ROLE: Universal Product Identification & Resale Valuation Expert.
+You identify ANY physical object a user photographs — electronics, vehicles, fashion,
+bags, footwear, watches, jewelry, appliances, tools, collectibles, toys, beauty, or
+anything else — and prepare precise marketplace search queries to find its real price.
 
-CRITICAL RULES:
-1. NEVER FABRICATE BRANDS. Only identify what you can see evidence for.
-2. If brand is truly unclear after all analysis, say "Unknown Brand" with your best description.
+CORE RULES:
+1. NEVER FABRICATE. Identify only what the image supports. For generic or unbranded
+   objects, describe them accurately ("Unknown Brand") instead of forcing a luxury brand.
+2. READ EVERY VISIBLE TEXT first: model numbers, serial labels, logos, stamps, badges,
+   on-screen text, license/spec plates. A printed model/serial number is the strongest clue.
+3. BE SPECIFIC: the end goal is a search query precise enough to match the EXACT product
+   (right brand, model, size/storage/variant) on a shopping site.
 
-IDENTIFICATION METHODS (USE ALL THAT APPLY):
+STEP 1 — CLASSIFY THE BROAD CATEGORY (pick the best fit):
+Electronics | Vehicle | Fashion | Bags | Footwear | Watch | Jewelry | Appliance | Tool | Collectible | Beauty | Home | Other
 
-METHOD 1 - LOGO/TEXT DETECTION (Highest confidence):
-- Search for visible logos, brand text, stamps, engravings
-- Look for: metal plaques, embossed text, printed labels, hang tags
-- Check: tongue of shoes, interior lining, hardware, zippers, buckles, soles
+STEP 2 — IDENTIFY USING THE METHOD THAT FITS THE CATEGORY:
 
-METHOD 2 - COMPREHENSIVE FASHION BRAND DATABASE:
+>> ELECTRONICS (phones, laptops, tablets, e-cigarettes/vapes, TV remotes, TVs, monitors,
+   headphones/earbuds, cameras, game consoles, smart devices, chargers/accessories):
+   - Read the model name/number on the body, screen, sticker or box (e.g. "iPhone 15 Pro",
+     model "A2848", "Galaxy S24 Ultra", "PlayStation 5", "Vaporesso XROS 3", "Logitech MX").
+   - Brand from logo + design language. Capture every spec that changes price:
+     storage (128/256/512GB/1TB), screen size (13"/15"/65"), RAM, color, connectivity
+     (Wi-Fi / Cellular / 5G), generation/model year, edition.
+   - Vapes/e-cigs: brand (Elf Bar, Vaporesso, Geekvape, SMOK, Lost Mary...), model, puff
+     count / pod capacity, nicotine strength if printed, disposable vs refillable.
+   - Remotes & accessories: name the host device (brand + which TV / set-top / console).
+
+>> VEHICLE (cars, motorcycles, scooters, bicycles):
+   - Make + model + body type + approximate year range + trim/engine if badges are visible
+     (e.g. "BMW 320i F30 Sedan 2015-2018", "Honda CBR 250R", "Yamaha NMAX 125").
+   - Use badges, grille/emblem, head/tail-light shape, wheel design, body lines.
+
+>> FASHION / BAGS / FOOTWEAR — use the brand knowledge in the DATABASE below. For
+   non-luxury / high-street items (Zara, H&M, Nike basics, no-name), identify the brand
+   from the label and describe garment type, material, color and size precisely.
+
+>> WATCH / JEWELRY: brand, model/reference, case size, material (steel/gold), movement
+   clues, dial color, bracelet type. Read any reference number on the caseback.
+
+>> APPLIANCE / HOME / TOOL / BEAUTY / COLLECTIBLE / TOY / OTHER:
+   - Brand + model + key specs from labels (wattage, capacity, size, volume).
+   - Collectibles/toys: line/character, edition, year, scale (e.g. "LEGO 75192", "Funko Pop").
+   - Beauty: brand + exact product name + size/shade (e.g. "Dyson Airwrap Complete").
+
+LOGO/TEXT DETECTION applies to every category: inspect plaques, embossed text, printed
+labels, hang tags, screens, engravings, zippers, buckles, soles, casebacks, spec stickers.
+
+FASHION / BAGS / FOOTWEAR BRAND DATABASE (use only when the item is fashion-related):
 
 === LUXURY TIER (€1000+) ===
 PRADA: Triangle metal logo, "PRADA MILANO" text, Monolith chunky soles, Re-Nylon fabric, silver/gunmetal hardware, clean minimalist design
@@ -359,7 +437,7 @@ OUTPUT FORMAT (JSON ONLY, no markdown):
   "brandConfidence": Number (50-99),
   "visualEvidence": ["List ALL visual cues found"],
   "identificationMethod": "logo" | "signature_design" | "construction" | "style_match",
-  "category": "Fashion" | "Electronics" | "Watch" | "Jewelry" | "Footwear" | "Bags" | "Accessories" | "Other",
+  "category": "Electronics" | "Vehicle" | "Fashion" | "Bags" | "Footwear" | "Watch" | "Jewelry" | "Appliance" | "Tool" | "Collectible" | "Beauty" | "Home" | "Other",
   "estimatedPrice": Number in USD,
   "currency": "USD",
   "trendPercentage": Number (-15 to +25),
@@ -371,7 +449,7 @@ OUTPUT FORMAT (JSON ONLY, no markdown):
   "deals": [],
   "dna": {
     "title": "Full precise product name e.g. 'Apple Watch Series 9 45mm GPS Midnight Aluminum'",
-    "category": "Electronics" | "Fashion" | "Watch" | "Jewelry" | "Footwear" | "Bags" | "Accessories" | "Other",
+    "category": "Electronics" | "Vehicle" | "Fashion" | "Bags" | "Footwear" | "Watch" | "Jewelry" | "Appliance" | "Tool" | "Collectible" | "Beauty" | "Home" | "Other",
     "brand": "Brand name",
     "model": "Model/series name",
     "variant": {
@@ -470,6 +548,77 @@ EXAMPLE - Luxury Fashion:
       "Prada Wallet"
     ],
     "mustHaveTokens": ["Prada", "Saffiano", "Wallet"]
+  }
+}
+
+EXAMPLE - Electronics (e-cigarette / vape):
+{
+  "itemName": "Vaporesso XROS 3 Pod Kit",
+  "brand": "Vaporesso",
+  "model": "XROS 3",
+  "brandConfidence": 90,
+  "visualEvidence": ["VAPORESSO text on body", "XROS 3 model name", "1000mAh pod kit form factor", "side fill pod"],
+  "identificationMethod": "logo",
+  "category": "Electronics",
+  "estimatedPrice": 25,
+  "currency": "USD",
+  "trendPercentage": 0,
+  "confidenceScore": 90,
+  "investmentRating": "HOLD",
+  "alternativeBrands": [],
+  "needsUserInput": false,
+  "requestedDetails": "",
+  "deals": [],
+  "dna": {
+    "title": "Vaporesso XROS 3 Pod Kit 1000mAh Black",
+    "category": "Electronics",
+    "brand": "Vaporesso",
+    "model": "XROS 3",
+    "variant": {"color": "Black", "capacity": "1000mAh"},
+    "condition": "NEW",
+    "confidence": {"visual": 90, "ocr": 92, "barcode": 0, "overall": 90},
+    "searchQueries": [
+      "Vaporesso XROS 3 Pod Kit 1000mAh",
+      "Vaporesso XROS 3 Pod Kit",
+      "Vaporesso XROS 3",
+      "Vaporesso XROS pod kit"
+    ],
+    "mustHaveTokens": ["Vaporesso", "XROS 3"]
+  }
+}
+
+EXAMPLE - Generic / unbranded object (do NOT force a luxury brand):
+{
+  "itemName": "Stainless Steel Insulated Water Bottle",
+  "brand": "Unknown Brand",
+  "model": "",
+  "brandConfidence": 50,
+  "visualEvidence": ["Double-wall steel body", "no visible logo", "screw cap with loop"],
+  "identificationMethod": "style_match",
+  "category": "Home",
+  "estimatedPrice": 15,
+  "currency": "USD",
+  "trendPercentage": 0,
+  "confidenceScore": 55,
+  "investmentRating": "HOLD",
+  "alternativeBrands": [],
+  "needsUserInput": true,
+  "requestedDetails": "A close-up of any logo or text on the base or cap would confirm the brand",
+  "deals": [],
+  "dna": {
+    "title": "Stainless Steel Insulated Water Bottle 750ml",
+    "category": "Home",
+    "brand": "Unknown Brand",
+    "model": "",
+    "variant": {"capacity": "750ml", "material": "Stainless Steel"},
+    "condition": "USED",
+    "confidence": {"visual": 60, "ocr": 0, "barcode": 0, "overall": 45},
+    "searchQueries": [
+      "stainless steel insulated water bottle 750ml",
+      "double wall steel water bottle",
+      "insulated water bottle"
+    ],
+    "mustHaveTokens": ["water bottle"]
   }
 }
 `;
@@ -758,10 +907,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Becomes true only if a real, plausible marketplace offer is found.
+      let priceFound = false;
+
       try {
         // Use DNA searchQueries for precise marketplace matching
         let searchQueries: string[] = [];
-        
+
         if (data.dna?.searchQueries && data.dna.searchQueries.length > 0) {
           // Use AI-generated search queries from DNA
           searchQueries = data.dna.searchQueries.slice(0, 3); // Use top 3 queries
@@ -819,6 +971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (plausible.length > 0) {
             data.deals = plausible;
+            priceFound = true;
 
             // Median (robust to outliers). Prefer US offers; otherwise use all
             // plausible offers across regions.
@@ -833,58 +986,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
             }
           }
-          // If nothing is plausible, keep the AI estimate and fall through to the
-          // synthetic deal links below (never show junk accessory prices).
         }
       } catch (serpError) {
-        console.error("SerpAPI error, using AI estimates:", serpError);
+        console.error("SerpAPI error:", serpError);
       }
 
-      if (!data.deals || data.deals.length === 0) {
-        const encodedItem = encodeURIComponent(data.itemName);
-        data.deals = [
-          {
-            storeName: "Amazon",
-            price: data.estimatedPrice,
-            currency: "USD",
-            url: `https://www.amazon.com/s?k=${encodedItem}`,
-            isBestDeal: true,
-            region: "US",
-          },
-          {
-            storeName: "eBay",
-            price: Math.round(data.estimatedPrice * 0.95),
-            currency: "USD",
-            url: `https://www.ebay.com/sch/i.html?_nkw=${encodedItem}`,
-            isBestDeal: false,
-            region: "US",
-          },
-          {
-            storeName: "Google Shopping",
-            price: Math.round(data.estimatedPrice * 1.02),
-            currency: "USD",
-            url: `https://www.google.com/search?tbm=shop&q=${encodedItem}`,
-            isBestDeal: false,
-            region: "GLOBAL",
-          },
-        ];
+      let priceRange = { min: 0, median: 0, max: 0, currency: "USD" };
+      let outlierCount = 0;
+      let finalDeals: Deal[];
+
+      if (priceFound && data.deals && data.deals.length > 0) {
+        const valuationResult = calculateValuation(data.deals, "USD");
+        finalDeals = valuationResult.processedDeals;
+        priceRange = valuationResult.priceRange;
+        outlierCount = valuationResult.outlierCount;
+      } else {
+        // No real marketplace offer was found. Per product policy we show ONLY
+        // real prices, so we never fabricate a value: drop the AI estimate and
+        // hand back "search on X" links (price-less) for the user to look it up.
+        data.estimatedPrice = 0;
+        finalDeals = buildSearchLinks(data.itemName);
       }
 
       const regionSummary: Record<string, Deal[]> = {};
       for (const rc of ["US", "TR", "UK", "FR", "NL", "ES", "IT", "AE"]) {
-        regionSummary[rc] = data.deals.filter((d: Deal) => d.region === rc);
+        regionSummary[rc] = finalDeals.filter((d: Deal) => d.region === rc);
       }
 
-      const valuationResult = calculateValuation(data.deals, "USD");
-      
       res.json({
         ...data,
         currency: "USD",
+        priceFound,
         regionSummary,
-        searchRegions: ["US", "TR", "DE"],
-        priceRange: valuationResult.priceRange,
-        outlierCount: valuationResult.outlierCount,
-        deals: valuationResult.processedDeals,
+        searchRegions: ["US", "TR", "UK", "FR", "NL", "ES", "IT", "AE"],
+        priceRange,
+        outlierCount,
+        deals: finalDeals,
         appliedRefinements: refinements || null,
       });
     } catch (error: unknown) {

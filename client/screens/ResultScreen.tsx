@@ -82,6 +82,11 @@ export default function ResultScreen({ navigation, route }: Props) {
     outlierCount: assetData?.outlierCount || 0,
   };
 
+  // We only show real marketplace prices. When none were found the server sends
+  // priceFound=false (and a 0 price), so the UI says "no price" instead of "$0".
+  const priceFound =
+    assetData?.priceFound ?? safeAssetData.estimatedPrice > 0;
+
   const [showRatingSheet, setShowRatingSheet] = useState(false);
 
   const handleClose = () => {
@@ -226,37 +231,49 @@ Analyzed by SCOPE - AI Asset Scanner
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>
-              ${safeAssetData.estimatedPrice.toLocaleString("en-US")}
-            </Text>
-            <View
-              style={[
-                styles.trendBadge,
-                {
-                  backgroundColor:
-                    safeAssetData.trendPercentage >= 0
-                      ? "rgba(0, 255, 148, 0.2)"
-                      : "rgba(255, 59, 48, 0.2)",
-                },
-              ]}
-            >
-              <Text
+          {priceFound ? (
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>
+                ${safeAssetData.estimatedPrice.toLocaleString("en-US")}
+              </Text>
+              <View
                 style={[
-                  styles.trendText,
+                  styles.trendBadge,
                   {
-                    color:
+                    backgroundColor:
                       safeAssetData.trendPercentage >= 0
-                        ? Colors.dark.successGreen
-                        : Colors.dark.alertRed,
+                        ? "rgba(0, 255, 148, 0.2)"
+                        : "rgba(255, 59, 48, 0.2)",
                   },
                 ]}
               >
-                {safeAssetData.trendPercentage > 0 ? "+" : ""}
-                {safeAssetData.trendPercentage}% (24H)
-              </Text>
+                <Text
+                  style={[
+                    styles.trendText,
+                    {
+                      color:
+                        safeAssetData.trendPercentage >= 0
+                          ? Colors.dark.successGreen
+                          : Colors.dark.alertRed,
+                    },
+                  ]}
+                >
+                  {safeAssetData.trendPercentage > 0 ? "+" : ""}
+                  {safeAssetData.trendPercentage}% (24H)
+                </Text>
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={styles.noPriceBox}>
+              <Feather name="search" size={18} color={Colors.dark.warningYellow} />
+              <View style={styles.noPriceTextWrap}>
+                <Text style={styles.noPriceTitle}>Gerçek fiyat bulunamadı</Text>
+                <Text style={styles.noPriceSub}>
+                  Bu ürün için canlı mağaza fiyatı yok. Aşağıdaki linklerden arayabilirsin.
+                </Text>
+              </View>
+            </View>
+          )}
 
           {safeAssetData.priceRange.min > 0 && (
             <View style={styles.priceRangeContainer}>
@@ -368,7 +385,11 @@ Analyzed by SCOPE - AI Asset Scanner
                     onPress={() => openLink(deal.url)}
                     activeOpacity={0.7}
                     accessibilityRole="link"
-                    accessibilityLabel={`${deal.storeName}, ${Math.round(deal.price)} dollars. Opens in browser.`}
+                    accessibilityLabel={
+                      deal.isSearchLink
+                        ? `Search ${deal.storeName}. Opens in browser.`
+                        : `${deal.storeName}, ${Math.round(deal.price)} dollars. Opens in browser.`
+                    }
                   >
                     <View style={styles.dealLeft}>
                       <View style={styles.storeRow}>
@@ -384,9 +405,13 @@ Analyzed by SCOPE - AI Asset Scanner
                       )}
                     </View>
                     <View style={styles.dealRight}>
-                      <Text style={[styles.dealPrice, deal.isOutlier && styles.dealPriceOutlier]}>
-                        ${Math.round(deal.price).toLocaleString("en-US")}
-                      </Text>
+                      {deal.isSearchLink ? (
+                        <Text style={styles.searchLinkText}>ARA</Text>
+                      ) : (
+                        <Text style={[styles.dealPrice, deal.isOutlier && styles.dealPriceOutlier]}>
+                          ${Math.round(deal.price).toLocaleString("en-US")}
+                        </Text>
+                      )}
                       <Feather name="external-link" size={14} color={Colors.dark.textTertiary} />
                     </View>
                   </TouchableOpacity>
@@ -574,6 +599,38 @@ const styles = StyleSheet.create({
     fontSize: Typography.price.fontSize,
     fontWeight: Typography.price.fontWeight,
     color: Colors.dark.text,
+  },
+  noPriceBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing["3xl"],
+    backgroundColor: "rgba(250, 204, 21, 0.08)",
+    borderColor: "rgba(250, 204, 21, 0.25)",
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+  },
+  noPriceTextWrap: {
+    flex: 1,
+  },
+  noPriceTitle: {
+    fontSize: Typography.h4.fontSize,
+    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts?.mono,
+  },
+  noPriceSub: {
+    fontSize: Typography.small.fontSize,
+    color: Colors.dark.textTertiary,
+    marginTop: 2,
+  },
+  searchLinkText: {
+    fontSize: Typography.label.fontSize,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: Colors.dark.warningYellow,
+    fontFamily: Fonts?.mono,
   },
   trendBadge: {
     paddingHorizontal: Spacing.sm,
