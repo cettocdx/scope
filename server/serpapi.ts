@@ -23,6 +23,10 @@ interface SerpShoppingResult {
   link?: string;
   product_link?: string;
   thumbnail?: string;
+  // Condition signals SerpAPI may attach to a shopping result.
+  condition?: string;
+  second_hand_condition?: string;
+  tag?: string;
 }
 
 /** Minimal shape of the SerpAPI search response we consume. */
@@ -156,6 +160,27 @@ function isValidStoreForRegion(storeName: string, region: string): boolean {
   return true;
 }
 
+// Second-hand / resale marketplaces. We want BRAND-NEW (retail) prices, so any
+// offer from these is excluded — they drag the median down to used-item levels.
+const RESALE_STORES = [
+  "ebay", "stockx", "goat", "grailed", "poshmark", "depop", "mercari", "vinted",
+  "therealreal", "the real real", "vestiaire", "rebelle", "tradesy", "fashionphile",
+  "gittigidiyor", "dolap", "letgo", "sahibinden", "facebook marketplace", "marketplace",
+  "swappa", "back market", "backmarket", "refurbished", "reebelo", "gazelle",
+];
+
+/** True when a store or a result's condition indicates a used / second-hand offer. */
+function isSecondHand(storeName: string, item: SerpShoppingResult): boolean {
+  const store = storeName.toLowerCase();
+  if (RESALE_STORES.some((r) => store.includes(r))) return true;
+
+  const cond = `${item.condition || ""} ${item.second_hand_condition || ""} ${item.tag || ""}`
+    .toLowerCase();
+  return /\b(used|pre-owned|preowned|second[\s-]?hand|refurb|refurbished|open box|open-box)\b/.test(
+    cond,
+  );
+}
+
 // Normalize store name for better matching
 function normalizeStoreName(storeName: string): string {
   return storeName
@@ -266,6 +291,8 @@ export async function searchPricesMultiRegion(
         const validResults = data.shopping_results
           .filter((item: SerpShoppingResult) => {
             const storeName = item.source || item.seller || "";
+            // Brand-new retail only: drop second-hand marketplaces / used offers.
+            if (isSecondHand(storeName, item)) return false;
             // Check if store is valid for this region
             return isValidStoreForRegion(storeName, regionCode);
           })
