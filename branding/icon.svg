@@ -1,13 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
-  <!-- SCOPE app icon — 1024×1024, full-bleed black, centered reticle mark. -->
+  <!-- SCOPE app icon — 1024×1024, full-bleed black, centered hexagonal aperture mark. -->
+  <defs>
+    <linearGradient id="scopeGrad" x1="192" y1="96" x2="832" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5BFFC0"/>
+      <stop offset="0.5" stop-color="#00FF94"/>
+      <stop offset="1" stop-color="#00B36A"/>
+    </linearGradient>
+  </defs>
   <rect width="1024" height="1024" fill="#000000"/>
-  <circle cx="512" cy="512" r="368" stroke="#FFFFFF" stroke-width="42" opacity="0.95"/>
-  <!-- top index mark (accent) -->
-  <line x1="512" y1="64" x2="512" y2="272" stroke="#00FF94" stroke-width="42" stroke-linecap="round"/>
-  <!-- cardinal ticks -->
-  <line x1="752" y1="512" x2="840" y2="512" stroke="#FFFFFF" stroke-width="42" stroke-linecap="round"/>
-  <line x1="512" y1="752" x2="512" y2="840" stroke="#FFFFFF" stroke-width="42" stroke-linecap="round"/>
-  <line x1="272" y1="512" x2="184" y2="512" stroke="#FFFFFF" stroke-width="42" stroke-linecap="round"/>
-  <!-- center dot (accent) -->
-  <circle cx="512" cy="512" r="52" fill="#00FF94"/>
+  <path fill="url(#scopeGrad)" fill-rule="evenodd"
+        d="M512,96 L872.32,304 L872.32,720 L512,928 L151.68,720 L151.68,304 Z
+           M512,288 L710.24,402.4 L710.24,631.2 L512,745.6 L313.76,631.2 L313.76,402.4 Z"/>
+  <circle cx="512" cy="512" r="67.2" fill="#5BFFC0"/>
 </svg>

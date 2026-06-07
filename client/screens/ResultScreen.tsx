@@ -36,7 +36,7 @@ const generatePromoContent = (itemName: string, price: number, rating: string, t
     `Discover the ${itemName} - Your next smart investment!`,
     `${itemName}: Market analysis says ${rating.toUpperCase()}!`,
     `Trending ${trendEmoji}${trend}% - ${itemName} is moving!`,
-    `Smart money moves: ${itemName} at $${price.toLocaleString()}`,
+    `Smart money moves: ${itemName} at $${price.toLocaleString("en-US")}`,
   ];
 
   const randomTagline = taglines[Math.floor(Math.random() * taglines.length)];
@@ -46,7 +46,7 @@ ${ratingTags[rating as keyof typeof ratingTags] || "FEATURED ASSET"}
 
 ${randomTagline}
 
-Current Market Value: $${price.toLocaleString()}
+Current Market Value: $${price.toLocaleString("en-US")}
 Category: ${category}
 24H Trend: ${trendEmoji}${trend}%
 AI Rating: ${rating}
@@ -154,7 +154,7 @@ ${safeAssetData.itemName}
 Category: ${safeAssetData.category}
 
 MARKET VALUATION
-Estimated Value: $${safeAssetData.estimatedPrice.toLocaleString()}
+Estimated Value: $${safeAssetData.estimatedPrice.toLocaleString("en-US")}
 Trend: ${safeAssetData.trendPercentage > 0 ? '+' : ''}${safeAssetData.trendPercentage}% (24H)
 AI Confidence: ${safeAssetData.confidenceScore}%
 Investment Rating: ${safeAssetData.investmentRating}
@@ -217,7 +217,7 @@ Analyzed by SCOPE - AI Asset Scanner
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.priceRow}>
             <Text style={styles.price}>
-              ${safeAssetData.estimatedPrice.toLocaleString()}
+              ${safeAssetData.estimatedPrice.toLocaleString("en-US")}
             </Text>
             <View
               style={[
@@ -253,17 +253,17 @@ Analyzed by SCOPE - AI Asset Scanner
               <View style={styles.priceRangeRow}>
                 <View style={styles.priceRangeItem}>
                   <Text style={styles.priceRangeLabel}>MIN</Text>
-                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.min.toLocaleString()}</Text>
+                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.min.toLocaleString("en-US")}</Text>
                 </View>
                 <View style={[styles.priceRangeItem, styles.priceRangeMedian]}>
                   <Text style={styles.priceRangeLabel}>MEDIAN</Text>
                   <Text style={[styles.priceRangeValue, styles.priceRangeMedianValue]}>
-                    ${safeAssetData.priceRange.median.toLocaleString()}
+                    ${safeAssetData.priceRange.median.toLocaleString("en-US")}
                   </Text>
                 </View>
                 <View style={styles.priceRangeItem}>
                   <Text style={styles.priceRangeLabel}>MAX</Text>
-                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.max.toLocaleString()}</Text>
+                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.max.toLocaleString("en-US")}</Text>
                 </View>
               </View>
               {safeAssetData.outlierCount > 0 && (
@@ -325,23 +325,27 @@ Analyzed by SCOPE - AI Asset Scanner
           <Text style={styles.sectionTitle}>GLOBAL MARKETS</Text>
 
           {([
-            { code: "US", name: "USA", flag: "flag", color: "#60A5FA" },
-            { code: "TR", name: "TURKEY", flag: "map-pin", color: "#EF4444" },
-            { code: "DE", name: "EUROPE", flag: "globe", color: "#A855F7" },
+            { code: "US", name: "USA", emoji: "🇺🇸" },
+            { code: "TR", name: "TÜRKİYE", emoji: "🇹🇷" },
+            { code: "UK", name: "UK", emoji: "🇬🇧" },
+            { code: "FR", name: "FRANCE", emoji: "🇫🇷" },
+            { code: "NL", name: "NETHERLANDS", emoji: "🇳🇱" },
+            { code: "ES", name: "SPAIN", emoji: "🇪🇸" },
+            { code: "IT", name: "ITALY", emoji: "🇮🇹" },
+            { code: "AE", name: "DUBAI", emoji: "🇦🇪" },
           ] as {
             code: string;
             name: string;
-            flag: React.ComponentProps<typeof Feather>["name"];
-            color: string;
+            emoji: string;
           }[]).map((region) => {
             const regionDeals = safeAssetData.deals?.filter((d: ProductDeal) => d.region === region.code) || [];
             if (regionDeals.length === 0) return null;
-            
+
             return (
               <View key={region.code} style={styles.regionSection}>
                 <View style={styles.regionHeader}>
-                  <Feather name={region.flag} size={14} color={region.color} />
-                  <Text style={[styles.regionTitle, { color: region.color }]}>{region.name}</Text>
+                  <Text style={styles.regionFlag}>{region.emoji}</Text>
+                  <Text style={styles.regionTitle}>{region.name}</Text>
                 </View>
                 {regionDeals.map((deal: ProductDeal, index: number) => (
                   <TouchableOpacity
@@ -365,7 +369,7 @@ Analyzed by SCOPE - AI Asset Scanner
                     </View>
                     <View style={styles.dealRight}>
                       <Text style={[styles.dealPrice, deal.isOutlier && styles.dealPriceOutlier]}>
-                        ${deal.price.toLocaleString()}
+                        ${Math.round(deal.price).toLocaleString("en-US")}
                       </Text>
                       <Feather name="external-link" size={14} color={Colors.dark.textTertiary} />
                     </View>
@@ -616,11 +620,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
+  regionFlag: {
+    fontSize: 15,
+  },
   regionTitle: {
     fontSize: Typography.label.fontSize,
     fontWeight: "700",
     fontFamily: Fonts?.mono,
     letterSpacing: 1,
+    color: Colors.dark.successGreen,
   },
   dealCard: {
     backgroundColor: Colors.dark.backgroundTertiary,

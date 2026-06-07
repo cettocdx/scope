@@ -33,7 +33,7 @@ export interface ProductDeal {
   currency: string;
   url: string;
   isBestDeal: boolean;
-  region: 'US' | 'EU' | 'JP' | 'TR' | 'CN' | 'GLOBAL' | 'DE';
+  region: 'US' | 'EU' | 'JP' | 'TR' | 'CN' | 'GLOBAL' | 'DE' | 'UK' | 'FR' | 'NL' | 'ES' | 'IT' | 'AE';
   condition?: Condition;
   isOutlier?: boolean;
   qualityScore?: number;

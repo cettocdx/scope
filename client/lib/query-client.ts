@@ -1,10 +1,31 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import Constants from "expo-constants";
+
+/** Local dev backend port (the Express server). Avoids macOS AirPlay on 5000. */
+const DEV_API_PORT = process.env.EXPO_PUBLIC_API_PORT || "4000";
 
 /**
- * Gets the base URL for the Express API server (e.g., "http://localhost:5000")
+ * In development, derive the dev machine's LAN IP from Expo's bundler host so a
+ * physical phone can reach the Express backend running on that same machine
+ * ("localhost" on the phone would point at the phone itself).
+ */
+function devLanBaseUrl(): string {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as unknown as { expoGoConfig?: { debuggerHost?: string } })
+      .expoGoConfig?.debuggerHost ||
+    "";
+  const lanIp = hostUri.split(":")[0];
+  return lanIp
+    ? `http://${lanIp}:${DEV_API_PORT}/`
+    : `http://localhost:${DEV_API_PORT}/`;
+}
+
+/**
+ * Gets the base URL for the Express API server.
  * Resolution order:
  *  1. EXPO_PUBLIC_DOMAIN env (production / Replit)
- *  2. Local dev fallback (http://localhost:5000) when running in __DEV__
+ *  2. Local dev: auto-detected LAN IP + DEV_API_PORT (so phones can connect)
  * Uses http:// for localhost / LAN hosts, https:// otherwise.
  * @returns {string} The API base URL
  */
@@ -13,8 +34,7 @@ export function getApiUrl(): string {
 
   if (!host) {
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      // Local development fallback so the app runs without Replit env.
-      return "http://localhost:5000/";
+      return devLanBaseUrl();
     }
     throw new Error("EXPO_PUBLIC_DOMAIN is not set");
   }

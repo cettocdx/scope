@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
@@ -265,7 +266,9 @@ function setupSecurity(app: express.Application) {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
+      // SO_REUSEPORT is only supported on Linux (e.g. Replit). On macOS/Windows
+      // it throws ENOTSUP and crashes the server, so enable it only on Linux.
+      reusePort: process.platform === "linux",
     },
     () => {
       log(`express server serving on port ${port}`);

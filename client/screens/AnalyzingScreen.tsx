@@ -7,6 +7,7 @@ import { Platform } from "react-native";
 import { Colors, Spacing, Fonts, Typography } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { analyzeImage } from "@/services/geminiService";
+import { getApiUrl } from "@/lib/query-client";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analyzing">;
 
@@ -46,9 +47,10 @@ export default function AnalyzingScreen({ navigation, route }: Props) {
         });
       } catch (e) {
         clearInterval(interval);
+        const detail = e instanceof Error ? e.message : String(e);
         Alert.alert(
           "Analysis Failed",
-          "Could not identify object. Please try again.",
+          `Could not identify object.\n\nDetay: ${detail}\n\nAPI: ${getApiUrl()}`,
           [
             {
               text: "OK",

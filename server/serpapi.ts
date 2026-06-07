@@ -89,6 +89,11 @@ const REGIONS: Record<string, RegionConfig> = {
     gl: "uk",
     hl: "en",
   },
+  FR: { code: "FR", name: "France", domain: "google.fr", currency: "EUR", gl: "fr", hl: "fr" },
+  NL: { code: "NL", name: "Netherlands", domain: "google.nl", currency: "EUR", gl: "nl", hl: "nl" },
+  ES: { code: "ES", name: "Spain", domain: "google.es", currency: "EUR", gl: "es", hl: "es" },
+  IT: { code: "IT", name: "Italy", domain: "google.it", currency: "EUR", gl: "it", hl: "it" },
+  AE: { code: "AE", name: "Dubai (UAE)", domain: "google.ae", currency: "AED", gl: "ae", hl: "en" },
 };
 
 const EXCHANGE_RATES: Record<string, number> = {
@@ -96,6 +101,7 @@ const EXCHANGE_RATES: Record<string, number> = {
   TRY: 0.029,
   EUR: 1.08,
   GBP: 1.27,
+  AED: 0.272,
 };
 
 // Curated list of REAL stores that exist in each region
@@ -131,41 +137,23 @@ const REGION_STORE_ALLOWLIST: Record<string, string[]> = {
   ]
 };
 
-// Check if a store name matches the region's allowlist or has valid domain hints
+// Store validation: block known fake/scam stores, otherwise accept. We favor
+// broad multi-region coverage (8 countries); the downstream price-sanity filter
+// (vs the AI estimate) removes mispriced/irrelevant offers, so a strict
+// per-region allowlist is no longer needed to keep results clean.
 function isValidStoreForRegion(storeName: string, region: string): boolean {
-  const allowlist = REGION_STORE_ALLOWLIST[region] || [];
   const lowerStore = storeName.toLowerCase();
-  
-  // Check if any allowlist entry is contained in the store name
-  const isOnAllowlist = allowlist.some(allowed => 
-    lowerStore.includes(allowed.toLowerCase()) || 
-    allowed.toLowerCase().includes(lowerStore.split(" ")[0])
-  );
-  
-  if (isOnAllowlist) return true;
-  
-  // Domain-based heuristics for region validation
-  // Note: We don't use ".com" for US as it's too broad - could match any international store
-  const regionDomains: Record<string, string[]> = {
-    US: ["amazon.com", "walmart", "target", "ebay.com", "nordstrom", "saks", "bloomingdale", "macys"],
-    TR: [".tr", ".com.tr", "trendyol", "hepsiburada", "n11", "gittigidiyor", "beymen", "boyner", "vakko"],
-    DE: [".de", "zalando", "otto", "mediamarkt", "breuninger", "kadewe"],
-    UK: [".co.uk", ".uk", "harrods", "selfridges", "liberty"],
-  };
-  
-  const domains = regionDomains[region] || [];
-  const hasDomainMatch = domains.some(d => lowerStore.includes(d));
-  
-  // Explicitly block known fake/invalid stores
+  if (!lowerStore.trim()) return false;
+
   const blockedStores = ["il duomo", "bobo", "luxe cheshire", "cheshire oaks", "bobobo"];
-  const isBlocked = blockedStores.some(b => lowerStore.includes(b));
-  if (isBlocked) return false;
-  
-  // For global luxury platforms, allow them in any region
-  const globalLuxury = ["farfetch", "net-a-porter", "mytheresa", "ssense", "matchesfashion", "luisaviaroma"];
-  const isGlobalLuxury = globalLuxury.some(g => lowerStore.includes(g));
-  
-  return hasDomainMatch || isGlobalLuxury;
+  if (blockedStores.some((b) => lowerStore.includes(b))) return false;
+
+  // Curated known-good stores are always accepted (kept as a positive signal).
+  const allowlist = REGION_STORE_ALLOWLIST[region] || [];
+  if (allowlist.some((a) => lowerStore.includes(a.toLowerCase()))) return true;
+
+  // Any other non-blocked store is accepted for coverage.
+  return true;
 }
 
 // Normalize store name for better matching
@@ -189,6 +177,8 @@ export function extractPrice(priceStr: string): { value: number; currency: strin
     currency = "EUR";
   } else if (priceStr.includes("£") || priceStr.includes("GBP")) {
     currency = "GBP";
+  } else if (priceStr.includes("AED") || priceStr.includes("د.إ") || priceStr.includes("DH")) {
+    currency = "AED";
   }
 
   let cleaned = priceStr.replace(/[^\d.,]/g, "");
@@ -248,15 +238,13 @@ export async function searchPricesMultiRegion(
     return [];
   }
 
-  const allResults: SerpApiResult[] = [];
-
-  for (const regionCode of regions) {
+  async function fetchRegion(regionCode: string): Promise<SerpApiResult[]> {
     const region = REGIONS[regionCode];
-    if (!region) continue;
+    if (!region) return [];
 
     try {
       const params = new URLSearchParams({
-        api_key: apiKey,
+        api_key: apiKey as string,
         engine: "google_shopping",
         q: query,
         gl: region.gl,
@@ -268,7 +256,7 @@ export async function searchPricesMultiRegion(
       
       if (!response.ok) {
         console.error(`SerpAPI error for ${regionCode}:`, response.status);
-        continue;
+        return [];
       }
 
       const data = (await response.json()) as SerpApiResponse;
@@ -286,7 +274,7 @@ export async function searchPricesMultiRegion(
         // If no valid stores found, skip this region. We never fabricate prices.
         if (validResults.length === 0) {
           console.log(`No valid stores found for ${regionCode}, skipping`);
-          continue;
+          return [];
         }
 
         const regionResults = validResults.map((item: SerpShoppingResult) => {
@@ -318,12 +306,21 @@ export async function searchPricesMultiRegion(
           };
         });
 
-        allResults.push(...regionResults);
+        return regionResults;
       }
+      return [];
     } catch (error) {
       console.error(`SerpAPI search error for ${regionCode}:`, error);
+      return [];
     }
   }
+
+  // Query all regions in parallel so total latency ~= the slowest region,
+  // not the sum of all of them.
+  const settled = await Promise.allSettled(regions.map(fetchRegion));
+  const allResults: SerpApiResult[] = settled.flatMap((s) =>
+    s.status === "fulfilled" ? s.value : [],
+  );
 
   if (allResults.length > 0) {
     const minPrice = Math.min(...allResults.map(r => r.price));

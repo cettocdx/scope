@@ -474,6 +474,75 @@ EXAMPLE - Luxury Fashion:
 }
 `;
 
+// Fallback chain: if the primary model is overloaded (503), try the next one.
+// Different models have separate capacity pools, so this dramatically improves
+// reliability on the free tier.
+const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash-lite",
+];
+
+/**
+ * Calls Gemini guarded by a per-attempt timeout. On transient upstream failures
+ * (503 overloaded / 429 rate limit) it falls through to the next model, and runs
+ * two full passes over the model list before giving up.
+ */
+async function generateWithRetry(
+  ai: GoogleGenAI,
+  mimeType: string,
+  base64Data: string,
+) {
+  const timeoutMs = 20000;
+  const rounds = 2;
+  let lastErr: unknown;
+
+  for (let round = 0; round < rounds; round++) {
+    for (const model of GEMINI_MODELS) {
+      try {
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Gemini request timed out after ${timeoutMs}ms`)),
+            timeoutMs,
+          ),
+        );
+        return await Promise.race([
+          ai.models.generateContent({
+            model,
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  { inlineData: { mimeType, data: base64Data } },
+                  { text: FORENSIC_ANALYSIS_PROMPT },
+                ],
+              },
+            ],
+          }),
+          timeout,
+        ]);
+      } catch (err) {
+        lastErr = err;
+        const e = err as { status?: number; message?: string };
+        const transient =
+          e?.status === 503 ||
+          e?.status === 429 ||
+          /\b(503|429|overloaded|UNAVAILABLE|RESOURCE_EXHAUSTED)\b/i.test(
+            e?.message || "",
+          );
+        if (transient) {
+          console.warn(`Gemini model ${model} unavailable, trying next...`);
+          continue;
+        }
+        throw err; // non-transient (bad request, auth) → fail fast
+      }
+    }
+    await new Promise((r) => setTimeout(r, 700 * (round + 1)));
+  }
+  throw lastErr;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/analyze", async (req, res) => {
     try {
@@ -549,16 +618,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processing image: ${mimeType}, size: ${base64Data.length} chars`);
 
-      // The Gemini SDK does not accept an abort signal, so guard it against
-      // hanging by racing the call against a timeout that rejects after 20s.
-      const geminiTimeoutMs = 20000;
-      const geminiTimeout = new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`Gemini request timed out after ${geminiTimeoutMs}ms`)),
-          geminiTimeoutMs,
-        );
-      });
-
       const [ximilarResult, clarifaiResult, geminiResponse] = await Promise.all([
         analyzeWithXimilar(base64Data).catch(err => {
           console.error("Ximilar analysis failed:", err);
@@ -568,26 +627,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Clarifai analysis failed:", err);
           return null as ClarifaiAnalysisResult | null;
         }),
-        Promise.race([
-          ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  {
-                    inlineData: {
-                      mimeType,
-                      data: base64Data,
-                    },
-                  },
-                  { text: FORENSIC_ANALYSIS_PROMPT },
-                ],
-              },
-            ],
-          }),
-          geminiTimeout,
-        ])
+        // Gemini free tier intermittently returns 503 (overloaded); retry with backoff.
+        generateWithRetry(ai, mimeType, base64Data),
       ]);
 
       if (ximilarResult?.success) {
@@ -747,18 +788,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
           searchQueries = [searchQuery];
         }
         
-        // Use the most specific query first
-        const primaryQuery = searchQueries[0];
+        // Build a region-neutral query: drop locale-specific noise (e.g. a
+        // "Turkish Keyboard" layout) that would only match offers in one country,
+        // so every region can return results.
+        const primaryQuery =
+          (searchQueries[0] || data.itemName || "")
+            .replace(
+              /\b(turkish|english|us|uk|arabic|german|french|spanish|italian|dutch|international)[\s-]+keyboard\b/gi,
+              "",
+            )
+            .replace(/\bklavye\b/gi, "")
+            .replace(/\s{2,}/g, " ")
+            .trim() || searchQueries[0];
         console.log(`Fetching SerpAPI prices for: ${primaryQuery}`);
-        const serpResults = await searchPricesMultiRegion(primaryQuery, ["US", "TR", "DE"]);
+        const serpResults = await searchPricesMultiRegion(primaryQuery, [
+          "US", "TR", "UK", "FR", "NL", "ES", "IT", "AE",
+        ]);
         
         if (serpResults.length > 0) {
-          data.deals = serpResults;
-          
-          const usPrices = serpResults.filter(r => r.region === "US").map(r => r.price);
-          if (usPrices.length > 0) {
-            data.estimatedPrice = Math.round(usPrices.reduce((a, b) => a + b, 0) / usPrices.length);
+          const aiEstimate = data.estimatedPrice;
+          // Drop offers that are wildly off the AI's own estimate — these are
+          // almost always accessories / parts (stickers, cases, cables) that
+          // match the query but aren't the actual product. Keep a generous band.
+          const plausible =
+            typeof aiEstimate === "number" && aiEstimate > 0
+              ? serpResults.filter(
+                  (r) => r.price >= aiEstimate * 0.35 && r.price <= aiEstimate * 3,
+                )
+              : serpResults;
+
+          if (plausible.length > 0) {
+            data.deals = plausible;
+
+            // Median (robust to outliers). Prefer US offers; otherwise use all
+            // plausible offers across regions.
+            const usOffers = plausible.filter((r) => r.region === "US");
+            const prices = (usOffers.length ? usOffers : plausible)
+              .map((r) => r.price)
+              .sort((a, b) => a - b);
+            if (prices.length > 0) {
+              const mid = Math.floor(prices.length / 2);
+              data.estimatedPrice = Math.round(
+                prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2,
+              );
+            }
           }
+          // If nothing is plausible, keep the AI estimate and fall through to the
+          // synthetic deal links below (never show junk accessory prices).
         }
       } catch (serpError) {
         console.error("SerpAPI error, using AI estimates:", serpError);
@@ -794,11 +870,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
       }
 
-      const regionSummary = {
-        US: data.deals.filter((d: Deal) => d.region === "US"),
-        TR: data.deals.filter((d: Deal) => d.region === "TR"),
-        DE: data.deals.filter((d: Deal) => d.region === "DE"),
-      };
+      const regionSummary: Record<string, Deal[]> = {};
+      for (const rc of ["US", "TR", "UK", "FR", "NL", "ES", "IT", "AE"]) {
+        regionSummary[rc] = data.deals.filter((d: Deal) => d.region === rc);
+      }
 
       const valuationResult = calculateValuation(data.deals, "USD");
       

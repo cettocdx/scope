@@ -37,8 +37,15 @@ export async function analyzeImage(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error || "Failed to analyze image");
+    const raw = await response.text();
+    let msg = raw;
+    try {
+      const j = JSON.parse(raw);
+      if (j?.error) msg = j.error;
+    } catch {
+      // not JSON; use raw text
+    }
+    throw new Error(`${msg || "Failed to analyze image"} (HTTP ${response.status})`);
   }
 
   const data = await response.json();
