@@ -77,6 +77,7 @@ export default function ResultScreen({ navigation, route }: Props) {
     trendPercentage: assetData?.trendPercentage || 0,
     confidenceScore: assetData?.confidenceScore || 0,
     category: assetData?.category || "General",
+    regulatedCategory: assetData?.regulatedCategory ?? false,
     investmentRating: assetData?.investmentRating || "HOLD",
     ratingReason: assetData?.ratingReason || "",
     deals: assetData?.deals || [],
@@ -358,6 +359,16 @@ Analyzed by SCOPE - AI Asset Scanner
 
           <Text style={styles.disclaimer}>{RATING_DISCLAIMER}</Text>
 
+          {safeAssetData.regulatedCategory ? (
+            <View style={styles.regulatedNotice}>
+              <Feather name="alert-triangle" size={16} color={Colors.dark.warningYellow} />
+              <Text style={styles.regulatedNoticeText}>
+                Regulated item (17+). Purchase links are hidden — prices shown for
+                information only.
+              </Text>
+            </View>
+          ) : (
+          <>
           <Text style={styles.sectionTitle}>GLOBAL MARKETS</Text>
 
           {([
@@ -424,6 +435,8 @@ Analyzed by SCOPE - AI Asset Scanner
               </View>
             );
           })}
+          </>
+          )}
 
           <TouchableOpacity
             style={styles.shareButton}
@@ -680,6 +693,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(0, 255, 148, 0.3)",
+  },
+  regulatedNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    backgroundColor: "rgba(250, 204, 21, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(250, 204, 21, 0.25)",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  regulatedNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts?.mono,
   },
   disclaimer: {
     fontSize: 10,

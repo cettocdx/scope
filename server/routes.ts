@@ -438,6 +438,11 @@ fair market value:
 - "HOLD" = around fair retail
 Never imply guaranteed returns or investment outcomes.
 
+REGULATED ITEMS — set "regulatedCategory": true when the item is an age-restricted
+or legally controlled good: e-cigarettes/vapes/nicotine, tobacco, alcohol, firearms/
+weapons/ammunition, or adult products. Otherwise false. (We still identify and price
+these, but hide purchase links and apply an age notice.)
+
 OUTPUT FORMAT (JSON ONLY, no markdown):
 {
   "itemName": "Brand Name + Product Type + Model (if known)",
@@ -447,6 +452,7 @@ OUTPUT FORMAT (JSON ONLY, no markdown):
   "visualEvidence": ["List ALL visual cues found"],
   "identificationMethod": "logo" | "signature_design" | "construction" | "style_match",
   "category": "Electronics" | "Vehicle" | "Fashion" | "Bags" | "Footwear" | "Watch" | "Jewelry" | "Appliance" | "Tool" | "Collectible" | "Beauty" | "Home" | "Other",
+  "regulatedCategory": Boolean,
   "estimatedPrice": Number in USD,
   "currency": "USD",
   "trendPercentage": Number (-15 to +25),
@@ -837,6 +843,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data.visualEvidence = [];
       }
 
+      // Regulated-item safety net: trust the model's flag, but also catch it via
+      // keywords so age-restricted goods never slip through without the gate.
+      const REGULATED_RE =
+        /\b(vape|vaping|e-?cig|e-?cigarette|nicotine|tobacco|cigarette|juul|elf ?bar|cigar|hookah|shisha|alcohol|whisk|vodka|beer|wine|liquor|rak[iı]|firearm|pistol|rifle|gun|ammo|ammunition)\b/i;
+      data.regulatedCategory =
+        Boolean(data.regulatedCategory) ||
+        REGULATED_RE.test(data.itemName || "") ||
+        REGULATED_RE.test(data.brand || "") ||
+        REGULATED_RE.test(data.category || "");
+
       if (ximilarResult?.success) {
         data.ximilarData = {
           category: ximilarResult.category,
@@ -1042,6 +1058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         regionsWithOffers: realRegions.size,
         needsUserInput: data.needsUserInput,
         refinementsApplied: !!refinements,
+        regulated: Boolean(data.regulatedCategory),
         durationMs: Date.now() - startTime,
       });
 

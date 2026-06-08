@@ -92,7 +92,9 @@ function setupRequestLogging(app: express.Application) {
       const duration = Date.now() - start;
 
       // Log only metadata, never the response body (may contain sensitive data).
-      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
+      // Mask the device id embedded in portfolio paths so it never lands in logs.
+      const safePath = path.replace(/\/api\/portfolio\/[^/]+/, "/api/portfolio/:deviceId");
+      log(`${req.method} ${safePath} ${res.statusCode} in ${duration}ms`);
     });
 
     next();

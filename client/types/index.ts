@@ -66,6 +66,8 @@ export interface AssetData {
   trendPercentage: number;
   confidenceScore: number;
   category: string;
+  /** True for age-restricted / legally controlled goods (vape, alcohol, weapons…). */
+  regulatedCategory?: boolean;
   investmentRating: 'BUY' | 'SELL' | 'HOLD';
   ratingReason?: string;
   deals?: ProductDeal[];
