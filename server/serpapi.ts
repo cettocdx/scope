@@ -98,6 +98,7 @@ const REGIONS: Record<string, RegionConfig> = {
   ES: { code: "ES", name: "Spain", domain: "google.es", currency: "EUR", gl: "es", hl: "es" },
   IT: { code: "IT", name: "Italy", domain: "google.it", currency: "EUR", gl: "it", hl: "it" },
   AE: { code: "AE", name: "Dubai (UAE)", domain: "google.ae", currency: "AED", gl: "ae", hl: "en" },
+  CN: { code: "CN", name: "China", domain: "google.com", currency: "CNY", gl: "cn", hl: "en" },
 };
 
 const EXCHANGE_RATES: Record<string, number> = {
@@ -106,6 +107,7 @@ const EXCHANGE_RATES: Record<string, number> = {
   EUR: 1.08,
   GBP: 1.27,
   AED: 0.272,
+  CNY: 0.14,
 };
 
 // Curated list of REAL stores that exist in each region

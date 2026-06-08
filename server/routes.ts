@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { insertPortfolioAssetSchema, type Deal } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { searchPricesMultiRegion, applyLiveRates } from "./serpapi";
+import { searchPricesMultiRegion, applyLiveRates, REGIONS } from "./serpapi";
 import { trackScan, captureError } from "./telemetry";
 import { scheduleFxRefresh } from "./fx";
 import { affiliateUrl, affiliateEnabled } from "./affiliate";
@@ -234,46 +234,30 @@ export function calculateValuation(deals: ValuationInput[], displayCurrency: str
   };
 }
 
+/** The regions we always show prices for (order is the display order). */
+const PRICE_REGIONS = ["US", "UK", "CN", "TR", "IT", "ES", "FR", "AE"] as const;
+
 /**
- * Price-less "search on X" links shown when no real marketplace offer was found.
- * These let the user look the item up themselves without us inventing a price.
+ * A price-less "search in <region>" link pointing at that region's Google
+ * Shopping. Used so every tracked region is always present, even when no real
+ * offer was found — we never invent a price, but we always give a way to look.
  */
-function buildSearchLinks(itemName: string): Deal[] {
+function buildRegionSearchLink(itemName: string, regionCode: string): Deal {
   const q = encodeURIComponent(itemName.replace(/[^a-zA-Z0-9 ]/g, "").trim());
-  return [
-    {
-      storeName: "Google Shopping",
-      price: 0,
-      currency: "USD",
-      url: `https://www.google.com/search?tbm=shop&q=${q}`,
-      region: "US",
-      isSearchLink: true,
-    },
-    {
-      storeName: "Amazon",
-      price: 0,
-      currency: "USD",
-      url: `https://www.amazon.com/s?k=${q}`,
-      region: "US",
-      isSearchLink: true,
-    },
-    {
-      storeName: "eBay",
-      price: 0,
-      currency: "USD",
-      url: `https://www.ebay.com/sch/i.html?_nkw=${q}`,
-      region: "US",
-      isSearchLink: true,
-    },
-    {
-      storeName: "Trendyol",
-      price: 0,
-      currency: "USD",
-      url: `https://www.trendyol.com/sr?q=${q}`,
-      region: "TR",
-      isSearchLink: true,
-    },
-  ];
+  const domain = REGIONS[regionCode]?.domain || "google.com";
+  return {
+    storeName: "Google Shopping",
+    price: 0,
+    currency: "USD",
+    url: `https://www.${domain}/search?tbm=shop&q=${q}`,
+    region: regionCode,
+    isSearchLink: true,
+  };
+}
+
+/** Search links for every tracked region — used when no real price was found. */
+function buildSearchLinks(itemName: string): Deal[] {
+  return PRICE_REGIONS.map((rc) => buildRegionSearchLink(itemName, rc));
 }
 
 const FORENSIC_ANALYSIS_PROMPT = `
@@ -1009,7 +993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .trim() || searchQueries[0];
         console.log(`Fetching SerpAPI prices for: ${primaryQuery}`);
         const serpResults = await searchPricesMultiRegion(primaryQuery, [
-          "US", "TR", "UK", "FR", "NL", "ES", "IT", "AE",
+          ...PRICE_REGIONS,
         ]);
         
         if (serpResults.length > 0) {
@@ -1074,8 +1058,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         d.isSearchLink ? d : { ...d, url: affiliateUrl(d.url) },
       );
 
+      // Always show every tracked region: any region without a real offer gets
+      // a "search in <region>" link so the user can still look it up there.
+      const regionsWithDeals = new Set(finalDeals.map((d) => d.region));
+      for (const rc of PRICE_REGIONS) {
+        if (!regionsWithDeals.has(rc)) {
+          finalDeals.push(buildRegionSearchLink(data.itemName, rc));
+        }
+      }
+
       const regionSummary: Record<string, Deal[]> = {};
-      for (const rc of ["US", "TR", "UK", "FR", "NL", "ES", "IT", "AE"]) {
+      for (const rc of PRICE_REGIONS) {
         regionSummary[rc] = finalDeals.filter((d: Deal) => d.region === rc);
       }
 
@@ -1090,7 +1083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         brandConfidence: data.brandConfidence,
         priceFound,
         realOfferCount: priceFound ? data.deals?.length || 0 : 0,
-        regionsQueried: 8,
+        regionsQueried: PRICE_REGIONS.length,
         regionsWithOffers: realRegions.size,
         needsUserInput: data.needsUserInput,
         refinementsApplied: !!refinements,
@@ -1103,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currency: "USD",
         priceFound,
         regionSummary,
-        searchRegions: ["US", "TR", "UK", "FR", "NL", "ES", "IT", "AE"],
+        searchRegions: [...PRICE_REGIONS],
         priceRange,
         outlierCount,
         sourceCount,

@@ -376,12 +376,12 @@ Analyzed by SCOPE - AI Asset Scanner
 
           {([
             { code: "US", name: "USA", emoji: "🇺🇸" },
-            { code: "TR", name: "TÜRKİYE", emoji: "🇹🇷" },
             { code: "UK", name: "UK", emoji: "🇬🇧" },
-            { code: "FR", name: "FRANCE", emoji: "🇫🇷" },
-            { code: "NL", name: "NETHERLANDS", emoji: "🇳🇱" },
-            { code: "ES", name: "SPAIN", emoji: "🇪🇸" },
+            { code: "CN", name: "CHINA", emoji: "🇨🇳" },
+            { code: "TR", name: "TÜRKİYE", emoji: "🇹🇷" },
             { code: "IT", name: "ITALY", emoji: "🇮🇹" },
+            { code: "ES", name: "SPAIN", emoji: "🇪🇸" },
+            { code: "FR", name: "FRANCE", emoji: "🇫🇷" },
             { code: "AE", name: "DUBAI", emoji: "🇦🇪" },
           ] as {
             code: string;
