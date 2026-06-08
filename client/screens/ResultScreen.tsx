@@ -83,6 +83,8 @@ export default function ResultScreen({ navigation, route }: Props) {
     deals: assetData?.deals || [],
     priceRange: assetData?.priceRange || { min: 0, median: 0, max: 0, currency: "USD" },
     outlierCount: assetData?.outlierCount || 0,
+    sourceCount: assetData?.sourceCount ?? 0,
+    pricedAt: assetData?.pricedAt ?? null,
   };
 
   // We only show real marketplace prices. When none were found the server sends
@@ -236,6 +238,7 @@ Analyzed by SCOPE - AI Asset Scanner
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {priceFound ? (
+            <>
             <View style={styles.priceRow}>
               <Text style={styles.price}>
                 ${safeAssetData.estimatedPrice.toLocaleString("en-US")}
@@ -267,6 +270,19 @@ Analyzed by SCOPE - AI Asset Scanner
                 </Text>
               </View>
             </View>
+            {safeAssetData.sourceCount > 0 && (
+              <View style={styles.trustRow}>
+                <Feather name="check-circle" size={12} color={Colors.dark.accentIce} />
+                <Text style={styles.trustText}>
+                  Median of {safeAssetData.sourceCount} live retail price
+                  {safeAssetData.sourceCount === 1 ? "" : "s"}
+                  {safeAssetData.pricedAt
+                    ? ` · ${new Date(safeAssetData.pricedAt).toLocaleDateString()}`
+                    : ""}
+                </Text>
+              </View>
+            )}
+            </>
           ) : (
             <View style={styles.noPriceBox}>
               <Feather name="search" size={18} color={Colors.dark.warningYellow} />
@@ -693,6 +709,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(0, 255, 148, 0.3)",
+  },
+  trustRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  trustText: {
+    fontSize: 11,
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
   },
   regulatedNotice: {
     flexDirection: "row",

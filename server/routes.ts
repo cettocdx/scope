@@ -5,8 +5,9 @@ import { storage } from "./storage";
 import { insertPortfolioAssetSchema, type Deal } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { searchPricesMultiRegion } from "./serpapi";
+import { searchPricesMultiRegion, applyLiveRates } from "./serpapi";
 import { trackScan, captureError } from "./telemetry";
+import { scheduleFxRefresh } from "./fx";
 
 const analyzeRequestSchema = z.object({
   image: z.string().min(1, "image is required"),
@@ -142,6 +143,8 @@ type ValuationInput = Pick<Deal, "price" | "currency"> & Partial<Deal>;
 interface ValuationResult {
   priceRange: { min: number; median: number; max: number; currency: string };
   outlierCount: number;
+  /** Number of real (non-outlier) offers the price range is built from. */
+  sourceCount: number;
   processedDeals: Deal[];
 }
 
@@ -166,6 +169,7 @@ export function calculateValuation(deals: ValuationInput[], displayCurrency: str
     return {
       priceRange: { min: 0, median: 0, max: 0, currency: displayCurrency },
       outlierCount: 0,
+      sourceCount: 0,
       processedDeals: [],
     };
   }
@@ -184,6 +188,7 @@ export function calculateValuation(deals: ValuationInput[], displayCurrency: str
     return {
       priceRange: { min: 0, median: 0, max: 0, currency: displayCurrency },
       outlierCount: 0,
+      sourceCount: 0,
       // Inputs are full Deals in the real flow; price/currency-only objects only
       // occur in unit tests where the extra fields are not asserted.
       processedDeals: deals as Deal[],
@@ -223,6 +228,7 @@ export function calculateValuation(deals: ValuationInput[], displayCurrency: str
   return {
     priceRange: { min, median, max, currency: displayCurrency },
     outlierCount,
+    sourceCount: pricesToUse.length,
     processedDeals: processedDeals as Deal[],
   };
 }
@@ -710,6 +716,24 @@ async function generateWithRetry(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Keep currency conversion honest: refresh live FX into both rate tables
+  // (this module's FX_RATES and serpapi's EXCHANGE_RATES) on boot + every 6h.
+  scheduleFxRefresh((usdPerUnit) => {
+    if (usdPerUnit.TRY) {
+      FX_RATES.TRY_USD = usdPerUnit.TRY;
+      FX_RATES.USD_TRY = 1 / usdPerUnit.TRY;
+    }
+    if (usdPerUnit.EUR) {
+      FX_RATES.EUR_USD = usdPerUnit.EUR;
+      FX_RATES.USD_EUR = 1 / usdPerUnit.EUR;
+    }
+    if (usdPerUnit.TRY && usdPerUnit.EUR) {
+      FX_RATES.EUR_TRY = usdPerUnit.EUR / usdPerUnit.TRY;
+      FX_RATES.TRY_EUR = usdPerUnit.TRY / usdPerUnit.EUR;
+    }
+    applyLiveRates(usdPerUnit);
+  });
+
   app.post("/api/analyze", async (req, res) => {
     try {
       const parsed = analyzeRequestSchema.safeParse(req.body);
@@ -999,7 +1023,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 )
               : serpResults;
 
-          if (plausible.length > 0) {
+          // Trust threshold: require at least MIN_SOURCES independent real
+          // offers before we present a "real price". A lone offer is too easy
+          // to be wrong, so a single result falls through to search links.
+          const MIN_SOURCES = 2;
+          if (plausible.length >= MIN_SOURCES) {
             data.deals = plausible;
             priceFound = true;
 
@@ -1023,6 +1051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let priceRange = { min: 0, median: 0, max: 0, currency: "USD" };
       let outlierCount = 0;
+      let sourceCount = 0;
       let finalDeals: Deal[];
 
       if (priceFound && data.deals && data.deals.length > 0) {
@@ -1030,6 +1059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalDeals = valuationResult.processedDeals;
         priceRange = valuationResult.priceRange;
         outlierCount = valuationResult.outlierCount;
+        sourceCount = valuationResult.sourceCount;
       } else {
         // No real marketplace offer was found. Per product policy we show ONLY
         // real prices, so we never fabricate a value: drop the AI estimate and
@@ -1070,6 +1100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         searchRegions: ["US", "TR", "UK", "FR", "NL", "ES", "IT", "AE"],
         priceRange,
         outlierCount,
+        sourceCount,
+        pricedAt: priceFound ? new Date().toISOString() : null,
         deals: finalDeals,
         appliedRefinements: refinements || null,
       });

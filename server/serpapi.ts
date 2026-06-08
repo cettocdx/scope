@@ -194,6 +194,15 @@ function convertToUSD(price: number, currency: string): number {
   return Math.round(price * rate * 100) / 100;
 }
 
+/** Overlay live currency→USD rates onto the fallback table (in place). */
+export function applyLiveRates(usdPerUnit: Record<string, number>): void {
+  for (const currency of Object.keys(EXCHANGE_RATES)) {
+    if (currency === "USD") continue;
+    const live = usdPerUnit[currency];
+    if (typeof live === "number" && live > 0) EXCHANGE_RATES[currency] = live;
+  }
+}
+
 export function extractPrice(priceStr: string): { value: number; currency: string } {
   let currency = "USD";
   if (priceStr.includes("₺") || priceStr.includes("TL") || priceStr.includes("TRY")) {

@@ -73,6 +73,10 @@ export interface AssetData {
   deals?: ProductDeal[];
   searchLinks?: string[];
   priceRange?: PriceRange;
+  /** How many real offers backed the price (trust signal). */
+  sourceCount?: number;
+  /** When the price was computed (ISO), or null if no real price. */
+  pricedAt?: string | null;
   condition?: Condition;
   country?: Country;
   attributes?: AssetAttributes;
