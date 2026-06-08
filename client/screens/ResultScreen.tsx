@@ -114,18 +114,25 @@ export default function ResultScreen({ navigation, route }: Props) {
   // Capture the off-screen Value Card to an image and share it — the viral,
   // zero-CAC moment. Only meaningful when we have a real price.
   const handleShareValueCard = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
     try {
       const uri = await captureRef(cardRef, { format: "png", quality: 1 });
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
       await Share.share(
         Platform.OS === "ios"
           ? { url: uri }
           : { url: uri, message: "Priced with SCOPE" },
       );
     } catch (e) {
-      console.error("Value card share error:", e);
+      // captureRef needs a native module (unavailable in Expo Go); degrade to a
+      // text share so the action still works everywhere.
+      console.error("Value card capture failed, sharing text:", e);
+      await Share.share({
+        message: `${safeAssetData.itemName} — real price $${safeAssetData.estimatedPrice.toLocaleString(
+          "en-US",
+        )} (median of ${safeAssetData.sourceCount} live retail prices). Scanned with SCOPE.`,
+      }).catch(() => {});
     }
   };
 
