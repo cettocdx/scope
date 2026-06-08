@@ -21,6 +21,7 @@ import FinancialChart from "@/components/FinancialChart";
 import { useRemoveAsset } from "@/hooks/usePortfolio";
 import { imageSource } from "@/lib/image-store";
 import { ScopeBackground } from "@/components/ScopeBackground";
+import { ratingLabel, RATING_DISCLAIMER } from "@/lib/rating";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AssetDetail">;
 
@@ -48,8 +49,8 @@ Current Value: $${asset.estimatedPrice.toLocaleString()}
 Purchase Price: $${asset.purchasePrice.toLocaleString()}
 Unrealized P/L: ${profitText} (${profit >= 0 ? '+' : ''}${roiPercent}%)
 
-INVESTMENT ANALYSIS
-AI Rating: ${asset.investmentRating}
+PRICE ANALYSIS
+Price check: ${ratingLabel(asset.investmentRating)}
 Confidence: ${asset.confidenceScore}%
 Trend: ${asset.trendPercentage > 0 ? '+' : ''}${asset.trendPercentage}% (24H)
 Status: ${asset.isAuthentic ? 'VERIFIED' : 'UNVERIFIED'}
@@ -169,7 +170,7 @@ Tracked by SCOPE - AI Asset Scanner
           </View>
 
           <View style={styles.ratingRow}>
-            <Text style={styles.statLabel}>AI RATING</Text>
+            <Text style={styles.statLabel}>PRICE CHECK</Text>
             <View style={styles.ratingBadge}>
               {asset.investmentRating === "BUY" && (
                 <Feather name="trending-up" size={14} color={Colors.dark.successGreen} />
@@ -193,9 +194,10 @@ Tracked by SCOPE - AI Asset Scanner
                   },
                 ]}
               >
-                {asset.investmentRating}
+                {ratingLabel(asset.investmentRating)}
               </Text>
             </View>
+            <Text style={styles.detailDisclaimer}>{RATING_DISCLAIMER}</Text>
           </View>
 
           <View style={styles.chartSection}>
@@ -388,6 +390,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
+  },
+  detailDisclaimer: {
+    fontSize: 10,
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+    marginTop: Spacing.sm,
   },
   ratingText: {
     fontSize: Typography.small.fontSize,

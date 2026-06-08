@@ -430,6 +430,14 @@ CONFIDENCE SCORING:
 WHEN UNCERTAIN (confidence < 70):
 Set "needsUserInput": true and "requestedDetails": explain what would help (e.g., "photo of interior label", "view of the sole", "close-up of hardware")
 
+PRICE-FAIRNESS RATING (investmentRating) — this is a RESALE PRICE signal, NOT
+financial advice. Judge how the item's typical asking/retail price compares to its
+fair market value:
+- "BUY"  = priced clearly BELOW typical retail / good deal for a buyer
+- "SELL" = priced ABOVE typical retail / overpriced (sells fast for a seller)
+- "HOLD" = around fair retail
+Never imply guaranteed returns or investment outcomes.
+
 OUTPUT FORMAT (JSON ONLY, no markdown):
 {
   "itemName": "Brand Name + Product Type + Model (if known)",

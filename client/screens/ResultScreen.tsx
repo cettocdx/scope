@@ -23,22 +23,23 @@ import { PortfolioAsset, ProductDeal } from "@/types";
 import { useAddAsset } from "@/hooks/usePortfolio";
 import { persistAssetImage } from "@/lib/image-store";
 import { ScopeBackground } from "@/components/ScopeBackground";
+import { ratingLabel, RATING_DISCLAIMER } from "@/lib/rating";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const generatePromoContent = (itemName: string, price: number, rating: string, trend: number, category: string) => {
   const trendEmoji = trend > 0 ? "+" : "";
   const ratingTags = {
-    BUY: "HOT INVESTMENT",
-    SELL: "QUICK FLIP",
-    HOLD: "STABLE ASSET"
+    BUY: "GREAT PRICE",
+    SELL: "SELLS FAST",
+    HOLD: "FAIR PRICE"
   };
 
   const taglines = [
-    `Discover the ${itemName} - Your next smart investment!`,
-    `${itemName}: Market analysis says ${rating.toUpperCase()}!`,
+    `Discover the ${itemName} — know its real price!`,
+    `${itemName}: ${ratingLabel(rating)} vs typical retail.`,
     `Trending ${trendEmoji}${trend}% - ${itemName} is moving!`,
-    `Smart money moves: ${itemName} at $${price.toLocaleString("en-US")}`,
+    `Real price: ${itemName} at ${price.toLocaleString("en-US")}`,
   ];
 
   const randomTagline = taglines[Math.floor(Math.random() * taglines.length)];
@@ -51,13 +52,13 @@ ${randomTagline}
 Current Market Value: $${price.toLocaleString("en-US")}
 Category: ${category}
 24H Trend: ${trendEmoji}${trend}%
-AI Rating: ${rating}
+Price check: ${ratingLabel(rating)}
 
 Analyzed by SCOPE
 The AI-Powered Asset Intelligence Platform
 
-Scan. Analyze. Capitalize.
-#SCOPE #AssetIntelligence #SmartInvesting
+Scan. Identify. Know the price.
+#SCOPE #RealPrice #PriceCheck
 `.trim();
 };
 
@@ -170,11 +171,11 @@ SCOPE Asset Analysis Report
 ${safeAssetData.itemName}
 Category: ${safeAssetData.category}
 
-MARKET VALUATION
+PRICE CHECK
 Estimated Value: $${safeAssetData.estimatedPrice.toLocaleString("en-US")}
 Trend: ${safeAssetData.trendPercentage > 0 ? '+' : ''}${safeAssetData.trendPercentage}% (24H)
 AI Confidence: ${safeAssetData.confidenceScore}%
-Investment Rating: ${safeAssetData.investmentRating}
+Price check: ${ratingLabel(safeAssetData.investmentRating)}
 
 GLOBAL MARKET PRICES
 ${dealsSummary}
@@ -314,7 +315,7 @@ Analyzed by SCOPE - AI Asset Scanner
               <Text style={[styles.ratingText, {
                 color: safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow
               }]}>
-                AI RATING: {safeAssetData.investmentRating}
+                {ratingLabel(safeAssetData.investmentRating)}
               </Text>
             </View>
             <TouchableOpacity
@@ -354,6 +355,8 @@ Analyzed by SCOPE - AI Asset Scanner
               <Feather name="zap" size={18} color={Colors.dark.accent} />
             </TouchableOpacity>
           </View>
+
+          <Text style={styles.disclaimer}>{RATING_DISCLAIMER}</Text>
 
           <Text style={styles.sectionTitle}>GLOBAL MARKETS</Text>
 
@@ -479,11 +482,13 @@ Analyzed by SCOPE - AI Asset Scanner
                 <Text style={[styles.ratingBadgeLargeText, {
                   color: safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow
                 }]}>
-                  {safeAssetData.investmentRating}
+                  {ratingLabel(safeAssetData.investmentRating)}
                 </Text>
               </View>
 
-              <Text style={styles.ratingExplanationTitle}>Why {safeAssetData.investmentRating}?</Text>
+              <Text style={styles.ratingExplanationTitle}>
+                Why {ratingLabel(safeAssetData.investmentRating)}?
+              </Text>
 
               <View style={styles.ratingFactorsList}>
                 {safeAssetData.ratingReason ? (
@@ -675,6 +680,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(0, 255, 148, 0.3)",
+  },
+  disclaimer: {
+    fontSize: 10,
+    color: Colors.dark.textTertiary,
+    fontFamily: Fonts?.mono,
+    letterSpacing: 0.3,
+    textAlign: "center",
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   sectionTitle: {
     fontSize: Typography.micro.fontSize,

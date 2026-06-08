@@ -17,6 +17,7 @@ import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { ScopeBackground } from "@/components/ScopeBackground";
+import { ratingShort } from "@/lib/rating";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analytics">;
 
@@ -188,21 +189,21 @@ export default function AnalyticsScreen({ navigation }: Props) {
               <Feather name="trending-up" size={16} color={Colors.dark.successGreen} />
             </View>
             <Text style={styles.statValue}>{analytics.ratingCounts.BUY}</Text>
-            <Text style={styles.statLabel}>BUY</Text>
+            <Text style={styles.statLabel}>{ratingShort("BUY")}</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIconBg, { backgroundColor: "rgba(255, 255, 255, 0.1)" }]}>
               <Feather name="minus" size={16} color={Colors.dark.textSecondary} />
             </View>
             <Text style={styles.statValue}>{analytics.ratingCounts.HOLD}</Text>
-            <Text style={styles.statLabel}>HOLD</Text>
+            <Text style={styles.statLabel}>{ratingShort("HOLD")}</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIconBg, { backgroundColor: Colors.dark.alertTintStrong }]}>
               <Feather name="trending-down" size={16} color={Colors.dark.alertRed} />
             </View>
             <Text style={styles.statValue}>{analytics.ratingCounts.SELL}</Text>
-            <Text style={styles.statLabel}>SELL</Text>
+            <Text style={styles.statLabel}>{ratingShort("SELL")}</Text>
           </View>
         </View>
 
