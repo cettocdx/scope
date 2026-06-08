@@ -6,6 +6,7 @@ import { insertPortfolioAssetSchema, type Deal } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { searchPricesMultiRegion } from "./serpapi";
+import { trackScan, captureError } from "./telemetry";
 
 const analyzeRequestSchema = z.object({
   image: z.string().min(1, "image is required"),
@@ -656,7 +657,7 @@ async function generateWithRetry(
             timeoutMs,
           ),
         );
-        return await Promise.race([
+        const response = await Promise.race([
           ai.models.generateContent({
             model,
             contents: [
@@ -671,6 +672,8 @@ async function generateWithRetry(
           }),
           timeout,
         ]);
+        // Return the model that actually answered for telemetry.
+        return { response, model };
       } catch (err) {
         lastErr = err;
         const e = err as { status?: number; message?: string };
@@ -767,7 +770,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processing image: ${mimeType}, size: ${base64Data.length} chars`);
 
-      const [ximilarResult, clarifaiResult, geminiResponse] = await Promise.all([
+      const startTime = Date.now();
+      const [ximilarResult, clarifaiResult, gen] = await Promise.all([
         analyzeWithXimilar(base64Data).catch(err => {
           console.error("Ximilar analysis failed:", err);
           return null as XimilarAnalysisResult | null;
@@ -801,6 +805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const geminiResponse = gen.response;
+      const modelUsed = gen.model;
       const text = geminiResponse.text;
       if (!text) {
         // Upstream AI returned an empty body — treat as a bad gateway response.
@@ -1013,6 +1019,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         regionSummary[rc] = finalDeals.filter((d: Deal) => d.region === rc);
       }
 
+      // The core product event: cost + accuracy + north-star signal per scan.
+      const realRegions = new Set(
+        finalDeals.filter((d) => !d.isSearchLink).map((d) => d.region),
+      );
+      trackScan({
+        category: data.category,
+        model: modelUsed,
+        confidenceScore: data.confidenceScore,
+        brandConfidence: data.brandConfidence,
+        priceFound,
+        realOfferCount: priceFound ? data.deals?.length || 0 : 0,
+        regionsQueried: 8,
+        regionsWithOffers: realRegions.size,
+        needsUserInput: data.needsUserInput,
+        refinementsApplied: !!refinements,
+        durationMs: Date.now() - startTime,
+      });
+
       res.json({
         ...data,
         currency: "USD",
@@ -1026,6 +1050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: unknown) {
       console.error("Gemini Analysis Error:", error);
+      captureError(error, { route: "/api/analyze" });
 
       const { message, status } = getErrorInfo(error);
 
