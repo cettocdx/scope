@@ -9,6 +9,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { analyzeImage } from "@/services/geminiService";
 import { getApiUrl } from "@/lib/query-client";
 import { ScopeBackground } from "@/components/ScopeBackground";
+import { quotaStatus, recordScan, FREE_DAILY_SCANS } from "@/lib/quota";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analyzing">;
 
@@ -35,6 +36,19 @@ export default function AnalyzingScreen({ navigation, route }: Props) {
 
     const analyze = async () => {
       try {
+        // Free daily quota gate — every scan costs money upstream.
+        const quota = await quotaStatus();
+        if (!quota.allowed) {
+          clearInterval(interval);
+          Alert.alert(
+            "Daily limit reached",
+            `You've used all ${FREE_DAILY_SCANS} free scans today. They reset tomorrow.`,
+            [{ text: "OK", onPress: () => navigation.popToTop() }],
+          );
+          return;
+        }
+        await recordScan();
+
         const result = await analyzeImage(imageBase64, refinements);
         
         if (Platform.OS !== "web") {

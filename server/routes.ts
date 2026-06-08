@@ -8,6 +8,7 @@ import { fromZodError } from "zod-validation-error";
 import { searchPricesMultiRegion, applyLiveRates } from "./serpapi";
 import { trackScan, captureError } from "./telemetry";
 import { scheduleFxRefresh } from "./fx";
+import { affiliateUrl, affiliateEnabled } from "./affiliate";
 
 const analyzeRequestSchema = z.object({
   image: z.string().min(1, "image is required"),
@@ -1068,6 +1069,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalDeals = buildSearchLinks(data.itemName);
       }
 
+      // Append affiliate tags to real purchase links (no-op until configured).
+      finalDeals = finalDeals.map((d) =>
+        d.isSearchLink ? d : { ...d, url: affiliateUrl(d.url) },
+      );
+
       const regionSummary: Record<string, Deal[]> = {};
       for (const rc of ["US", "TR", "UK", "FR", "NL", "ES", "IT", "AE"]) {
         regionSummary[rc] = finalDeals.filter((d: Deal) => d.region === rc);
@@ -1102,6 +1108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         outlierCount,
         sourceCount,
         pricedAt: priceFound ? new Date().toISOString() : null,
+        affiliate: affiliateEnabled(),
         deals: finalDeals,
         appliedRefinements: refinements || null,
       });

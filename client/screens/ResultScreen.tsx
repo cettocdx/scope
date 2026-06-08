@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -24,43 +24,14 @@ import { useAddAsset } from "@/hooks/usePortfolio";
 import { persistAssetImage } from "@/lib/image-store";
 import { ScopeBackground } from "@/components/ScopeBackground";
 import { ratingLabel, RATING_DISCLAIMER } from "@/lib/rating";
+import { captureRef } from "react-native-view-shot";
+import {
+  ValueCard,
+  VALUE_CARD_HEIGHT,
+  VALUE_CARD_WIDTH,
+} from "@/components/ValueCard";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-const generatePromoContent = (itemName: string, price: number, rating: string, trend: number, category: string) => {
-  const trendEmoji = trend > 0 ? "+" : "";
-  const ratingTags = {
-    BUY: "GREAT PRICE",
-    SELL: "SELLS FAST",
-    HOLD: "FAIR PRICE"
-  };
-
-  const taglines = [
-    `Discover the ${itemName} — know its real price!`,
-    `${itemName}: ${ratingLabel(rating)} vs typical retail.`,
-    `Trending ${trendEmoji}${trend}% - ${itemName} is moving!`,
-    `Real price: ${itemName} at ${price.toLocaleString("en-US")}`,
-  ];
-
-  const randomTagline = taglines[Math.floor(Math.random() * taglines.length)];
-
-  return `
-${ratingTags[rating as keyof typeof ratingTags] || "FEATURED ASSET"}
-
-${randomTagline}
-
-Current Market Value: $${price.toLocaleString("en-US")}
-Category: ${category}
-24H Trend: ${trendEmoji}${trend}%
-Price check: ${ratingLabel(rating)}
-
-Analyzed by SCOPE
-The AI-Powered Asset Intelligence Platform
-
-Scan. Identify. Know the price.
-#SCOPE #RealPrice #PriceCheck
-`.trim();
-};
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 
@@ -138,26 +109,23 @@ export default function ResultScreen({ navigation, route }: Props) {
     Linking.openURL(url).catch(() => {});
   };
 
-  const handleGeneratePromo = async () => {
-    try {
-      const promoContent = generatePromoContent(
-        safeAssetData.itemName,
-        safeAssetData.estimatedPrice,
-        safeAssetData.investmentRating,
-        safeAssetData.trendPercentage,
-        safeAssetData.category
-      );
+  const cardRef = useRef<View>(null);
 
+  // Capture the off-screen Value Card to an image and share it — the viral,
+  // zero-CAC moment. Only meaningful when we have a real price.
+  const handleShareValueCard = async () => {
+    try {
+      const uri = await captureRef(cardRef, { format: "png", quality: 1 });
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
-
-      await Share.share({
-        message: promoContent,
-        title: `SCOPE Promo: ${safeAssetData.itemName}`,
-      });
+      await Share.share(
+        Platform.OS === "ios"
+          ? { url: uri }
+          : { url: uri, message: "Priced with SCOPE" },
+      );
     } catch (e) {
-      console.error('Promo share error:', e);
+      console.error("Value card share error:", e);
     }
   };
 
@@ -203,6 +171,16 @@ Analyzed by SCOPE - AI Asset Scanner
 
   return (
     <ScopeBackground glowY={0.3}>
+    {priceFound && (
+      <View ref={cardRef} collapsable={false} style={styles.offscreenCard}>
+        <ValueCard
+          itemName={safeAssetData.itemName}
+          price={safeAssetData.estimatedPrice}
+          category={safeAssetData.category}
+          sourceCount={safeAssetData.sourceCount}
+        />
+      </View>
+    )}
     <View style={styles.modalOverlay}>
       <View style={[styles.cardContainer, { paddingBottom: insets.bottom + Spacing.xl }]}>
         <View style={styles.handleContainer}>
@@ -362,15 +340,17 @@ Analyzed by SCOPE - AI Asset Scanner
                 {isSaving ? "SAVING..." : "ADD TO VAULT"}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.promoButton}
-              onPress={handleGeneratePromo}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Create promotional content"
-            >
-              <Feather name="zap" size={18} color={Colors.dark.accent} />
-            </TouchableOpacity>
+            {priceFound && (
+              <TouchableOpacity
+                style={styles.promoButton}
+                onPress={handleShareValueCard}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Share value card"
+              >
+                <Feather name="share" size={18} color={Colors.dark.accent} />
+              </TouchableOpacity>
+            )}
           </View>
 
           <Text style={styles.disclaimer}>{RATING_DISCLAIMER}</Text>
@@ -553,6 +533,13 @@ Analyzed by SCOPE - AI Asset Scanner
 }
 
 const styles = StyleSheet.create({
+  offscreenCard: {
+    position: "absolute",
+    left: -9999,
+    top: 0,
+    width: VALUE_CARD_WIDTH,
+    height: VALUE_CARD_HEIGHT,
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
