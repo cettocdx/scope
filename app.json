@@ -44,7 +44,8 @@
         {
           "cameraPermission": "SCOPE needs camera access to scan and identify assets."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "reactCompiler": true

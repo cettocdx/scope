@@ -162,23 +162,23 @@ export const Typography = {
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    sans: "system-ui",
-    serif: "ui-serif",
-    rounded: "ui-rounded",
-    mono: "ui-monospace",
-  },
-  default: {
-    sans: "normal",
-    serif: "serif",
-    rounded: "normal",
-    mono: "monospace",
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+// Inter is the product typeface (loaded in App.tsx). Because @expo-google-fonts
+// ships one file per weight, we reference the exact weight family rather than
+// relying on fontWeight (which native ignores for a specific-weight family).
+//
+// `mono` is kept as a key for backward-compat with existing styles, but now maps
+// to Inter Medium — the app moves from a "tactical monospace" look to a clean,
+// premium AI-native typographic system. Letter-spacing on labels is preserved.
+const isWeb = Platform.OS === "web";
+const interSans = isWeb ? "Inter, system-ui, sans-serif" : "Inter_400Regular";
+
+export const Fonts = {
+  sans: interSans,
+  serif: interSans,
+  rounded: interSans,
+  mono: isWeb ? "Inter, system-ui, sans-serif" : "Inter_500Medium",
+  medium: isWeb ? "Inter, system-ui, sans-serif" : "Inter_500Medium",
+  semibold: isWeb ? "Inter, system-ui, sans-serif" : "Inter_600SemiBold",
+  bold: isWeb ? "Inter, system-ui, sans-serif" : "Inter_700Bold",
+  black: isWeb ? "Inter, system-ui, sans-serif" : "Inter_800ExtraBold",
+};

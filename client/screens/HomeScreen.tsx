@@ -24,6 +24,7 @@ import Svg, {
 } from "react-native-svg";
 
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { Fonts } from "@/constants/theme";
 
 /**
  * Scope home screen — a single, cinematic call-to-action.
@@ -309,6 +310,7 @@ function OrbFace({ size }: { size: number }) {
         x={c}
         y={c + size * 0.045}
         fill="url(#label)"
+        fontFamily={Fonts.semibold}
         fontSize={size * 0.115}
         fontWeight="600"
         letterSpacing={size * 0.018}
@@ -390,7 +392,7 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontSize: 40,
-    fontWeight: "300",
+    fontFamily: Fonts.semibold,
     letterSpacing: 16,
     color: C.white,
     // optical centering for the wide letter-spacing (trailing space)
@@ -401,7 +403,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     letterSpacing: 0.3,
     color: C.muted,
-    fontWeight: "400",
+    fontFamily: Fonts.sans,
   },
   orbZone: {
     flex: 1,

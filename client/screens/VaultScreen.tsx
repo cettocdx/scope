@@ -1,12 +1,5 @@
 import React, { useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -16,6 +9,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PortfolioAsset } from "@/types";
 import FinancialChart from "@/components/FinancialChart";
 import { TrendPill } from "@/components/TrendPill";
+import { SkeletonCard } from "@/components/Skeleton";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { imageSource } from "@/lib/image-store";
 import { ScopeBackground } from "@/components/ScopeBackground";
@@ -118,9 +112,11 @@ export default function VaultScreen({ navigation }: Props) {
   const renderEmptyState = () => {
     if (isLoading) {
       return (
-        <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={Colors.dark.accent} />
-          <Text style={styles.loadingText}>LOADING VAULT</Text>
+        <View>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </View>
       );
     }
