@@ -288,8 +288,14 @@ export async function searchPricesMultiRegion(
         num: "5",
       });
 
-      const response = await fetchWithTimeout(`https://serpapi.com/search?${params}`);
-      
+      // Generous timeout: SerpAPI can be slow, and a too-short window made
+      // regions abort under load (US/TR coming back empty).
+      const response = await fetchWithTimeout(
+        `https://serpapi.com/search?${params}`,
+        {},
+        15000,
+      );
+
       if (!response.ok) {
         console.error(`SerpAPI error for ${regionCode}:`, response.status);
         return [];
@@ -353,12 +359,18 @@ export async function searchPricesMultiRegion(
     }
   }
 
-  // Query all regions in parallel so total latency ~= the slowest region,
-  // not the sum of all of them.
-  const settled = await Promise.allSettled(regions.map(fetchRegion));
-  const allResults: SerpApiResult[] = settled.flatMap((s) =>
-    s.status === "fulfilled" ? s.value : [],
-  );
+  // Query in small concurrent batches. Firing all 8 regions at once exceeded
+  // SerpAPI's concurrency limit on the free plan, so some (e.g. US/TR) aborted
+  // and came back empty. Batches of 3 keep latency low while staying under it.
+  const BATCH = 3;
+  const allResults: SerpApiResult[] = [];
+  for (let i = 0; i < regions.length; i += BATCH) {
+    const batch = regions.slice(i, i + BATCH);
+    const settled = await Promise.allSettled(batch.map(fetchRegion));
+    for (const s of settled) {
+      if (s.status === "fulfilled") allResults.push(...s.value);
+    }
+  }
 
   if (allResults.length > 0) {
     const minPrice = Math.min(...allResults.map(r => r.price));

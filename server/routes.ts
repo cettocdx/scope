@@ -234,8 +234,15 @@ export function calculateValuation(deals: ValuationInput[], displayCurrency: str
   };
 }
 
-/** The regions we always show prices for (order is the display order). */
+/** The regions we always show (order is the display order). */
 const PRICE_REGIONS = ["US", "UK", "CN", "TR", "IT", "ES", "FR", "AE"] as const;
+
+/**
+ * Regions we actually query on SerpAPI. China is excluded: Google Shopping is
+ * not available there (gl=cn returns HTTP 400), so CN always falls back to a
+ * "search in China" link instead of real offers.
+ */
+const QUERYABLE_REGIONS = PRICE_REGIONS.filter((r) => r !== "CN");
 
 /**
  * A price-less "search in <region>" link pointing at that region's Google
@@ -992,9 +999,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .replace(/\s{2,}/g, " ")
             .trim() || searchQueries[0];
         console.log(`Fetching SerpAPI prices for: ${primaryQuery}`);
-        const serpResults = await searchPricesMultiRegion(primaryQuery, [
-          ...PRICE_REGIONS,
-        ]);
+        const serpResults = await searchPricesMultiRegion(
+          primaryQuery,
+          QUERYABLE_REGIONS,
+        );
         
         if (serpResults.length > 0) {
           const aiEstimate = data.estimatedPrice;
@@ -1083,7 +1091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         brandConfidence: data.brandConfidence,
         priceFound,
         realOfferCount: priceFound ? data.deals?.length || 0 : 0,
-        regionsQueried: PRICE_REGIONS.length,
+        regionsQueried: QUERYABLE_REGIONS.length,
         regionsWithOffers: realRegions.size,
         needsUserInput: data.needsUserInput,
         refinementsApplied: !!refinements,
