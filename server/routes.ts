@@ -242,14 +242,10 @@ export function calculateValuation(deals: ValuationInput[], displayCurrency: str
 }
 
 /** The regions we always show (order is the display order). */
-const PRICE_REGIONS = ["US", "UK", "CN", "TR", "IT", "ES", "FR", "AE"] as const;
+const PRICE_REGIONS = ["US", "UK", "TR", "IT", "ES", "FR", "AE"] as const;
 
-/**
- * Regions we actually query on SerpAPI. China is excluded: Google Shopping is
- * not available there (gl=cn returns HTTP 400), so CN always falls back to a
- * "search in China" link instead of real offers.
- */
-const QUERYABLE_REGIONS = PRICE_REGIONS.filter((r) => r !== "CN");
+/** Every tracked region is queryable on SerpAPI. */
+const QUERYABLE_REGIONS: string[] = [...PRICE_REGIONS];
 
 /**
  * A price-less "search in <region>" link pointing at that region's Google

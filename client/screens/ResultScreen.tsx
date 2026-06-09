@@ -437,7 +437,6 @@ Analyzed by SCOPE - AI Asset Scanner
           {([
             { code: "US", name: "USA", emoji: "🇺🇸" },
             { code: "UK", name: "UK", emoji: "🇬🇧" },
-            { code: "CN", name: "CHINA", emoji: "🇨🇳" },
             { code: "TR", name: "TÜRKİYE", emoji: "🇹🇷" },
             { code: "IT", name: "ITALY", emoji: "🇮🇹" },
             { code: "ES", name: "SPAIN", emoji: "🇪🇸" },
