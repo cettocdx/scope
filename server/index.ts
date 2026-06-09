@@ -20,29 +20,18 @@ function setupCors(app: express.Application) {
   app.use((req, res, next) => {
     const origins = new Set<string>();
 
-    if (process.env.REPLIT_DEV_DOMAIN) {
-      origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
-    }
-
-    if (process.env.REPLIT_DOMAINS) {
-      process.env.REPLIT_DOMAINS.split(",").forEach((d) => {
-        origins.add(`https://${d.trim()}`);
+    // Production: comma-separated allowed origins (full URLs or bare domains).
+    if (process.env.ALLOWED_ORIGINS) {
+      process.env.ALLOWED_ORIGINS.split(",").forEach((d) => {
+        const v = d.trim();
+        origins.add(v.startsWith("http") ? v : `https://${v}`);
       });
     }
 
-    // Optional explicit local domain override.
-    if (process.env.LOCAL_DOMAIN) {
-      origins.add(process.env.LOCAL_DOMAIN.trim());
-    }
-
-    // Local development fallback: allow localhost origins when not on Replit
-    // so the app works on a developer machine without Replit env vars.
-    if (
-      process.env.NODE_ENV !== "production" &&
-      !process.env.REPLIT_DEV_DOMAIN &&
-      !process.env.REPLIT_DOMAINS
-    ) {
-      ["8081", "19006", "5000", "3000"].forEach((p) => {
+    // Local development fallback: allow localhost origins when no explicit
+    // allowlist is configured, so the app works on a developer machine.
+    if (process.env.NODE_ENV !== "production" && !process.env.ALLOWED_ORIGINS) {
+      ["8081", "19006", "5000", "4000", "3000"].forEach((p) => {
         origins.add(`http://localhost:${p}`);
         origins.add(`http://127.0.0.1:${p}`);
       });
@@ -268,7 +257,7 @@ function setupSecurity(app: express.Application) {
     {
       port,
       host: "0.0.0.0",
-      // SO_REUSEPORT is only supported on Linux (e.g. Replit). On macOS/Windows
+      // SO_REUSEPORT is only supported on Linux. On macOS/Windows
       // it throws ENOTSUP and crashes the server, so enable it only on Linux.
       reusePort: process.platform === "linux",
     },

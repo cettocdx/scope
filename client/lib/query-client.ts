@@ -24,7 +24,7 @@ function devLanBaseUrl(): string {
 /**
  * Gets the base URL for the Express API server.
  * Resolution order:
- *  1. EXPO_PUBLIC_DOMAIN env (production / Replit)
+ *  1. EXPO_PUBLIC_DOMAIN env (production)
  *  2. Local dev: auto-detected LAN IP + DEV_API_PORT (so phones can connect)
  * Uses http:// for localhost / LAN hosts, https:// otherwise.
  * @returns {string} The API base URL

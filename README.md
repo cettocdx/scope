@@ -1,167 +1,180 @@
-# SCOPE — AI-Powered Asset Scanner
+<p align="center">
+  <img src="docs/hero.svg" alt="SCOPE — Know the real price of anything" width="100%" />
+</p>
 
-SCOPE is a mobile app for scanning, identifying, and tracking valuable assets
-(luxury fashion, electronics, watches, and more). Point your camera at an item
-and SCOPE uses AI to identify it, pull real multi-region market prices, value it
-with outlier-aware statistics, and track it in a synced portfolio with financial
-analytics.
+<h1 align="center">SCOPE</h1>
 
-## Features
+<p align="center">
+  <strong>Point your camera at anything. Know its real price.</strong><br/>
+  An AI product scanner that identifies any object and compares real retail prices across 8 regions.
+</p>
 
-- **Camera Scanning** — Capture items with the device camera.
-- **AI Analysis** — Google Gemini identifies the item and produces a structured
-  "Product DNA" (brand, model, variant, condition, confidence scores), augmented
-  by Ximilar (fashion attributes) and Clarifai (general vision).
-- **Multi-Region Price Comparison** — SerpAPI fetches real prices across the US,
-  Turkey, and Germany (EU), normalized to USD.
-- **Outlier-Aware Valuation** — IQR-based outlier detection produces a clean
-  min / median / max price range.
-- **Portfolio Management** — Track assets with cross-device sync (device-scoped).
-- **Analytics Dashboard** — Portfolio metrics, best/worst performers, category
-  breakdown, and AI recommendations.
+<p align="center">
+  <img alt="Expo" src="https://img.shields.io/badge/Expo-54-000?logo=expo&logoColor=white" />
+  <img alt="React Native" src="https://img.shields.io/badge/React%20Native-0.81-20232a?logo=react&logoColor=61dafb" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white" />
+  <img alt="Express" src="https://img.shields.io/badge/Express-5-000?logo=express&logoColor=white" />
+  <img alt="Gemini" src="https://img.shields.io/badge/AI-Gemini-4285F4?logo=google&logoColor=white" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-47%20passing-3fb950" />
+</p>
 
-## Tech Stack
+---
 
-| Layer            | Technology                                         |
-| ---------------- | -------------------------------------------------- |
-| Frontend         | Expo React Native + React Navigation               |
-| Backend          | Express.js (TypeScript, run via `tsx`)             |
-| Database         | PostgreSQL with Drizzle ORM                        |
-| AI / Vision      | Google Gemini (`@google/genai`), Ximilar, Clarifai |
-| Price Data       | SerpAPI (Google Shopping, multi-region)            |
-| State Management | TanStack React Query                               |
-| Testing          | Vitest                                             |
+## What is SCOPE?
 
-## Architecture
+SCOPE turns your camera into a universal price oracle. Snap a photo of **anything** —
+a phone, a laptop, a vape, a handbag, a pair of sneakers, an appliance — and SCOPE:
 
-The repo is a single workspace with three top-level source areas:
+1. **Identifies it** with a multi-modal AI pipeline (Google Gemini) that classifies the
+   category first, then extracts brand, model and the variant details that move the price.
+2. **Finds the real price** by querying live retail listings across **8 regions**
+   (🇺🇸 🇬🇧 🇨🇳 🇹🇷 🇮🇹 🇪🇸 🇫🇷 🇦🇪), filtering out second-hand noise and outliers, and
+   showing a **median backed by N real sources** — never a fabricated number.
+3. **Tracks it** in a synced **Vault** with net-worth, gain/loss and category analytics.
 
+> The whole experience is built around a single, cinematic call-to-action: **SCOPE IT**.
+
+---
+
+## ✨ Features
+
+| | |
+|---|---|
+| 📸 **Universal recognition** | Category-first AI — electronics, vehicles, fashion, bags, footwear, watches, appliances, collectibles. Never forces a luxury brand onto a generic object. |
+| 💵 **Real prices only** | Live multi-region retail prices via SerpAPI. New/retail focus (resale platforms filtered). If no real price exists, it says so — and offers a search link instead of a guess. |
+| 🛡️ **Trust by design** | IQR outlier rejection, a minimum-sources threshold, and a “median of N live prices · date” badge on every result. |
+| 🔭 **Confidence-scored DNA** | Each scan produces a structured *Product DNA* (brand, model, variant, condition) with visual/OCR confidence scores. |
+| 🗄️ **The Vault** | Save scans into a portfolio with net worth, ROI, value-history charts and analytics. Offline-first with a retry queue and robust delete sync. |
+| 🌍 **8 regions, one currency** | Prices normalized to USD with **live FX rates**, shown per country. |
+| 🎨 **Premium, AI-native UI** | Dark cinematic canvas, Inter typography, fluid motion, skeleton loading, full accessibility labels. |
+| 🔒 **Responsible** | Age-restricted items (vape, alcohol, weapons) are gated; ratings use price-fairness language, never financial advice. |
+
+---
+
+## 🧭 How it works
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as App (Expo)
+    participant S as Server (Express)
+    participant G as Gemini
+    participant P as SerpAPI (8 regions)
+
+    U->>A: Snap a photo
+    A->>S: POST /api/analyze (image)
+    S->>G: Identify → Product DNA + search queries
+    S->>P: Fetch real retail prices (batched)
+    P-->>S: Offers per region
+    S->>S: Filter resale / outliers · median · live FX
+    S-->>A: Item + median price + sources + deals
+    A-->>U: Result card with trust badge
+    U->>A: Add to Vault
 ```
-client/    Expo React Native app
-├── components/   Reusable UI components
-├── constants/    Theme, colors, spacing
-├── lib/          Query client, API utilities
-├── navigation/   React Navigation setup
-├── screens/      App screens
-├── services/     Business logic (portfolioService)
-└── types/        TypeScript types
 
-server/    Express API
-├── db.ts         Database connection (requires DATABASE_URL)
-├── index.ts      Express app setup
-├── routes.ts     API routes + valuation logic
-├── serpapi.ts    SerpAPI multi-region price search + price parsing
-├── ximilar.ts    Ximilar fashion analysis
-├── clarifai.ts   Clarifai vision analysis
-├── storage.ts    Database operations (Drizzle)
-└── __tests__/    Vitest unit tests
+## 🏗️ Architecture
 
-shared/    Code shared between client and server
-└── schema.ts     Drizzle schema + Zod validation
+```mermaid
+flowchart LR
+    subgraph Mobile["Mobile — Expo / React Native"]
+        Home["SCOPE IT"] --> Scanner --> Review --> Result --> Vault
+        Vault --> Analytics
+    end
+
+    subgraph Backend["Backend — Express + TypeScript"]
+        Analyze["/api/analyze"]
+        Portfolio["/api/portfolio"]
+        FX["/api/fx"]
+    end
+
+    Review -->|image| Analyze
+    Analyze --> Gemini[("Google Gemini")]
+    Analyze --> Serp[("SerpAPI")]
+    Vault --> Portfolio --> DB[("PostgreSQL · Drizzle")]
+    FX --> Rates[("Live FX")]
 ```
 
-The Expo dev server runs on port **8081** and the Express API on port **5000**.
+---
 
-## Getting Started
+## 🧱 Tech stack
 
-### Prerequisites
+| Layer | Technology |
+|-------|-----------|
+| **Mobile** | Expo (React Native), React Navigation, TanStack Query, react-native-svg, Reanimated |
+| **Language** | TypeScript (`strict`) end-to-end |
+| **Backend** | Express 5, Helmet, rate-limiting, Zod validation |
+| **AI** | Google Gemini (multi-modal, model-fallback chain) |
+| **Pricing** | SerpAPI (Google Shopping, 8 regions) + live FX |
+| **Data** | PostgreSQL + Drizzle ORM |
+| **Quality** | Vitest, ESLint, Prettier, typed CI checks |
 
-- **Node.js 20**
-- **PostgreSQL** (a reachable instance and a connection string)
+---
 
-### 1. Install dependencies
+## 🚀 Getting started
+
+**Requirements:** Node 20+, the [Expo Go](https://expo.dev/go) app on your phone, and a
+free [Google Gemini API key](https://aistudio.google.com/apikey). Phone and computer on the
+same Wi-Fi.
 
 ```bash
+# 1. Install
 npm install
-```
 
-### 2. Configure environment
-
-Copy the example env file and fill in the values:
-
-```bash
+# 2. Configure
 cp .env.example .env
+#    then set GEMINI_API_KEY=...   (other keys are optional)
+
+# 3. Run backend + Metro bundler
+npm run server:dev      # Express API (port 4000)
+npm run expo:dev        # Expo — scan the QR with Expo Go
 ```
 
-See [Environment Variables](#environment-variables) below for what each value
-does. At minimum you need `DATABASE_URL`; the AI/price providers degrade
-gracefully when their keys are absent (the app falls back to AI-estimated
-pricing rather than fabricating data).
+Then open SCOPE on your phone, tap **SCOPE IT**, and scan something.
 
-### 3. Push the database schema
+> A detailed, step-by-step setup guide (Turkish) lives in [`KURULUM.md`](KURULUM.md).
+
+### Environment
+
+| Variable | Required | Purpose |
+|----------|:--------:|---------|
+| `GEMINI_API_KEY` | ✅ | AI product recognition |
+| `SERPAPI_KEY` | – | Real multi-region prices (falls back gracefully) |
+| `DATABASE_URL` | – | Cloud portfolio sync (local-only without it) |
+| `XIMILAR_API_KEY` / `CLARIFAI_API_KEY` | – | Extra vision signals |
+| `POSTHOG_KEY`, `AMAZON_AFFILIATE_TAG`, … | – | Telemetry / monetization (optional) |
+
+---
+
+## 📁 Project structure
+
+```
+client/          Expo React Native app
+  screens/         Home · Scanner · Review · Confirm · Analyzing · Result · Vault · Analytics · AssetDetail
+  components/      Reusable UI (ScopeBackground, ValueCard, TrendPill, Skeleton…)
+  hooks/           usePortfolio (React Query data layer)
+  lib/             image-store, quota, rating, query-client
+  constants/       theme (Inter type system + color tokens)
+server/          Express + TypeScript API
+  routes.ts        /analyze · /portfolio · /valuate · /fx
+  serpapi.ts       multi-region price search
+  fx.ts            live exchange rates
+  telemetry.ts     scan analytics
+shared/          Drizzle schema shared by client & server
+```
+
+---
+
+## 🧪 Scripts
 
 ```bash
-npm run db:push
+npm run check:types   # TypeScript (client + server)
+npm test              # Vitest unit tests
+npm run lint          # ESLint
+npm run db:push       # Apply Drizzle schema
 ```
 
-### 4. Run the app (Expo + Express)
+---
 
-```bash
-npm run all:dev
-```
+## 📜 License
 
-This starts both processes:
-
-- **Expo** dev server on port `8081`
-- **Express** API on port `5000`
-
-You can also run them individually with `npm run expo:dev` and
-`npm run server:dev`.
-
-## Environment Variables
-
-Configure these in `.env` (see `.env.example`):
-
-| Variable                          | Required | Description                                                                                                         |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                    | Yes      | PostgreSQL connection string (used by `drizzle.config.ts` & `server/db.ts`).                                        |
-| `AI_INTEGRATIONS_GEMINI_API_KEY`  | Yes\*    | Google Gemini API key for AI identification (`server/routes.ts`).                                                   |
-| `AI_INTEGRATIONS_GEMINI_BASE_URL` | No       | Optional custom Gemini proxy/base URL. May be left blank.                                                           |
-| `SERPAPI_KEY`                     | No       | SerpAPI key for multi-region real price data (`server/serpapi.ts`). Without it, pricing falls back to AI estimates. |
-| `XIMILAR_API_KEY`                 | No       | Ximilar Fashion AI key (category/color/material) (`server/ximilar.ts`).                                             |
-| `CLARIFAI_API_KEY`                | No       | Clarifai general vision key (`server/clarifai.ts`).                                                                 |
-| `SESSION_SECRET`                  | No       | Session key (reserved for future auth).                                                                             |
-| `EXPO_PUBLIC_DOMAIN`              | Yes      | Domain the mobile client uses to reach the backend (e.g. `localhost:5000`) (`client/lib/query-client.ts`).          |
-
-\* Required for the AI analysis endpoint to function; the server boots without it.
-
-## Testing
-
-Unit tests are written with [Vitest](https://vitest.dev/) and live in
-`server/__tests__/`. They cover the pure functions behind valuation and price
-parsing (IQR outlier detection, currency conversion, multi-format price parsing).
-
-```bash
-npm test         # run once
-npm run test:watch  # watch mode
-```
-
-## Available Scripts
-
-| Script                 | Description                                  |
-| ---------------------- | -------------------------------------------- |
-| `npm run all:dev`      | Run Expo (8081) and Express (5000) together. |
-| `npm run expo:dev`     | Run the Expo dev server only.                |
-| `npm run server:dev`   | Run the Express API only.                    |
-| `npm run db:push`      | Push the Drizzle schema to the database.     |
-| `npm run lint`         | Lint with Expo ESLint config.                |
-| `npm run check:format` | Check formatting with Prettier.              |
-| `npm run check:types`  | Type-check with `tsc --noEmit`.              |
-| `npm test`             | Run the Vitest suite.                        |
-
-## Continuous Integration
-
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request
-under Node 20: `npm ci`, then lint, format check, type check (currently
-non-blocking), and tests.
-
-## API Endpoints
-
-- `POST /api/analyze` — Analyze an image with Gemini AI (+ Ximilar/Clarifai).
-- `POST /api/valuate` — Calculate valuation with outlier detection.
-- `GET  /api/fx?base=USD&quote=TRY` — Get a currency exchange rate.
-- `GET  /api/portfolio/:deviceId` — Get a device's portfolio.
-- `POST /api/portfolio/:deviceId` — Add/update a portfolio asset.
-- `PUT  /api/portfolio/:deviceId/:assetId` — Update an asset.
-- `DELETE /api/portfolio/:deviceId/:assetId` — Remove an asset.
-- `POST /api/portfolio/:deviceId/sync` — Sync assets across devices.
+Released under the MIT License — see [`LICENSE`](LICENSE).

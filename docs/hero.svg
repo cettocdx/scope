@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="440" viewBox="0 0 1280 440" fill="none" role="img" aria-label="SCOPE — Know the real price of anything">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="46%" r="62%">
+      <stop offset="0%" stop-color="#07122A"/>
+      <stop offset="46%" stop-color="#02040A"/>
+      <stop offset="100%" stop-color="#000104"/>
+    </radialGradient>
+    <radialGradient id="orb" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#5B7CFF" stop-opacity="0.55"/>
+      <stop offset="42%" stop-color="#8B5CFF" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#5B7CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B7CFF"/>
+      <stop offset="50%" stop-color="#B9D4FF"/>
+      <stop offset="100%" stop-color="#8B5CFF"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#B9D4FF"/>
+      <stop offset="100%" stop-color="#5B7CFF"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="440" fill="url(#bg)"/>
+
+  <!-- aperture mark -->
+  <g transform="translate(640 150)">
+    <circle r="150" fill="url(#orb)"/>
+    <circle r="78" fill="none" stroke="url(#ring)" stroke-width="2.5" opacity="0.95"/>
+    <circle r="64" fill="none" stroke="#5B7CFF" stroke-opacity="0.35" stroke-width="1.5"/>
+    <circle r="6" fill="#B9D4FF"/>
+    <g stroke="url(#ring)" stroke-width="2.5" stroke-linecap="round" opacity="0.9">
+      <line x1="0" y1="-78" x2="0" y2="-58"/>
+      <line x1="0" y1="78" x2="0" y2="58"/>
+      <line x1="-78" y1="0" x2="-58" y2="0"/>
+      <line x1="78" y1="0" x2="58" y2="0"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="640" y="320" text-anchor="middle" fill="url(#word)"
+        font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+        font-size="76" font-weight="800" letter-spacing="22">SCOPE</text>
+
+  <!-- tagline -->
+  <text x="640" y="368" text-anchor="middle" fill="#B9D4FF"
+        font-family="Inter, system-ui, sans-serif" font-size="20" letter-spacing="5"
+        opacity="0.85">KNOW THE REAL PRICE OF ANYTHING</text>
+
+  <!-- sub -->
+  <text x="640" y="404" text-anchor="middle" fill="rgba(245,247,255,0.5)"
+        font-family="Inter, system-ui, sans-serif" font-size="14" letter-spacing="2">
+        Snap a photo · AI identifies it · real prices across 8 regions</text>
+</svg>

@@ -29,21 +29,15 @@ function setupSignalHandlers() {
 }
 
 function getDeploymentUrl() {
-  if (process.env.REPLIT_INTERNAL_APP_DOMAIN) {
-    const url = `https://${process.env.REPLIT_INTERNAL_APP_DOMAIN}`;
-    console.log("Using REPLIT_INTERNAL_APP_DOMAIN:", url);
+  // Full deploy URL, or a bare domain via EXPO_PUBLIC_DOMAIN.
+  const raw = process.env.DEPLOY_URL || process.env.EXPO_PUBLIC_DOMAIN;
+  if (raw) {
+    const url = raw.startsWith("http") ? raw : `https://${raw}`;
+    console.log("Using deployment URL:", url);
     return url;
   }
 
-  if (process.env.REPLIT_DEV_DOMAIN) {
-    const url = `https://${process.env.REPLIT_DEV_DOMAIN}`;
-    console.log("Using REPLIT_DEV_DOMAIN:", url);
-    return url;
-  }
-
-  console.error(
-    "ERROR: REPLIT_INTERNAL_APP_DOMAIN and REPLIT_DEV_DOMAIN not set",
-  );
+  console.error("ERROR: set DEPLOY_URL (or EXPO_PUBLIC_DOMAIN) for the build");
   process.exit(1);
 }
 

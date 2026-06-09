@@ -739,11 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("User refinements received:", refinements);
       }
 
-      // Accept the standard GEMINI_API_KEY (Google AI Studio) or the
-      // Replit-specific AI_INTEGRATIONS_GEMINI_API_KEY.
-      const geminiApiKey =
-        process.env.GEMINI_API_KEY ||
-        process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+      const geminiApiKey = process.env.GEMINI_API_KEY;
 
       if (!geminiApiKey) {
         return res.status(503).json({
@@ -752,12 +748,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const geminiBaseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
+      // Optional custom endpoint for a self-hosted proxy; defaults to the
+      // standard Google AI Studio API so a plain key works out of the box.
+      const geminiBaseUrl = process.env.GEMINI_BASE_URL;
       const ai = new GoogleGenAI({
         apiKey: geminiApiKey,
-        // Only override the endpoint for a custom proxy (e.g. Replit AI
-        // Integrations); otherwise use the default Gemini API so a plain
-        // Google AI Studio key works out of the box.
         ...(geminiBaseUrl
           ? { httpOptions: { apiVersion: "", baseUrl: geminiBaseUrl } }
           : {}),
