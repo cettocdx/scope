@@ -25,19 +25,42 @@ export interface Deal {
   thumbnail?: string;
 }
 
+/**
+ * An authenticated account. Created on first Sign in with Apple / Google. We
+ * store only the provider's stable subject id + minimal profile; never a
+ * password. `isPro` mirrors the active RevenueCat entitlement.
+ */
 export const users = pgTable("users", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
+  // "apple" | "google"
+  provider: varchar("provider", { length: 16 }).notNull(),
+  // The provider's stable subject identifier (Apple `sub`, Google `sub`).
+  providerUserId: varchar("provider_user_id").notNull(),
+  email: text("email"),
+  displayName: text("display_name"),
+  // Pro entitlement, kept in sync via the RevenueCat webhook.
+  isPro: boolean("is_pro").notNull().default(false),
+  proExpiresAt: timestamp("pro_expires_at"),
+  // RevenueCat App User ID linked to this account (for reconciliation).
+  revenueCatId: varchar("revenuecat_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+}, (table) => ({
+  providerIdx: index("idx_users_provider").on(table.provider, table.providerUserId),
+}));
 
 export const portfolioAssets = pgTable("portfolio_assets", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
+  // Anonymous owner key. Pre-sign-in assets are owned by the device; on
+  // sign-in they are re-homed to the account (see `userId`).
   deviceId: varchar("device_id").notNull(),
+  // When set, the asset belongs to an account and syncs across that account's
+  // devices. NULL means it is still device-only (anonymous).
+  userId: varchar("user_id"),
   itemName: text("item_name").notNull(),
   category: text("category").notNull(),
   estimatedPrice: real("estimated_price").notNull(),
@@ -57,8 +80,10 @@ export const portfolioAssets = pgTable("portfolio_assets", {
 }));
 
 export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+  provider: true,
+  providerUserId: true,
+  email: true,
+  displayName: true,
 });
 
 export const insertPortfolioAssetSchema = createInsertSchema(portfolioAssets).omit({

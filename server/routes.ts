@@ -1,8 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { GoogleGenAI } from "@google/genai";
-import { storage } from "./storage";
+import { storage, type OwnerKey } from "./storage";
 import { insertPortfolioAssetSchema, type Deal } from "@shared/schema";
+import {
+  verifyAppleToken,
+  verifyGoogleToken,
+  issueSession,
+  optionalAuth,
+  requireAuth,
+} from "./auth";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { searchPricesMultiRegion, applyLiveRates, REGIONS } from "./serpapi";
@@ -1190,6 +1197,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // -------------------------------------------------------------------------
+  // Authentication — Sign in with Apple / Google. Verifies the provider's
+  // identity token, finds-or-creates the account, and returns a SCOPE session.
+  // -------------------------------------------------------------------------
+
+  const authBodySchema = z.object({
+    idToken: z.string().min(1),
+    // Apple only returns the name on first authorization; the client forwards
+    // it so we can persist a display name.
+    displayName: z.string().max(120).optional(),
+    // Optional: a device id whose anonymous assets should be claimed on sign-in.
+    deviceId: z.string().max(128).optional(),
+  });
+
+  async function handleProviderAuth(
+    provider: "apple" | "google",
+    req: import("express").Request,
+    res: import("express").Response,
+  ) {
+    if (!process.env.DATABASE_URL) {
+      return res.status(503).json({ error: "Accounts are not configured" });
+    }
+    const parsed = authBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: fromZodError(parsed.error).toString() });
+    }
+    const { idToken, displayName, deviceId } = parsed.data;
+
+    let identity;
+    try {
+      identity =
+        provider === "apple"
+          ? await verifyAppleToken(idToken)
+          : await verifyGoogleToken(idToken);
+    } catch (e) {
+      console.error(`${provider} token verification failed:`, e);
+      return res.status(401).json({ error: "Invalid sign-in token" });
+    }
+
+    const user = await storage.findOrCreateUser({
+      provider: identity.provider,
+      providerUserId: identity.providerUserId,
+      email: identity.email ?? null,
+      displayName: displayName ?? null,
+    });
+
+    // Merge: re-home this device's anonymous assets onto the account.
+    let claimed = 0;
+    if (deviceId) {
+      try {
+        claimed = await storage.claimDeviceAssets(deviceId, user.id);
+      } catch (e) {
+        console.error("Device asset claim failed:", e);
+      }
+    }
+
+    const token = await issueSession(user.id);
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        isPro: user.isPro,
+        proExpiresAt: user.proExpiresAt,
+      },
+      claimed,
+    });
+  }
+
+  app.post("/api/auth/apple", (req, res) => handleProviderAuth("apple", req, res));
+  app.post("/api/auth/google", (req, res) => handleProviderAuth("google", req, res));
+
+  // Current account + entitlement. Used by the client to refresh Pro status.
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(404).json({ error: "Account not found" });
+      await storage.touchUser(user.id);
+      const pro = user.isPro && (!user.proExpiresAt || user.proExpiresAt > new Date());
+      res.json({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        isPro: pro,
+        proExpiresAt: user.proExpiresAt,
+      });
+    } catch (e) {
+      console.error("auth/me error:", e);
+      res.status(500).json({ error: "Failed to load account" });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // RevenueCat webhook — keeps `isPro` in sync with the App Store subscription.
+  // Configure the shared secret as `Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>`
+  // in the RevenueCat dashboard.
+  // -------------------------------------------------------------------------
+  app.post("/api/revenuecat/webhook", async (req, res) => {
+    const secret = process.env.REVENUECAT_WEBHOOK_SECRET;
+    if (secret) {
+      const auth = req.header("authorization") || "";
+      if (auth !== `Bearer ${secret}`) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    }
+    try {
+      const event = req.body?.event ?? {};
+      const type: string = event.type ?? "";
+      // app_user_id is set to the SCOPE user id by the client (logIn).
+      const userId: string | undefined = event.app_user_id;
+      const expiresMs: number | undefined = event.expiration_at_ms;
+      const proExpiresAt = expiresMs ? new Date(expiresMs) : null;
+
+      const ACTIVE = [
+        "INITIAL_PURCHASE",
+        "RENEWAL",
+        "UNCANCELLATION",
+        "PRODUCT_CHANGE",
+        "SUBSCRIPTION_EXTENDED",
+      ];
+      const INACTIVE = ["EXPIRATION", "CANCELLATION", "BILLING_ISSUE", "SUBSCRIPTION_PAUSED"];
+
+      if (userId && process.env.DATABASE_URL) {
+        if (ACTIVE.includes(type)) {
+          await storage.setPro({ userId, isPro: true, proExpiresAt });
+        } else if (INACTIVE.includes(type)) {
+          await storage.setPro({ userId, isPro: false, proExpiresAt });
+        }
+      }
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("RevenueCat webhook error:", e);
+      res.status(200).json({ ok: false }); // 200 so RC does not hammer retries
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Portfolio (Vault). Owner is the account (userId) when authenticated, else
+  // the device (anonymous). optionalAuth populates req.userId from the Bearer
+  // token; the path :deviceId is the anonymous fallback owner.
+  // -------------------------------------------------------------------------
+
   // Cloud portfolio sync needs a database. When DATABASE_URL is not set, return
   // a clean 503 instead of letting each query throw a 500 — the client treats
   // this as "offline" and keeps the local (device) portfolio intact.
@@ -1200,13 +1350,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
 
-  app.get("/api/portfolio/:deviceId", async (req, res) => {
+  // The owner key: the signed-in account if present, otherwise the device.
+  const ownerOf = (req: import("express").Request, deviceId: string): OwnerKey =>
+    req.userId ? { userId: req.userId } : { deviceId };
+
+  app.get("/api/portfolio/:deviceId", optionalAuth, async (req, res) => {
     try {
       const { deviceId } = req.params;
       if (!deviceId) {
         return res.status(400).json({ error: "Device ID required" });
       }
-      const assets = await storage.getPortfolioAssets(deviceId);
+      const assets = await storage.getPortfolioAssets(ownerOf(req, deviceId));
       res.json(assets);
     } catch (error: unknown) {
       console.error("Portfolio fetch error:", error);
@@ -1214,14 +1368,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/portfolio/:deviceId", async (req, res) => {
+  app.post("/api/portfolio/:deviceId", optionalAuth, async (req, res) => {
     try {
       const { deviceId } = req.params;
       if (!deviceId) {
         return res.status(400).json({ error: "Device ID required" });
       }
+      const owner = ownerOf(req, deviceId);
 
-      // deviceId is set by the server from the path, so it may be absent in the body.
       const parsed = portfolioWriteSchema.safeParse({ ...req.body, deviceId });
       if (!parsed.success) {
         return res.status(400).json({ error: fromZodError(parsed.error).toString() });
@@ -1229,29 +1383,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assetData = parsed.data;
 
       if (assetData.id) {
-        // Lookup is device-scoped. If a record exists for this id under another
-        // device, this returns undefined and we never touch it (no takeover).
-        const existing = await storage.getPortfolioAsset(assetData.id, deviceId);
+        // Ownership-scoped lookup: a record under another owner returns
+        // undefined and is never touched (no takeover).
+        const existing = await storage.getPortfolioAsset(assetData.id, owner);
         if (existing) {
-          // Ownership check (defensive): the scoped lookup already guarantees
-          // ownership, but reject explicitly if it ever mismatches.
-          if (existing.deviceId !== deviceId) {
-            return res.status(403).json({ error: "Forbidden" });
-          }
-          const updated = await storage.updatePortfolioAsset(assetData.id, deviceId, {
+          const updated = await storage.updatePortfolioAsset(assetData.id, owner, {
             ...assetData,
             deviceId,
+            userId: req.userId ?? null,
           });
           return res.json(updated);
         }
       }
 
-      // No matching record owned by this device. Drop any client-supplied id so a
-      // create cannot overwrite (take over) another device's asset via id conflict.
+      // No matching record owned by this owner. Drop any client id so a create
+      // cannot overwrite another owner's asset via id conflict.
       const { id: _ignoredId, ...createData } = assetData;
-      const asset = await storage.createPortfolioAsset({
+      const asset = await storage.upsertPortfolioAsset({
         ...createData,
         deviceId,
+        userId: req.userId ?? null,
         dateAdded: req.body.dateAdded ? new Date(req.body.dateAdded) : new Date(),
       });
 
@@ -1262,21 +1413,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/portfolio/:deviceId/:assetId", async (req, res) => {
+  app.put("/api/portfolio/:deviceId/:assetId", optionalAuth, async (req, res) => {
     try {
       const { deviceId, assetId } = req.params;
       if (!deviceId) {
         return res.status(400).json({ error: "Device ID required" });
       }
+      const owner = ownerOf(req, deviceId);
 
       const parsed = portfolioWriteSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: fromZodError(parsed.error).toString() });
       }
-      // deviceId is owned by the path, never let the body override it.
-      const { deviceId: _ignoredDeviceId, id: _ignoredId, ...updates } = parsed.data;
+      // deviceId/userId are owned by the server, never let the body override them.
+      const { deviceId: _d, userId: _u, id: _id, ...updates } = parsed.data;
 
-      const asset = await storage.updatePortfolioAsset(assetId, deviceId, updates);
+      const asset = await storage.updatePortfolioAsset(assetId, owner, updates);
       if (!asset) {
         return res.status(404).json({ error: "Asset not found" });
       }
@@ -1288,15 +1440,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/portfolio/:deviceId/:assetId", async (req, res) => {
+  app.delete("/api/portfolio/:deviceId/:assetId", optionalAuth, async (req, res) => {
     try {
       const { deviceId, assetId } = req.params;
-
-      const deleted = await storage.deletePortfolioAsset(assetId, deviceId);
+      const deleted = await storage.deletePortfolioAsset(assetId, ownerOf(req, deviceId));
       if (!deleted) {
         return res.status(404).json({ error: "Asset not found" });
       }
-
       res.json({ success: true });
     } catch (error: unknown) {
       console.error("Portfolio delete error:", error);
@@ -1304,12 +1454,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/portfolio/:deviceId/sync", async (req, res) => {
+  app.post("/api/portfolio/:deviceId/sync", optionalAuth, async (req, res) => {
     try {
       const { deviceId } = req.params;
       if (!deviceId) {
         return res.status(400).json({ error: "Device ID required" });
       }
+      const owner = ownerOf(req, deviceId);
 
       const parsed = syncRequestSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -1317,23 +1468,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const { assets } = parsed.data;
 
-      // Fetch the device's assets once (avoids an N+1 query per sync item) and
-      // match in memory. Matching is id-first, then itemName + normalized date,
-      // which is Date-vs-string safe (the previous strict === always failed and
-      // created duplicates).
-      const existing = await storage.getPortfolioAssets(deviceId);
+      // Fetch the owner's assets once (avoids an N+1 query per sync item) and
+      // match in memory. Matching is id-first, then itemName + normalized date.
+      const existing = await storage.getPortfolioAssets(owner);
 
       const syncedAssets = [];
       for (const asset of assets) {
         const match = findSyncMatch(existing, asset);
 
         if (match) {
-          const updated = await storage.updatePortfolioAsset(match.id, deviceId, { ...asset, deviceId });
-          if (updated) syncedAssets.push(updated);
-        } else {
-          const created = await storage.createPortfolioAsset({
+          const updated = await storage.updatePortfolioAsset(match.id, owner, {
             ...asset,
             deviceId,
+            userId: req.userId ?? null,
+          });
+          if (updated) syncedAssets.push(updated);
+        } else {
+          const created = await storage.upsertPortfolioAsset({
+            ...asset,
+            deviceId,
+            userId: req.userId ?? null,
             dateAdded: asset.dateAdded ? new Date(asset.dateAdded) : new Date(),
           });
           syncedAssets.push(created);

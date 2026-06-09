@@ -11,6 +11,8 @@ import AnalyzingScreen from "@/screens/AnalyzingScreen";
 import ResultScreen from "@/screens/ResultScreen";
 import AssetDetailScreen from "@/screens/AssetDetailScreen";
 import AnalyticsScreen from "@/screens/AnalyticsScreen";
+import AuthScreen from "@/screens/AuthScreen";
+import PaywallScreen from "@/screens/PaywallScreen";
 
 export interface RefinementData {
   condition: Condition;
@@ -30,6 +32,8 @@ export type RootStackParamList = {
   Result: { imageBase64: string; assetData: AssetData };
   AssetDetail: { asset: PortfolioAsset };
   Analytics: undefined;
+  Auth: undefined;
+  Paywall: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -71,10 +75,20 @@ export default function RootStackNavigator() {
         component={AssetDetailScreen}
         options={{ animation: "slide_from_right" }}
       />
-      <Stack.Screen 
-        name="Analytics" 
+      <Stack.Screen
+        name="Analytics"
         component={AnalyticsScreen}
         options={{ animation: "slide_from_right" }}
+      />
+      <Stack.Screen
+        name="Auth"
+        component={AuthScreen}
+        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="Paywall"
+        component={PaywallScreen}
+        options={{ presentation: "modal", animation: "slide_from_bottom" }}
       />
     </Stack.Navigator>
   );

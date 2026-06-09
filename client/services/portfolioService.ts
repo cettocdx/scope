@@ -2,7 +2,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { deleteAssetImage } from "@/lib/image-store";
+import { getAuthTokenSync } from "@/services/authService";
 import { PortfolioAsset } from "@/types";
+
+/**
+ * Attach the account session token when signed in. The server then scopes the
+ * portfolio to the account (cross-device sync) instead of the device.
+ */
+function authHeaders(base: Record<string, string> = {}): Record<string, string> {
+  const token = getAuthTokenSync();
+  return token ? { ...base, Authorization: `Bearer ${token}` } : base;
+}
 
 const PORTFOLIO_STORAGE_KEY = "scope_portfolio_v1";
 const DEVICE_ID_KEY = "scope_device_id";
@@ -47,7 +57,7 @@ function generateDeviceId(): string {
   return `device-${segment()}${segment()}${segment()}`;
 }
 
-async function getDeviceId(): Promise<string> {
+export async function getDeviceId(): Promise<string> {
   let deviceId = await AsyncStorage.getItem(DEVICE_ID_KEY);
   if (!deviceId) {
     // Existing (legacy) device ids are preserved; only freshly generated ids
@@ -168,7 +178,7 @@ async function pushUpsert(asset: PortfolioAsset): Promise<boolean> {
       url.toString(),
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           id: asset.id,
           itemName: asset.itemName,
@@ -213,7 +223,7 @@ async function pushDelete(assetId: string): Promise<boolean> {
 
     const response = await fetchWithTimeout(
       url.toString(),
-      { method: "DELETE" },
+      { method: "DELETE", headers: authHeaders() },
       CLOUD_TIMEOUT_MS,
     );
     // Any HTTP response means the server received the delete; a 404 just means
@@ -231,7 +241,11 @@ async function fetchCloudPortfolio(): Promise<PortfolioAsset[] | null> {
     const deviceId = await getDeviceId();
     const url = new URL(`/api/portfolio/${deviceId}`, getApiUrl());
 
-    const response = await fetchWithTimeout(url.toString(), {}, CLOUD_TIMEOUT_MS);
+    const response = await fetchWithTimeout(
+      url.toString(),
+      { headers: authHeaders() },
+      CLOUD_TIMEOUT_MS,
+    );
     if (!response.ok) {
       console.error("Cloud fetch failed:", await response.text());
       return null;

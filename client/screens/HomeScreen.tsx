@@ -25,6 +25,7 @@ import Svg, {
 
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { Fonts } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Scope home screen — a single, cinematic call-to-action.
@@ -51,6 +52,10 @@ type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
+  const { isSignedIn, isPro } = useAuth();
+
+  const handleAccount = () =>
+    navigation.navigate(isPro ? "Paywall" : isSignedIn ? "Paywall" : "Auth");
 
   // Orb diameter: responsive, clamped to the premium 260–300 band.
   const ORB = Math.max(260, Math.min(width * 0.76, 300));
@@ -125,6 +130,26 @@ export default function HomeScreen({ navigation }: Props) {
           { paddingTop: insets.top, paddingBottom: insets.bottom + 18 },
         ]}
       >
+        {/* Account / Pro entry */}
+        <Pressable
+          onPress={handleAccount}
+          hitSlop={16}
+          accessibilityRole="button"
+          accessibilityLabel={isPro ? "Pro account" : isSignedIn ? "Manage Pro" : "Sign in"}
+          style={({ pressed }) => [
+            styles.account,
+            { top: insets.top + 6, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          {isPro ? (
+            <View style={styles.proPill}>
+              <Text style={styles.proPillText}>PRO</Text>
+            </View>
+          ) : (
+            <AccountGlyph size={20} color={C.ice} />
+          )}
+        </Pressable>
+
         {/* Wordmark */}
         <View style={[styles.hero, { marginTop: height * 0.11 }]}>
           <View style={styles.wordmarkWrap}>
@@ -212,6 +237,23 @@ export default function HomeScreen({ navigation }: Props) {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+/** Minimal account glyph: head + shoulders. */
+function AccountGlyph({ size, color }: { size: number; color: string }) {
+  const sw = Math.max(1.2, size * 0.09);
+  return (
+    <Svg width={size} height={size}>
+      <Circle cx={size * 0.5} cy={size * 0.34} r={size * 0.18} stroke={color} strokeWidth={sw} fill="none" />
+      <Path
+        d={`M ${size * 0.2} ${size * 0.86} C ${size * 0.2} ${size * 0.6}, ${size * 0.8} ${size * 0.6}, ${size * 0.8} ${size * 0.86}`}
+        stroke={color}
+        strokeWidth={sw}
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
   );
 }
 
@@ -422,6 +464,27 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     letterSpacing: 0.6,
     color: C.muted,
+  },
+  account: {
+    position: "absolute",
+    right: 22,
+    zIndex: 10,
+    padding: 6,
+  },
+  proPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(91, 124, 255, 0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(185, 212, 255, 0.5)",
+  },
+  proPillText: {
+    fontSize: 11,
+    letterSpacing: 2,
+    color: C.ice,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   vault: {
     marginTop: 26,

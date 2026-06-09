@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.scope.assetvision"
+      "bundleIdentifier": "com.scope.assetvision",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -45,7 +46,8 @@
           "cameraPermission": "SCOPE needs camera access to scan and identify assets."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "reactCompiler": true

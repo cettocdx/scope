@@ -10,6 +10,7 @@ import { analyzeImage } from "@/services/geminiService";
 import { getApiUrl } from "@/lib/query-client";
 import { ScopeBackground } from "@/components/ScopeBackground";
 import { quotaStatus, recordScan, FREE_DAILY_SCANS } from "@/lib/quota";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analyzing">;
 
@@ -23,6 +24,7 @@ const ANALYSIS_STEPS = [
 
 export default function AnalyzingScreen({ navigation, route }: Props) {
   const { imageBase64, refinements, barcode } = route.params;
+  const { isPro } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
@@ -36,18 +38,24 @@ export default function AnalyzingScreen({ navigation, route }: Props) {
 
     const analyze = async () => {
       try {
-        // Free daily quota gate — every scan costs money upstream.
-        const quota = await quotaStatus();
-        if (!quota.allowed) {
-          clearInterval(interval);
-          Alert.alert(
-            "Daily limit reached",
-            `You've used all ${FREE_DAILY_SCANS} free scans today. They reset tomorrow.`,
-            [{ text: "OK", onPress: () => navigation.popToTop() }],
-          );
-          return;
+        // Free daily quota gate — every scan costs money upstream. Pro accounts
+        // have no cap.
+        if (!isPro) {
+          const quota = await quotaStatus();
+          if (!quota.allowed) {
+            clearInterval(interval);
+            Alert.alert(
+              "Daily limit reached",
+              `You've used all ${FREE_DAILY_SCANS} free scans today. Upgrade to Pro for unlimited scans.`,
+              [
+                { text: "Maybe later", style: "cancel", onPress: () => navigation.popToTop() },
+                { text: "Go Pro", onPress: () => navigation.replace("Paywall") },
+              ],
+            );
+            return;
+          }
+          await recordScan();
         }
-        await recordScan();
 
         const result = await analyzeImage(imageBase64, refinements, barcode);
         
