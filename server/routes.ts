@@ -25,8 +25,14 @@ const valuateRequestSchema = z.object({
   displayCurrency: z.string().optional(),
 });
 
+// Clients persist dateAdded as an ISO string, but the timestamp column's schema
+// expects a Date — coerce it so cloud sync writes are not rejected.
+const portfolioWriteSchema = insertPortfolioAssetSchema.extend({
+  dateAdded: z.coerce.date().optional(),
+});
+
 const syncRequestSchema = z.object({
-  assets: z.array(insertPortfolioAssetSchema.partial({ deviceId: true })),
+  assets: z.array(portfolioWriteSchema.partial({ deviceId: true })),
 });
 import { analyzeWithXimilar, type XimilarAnalysisResult } from "./ximilar";
 import { analyzeWithClarifai, type ClarifaiAnalysisResult } from "./clarifai";
@@ -1170,6 +1176,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cloud portfolio sync needs a database. When DATABASE_URL is not set, return
+  // a clean 503 instead of letting each query throw a 500 — the client treats
+  // this as "offline" and keeps the local (device) portfolio intact.
+  app.use("/api/portfolio", (_req, res, next) => {
+    if (!process.env.DATABASE_URL) {
+      return res.status(503).json({ error: "Cloud sync is not configured" });
+    }
+    next();
+  });
+
   app.get("/api/portfolio/:deviceId", async (req, res) => {
     try {
       const { deviceId } = req.params;
@@ -1192,7 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // deviceId is set by the server from the path, so it may be absent in the body.
-      const parsed = insertPortfolioAssetSchema.safeParse({ ...req.body, deviceId });
+      const parsed = portfolioWriteSchema.safeParse({ ...req.body, deviceId });
       if (!parsed.success) {
         return res.status(400).json({ error: fromZodError(parsed.error).toString() });
       }
@@ -1239,9 +1255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Device ID required" });
       }
 
-      const parsed = insertPortfolioAssetSchema
-        .partial()
-        .safeParse(req.body);
+      const parsed = portfolioWriteSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: fromZodError(parsed.error).toString() });
       }
