@@ -24,9 +24,9 @@ export type RootStackParamList = {
   Home: undefined;
   Vault: undefined;
   Scanner: undefined;
-  Review: { imageBase64: string };
-  Confirm: { imageBase64: string; initialData?: Partial<AssetData> };
-  Analyzing: { imageBase64: string; refinements?: RefinementData };
+  Review: { imageBase64: string; barcode?: string };
+  Confirm: { imageBase64: string; initialData?: Partial<AssetData>; barcode?: string };
+  Analyzing: { imageBase64: string; refinements?: RefinementData; barcode?: string };
   Result: { imageBase64: string; assetData: AssetData };
   AssetDetail: { asset: PortfolioAsset };
   Analytics: undefined;

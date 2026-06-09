@@ -13,6 +13,7 @@ import { affiliateUrl, affiliateEnabled } from "./affiliate";
 const analyzeRequestSchema = z.object({
   image: z.string().min(1, "image is required"),
   refinements: z.any().optional(),
+  barcode: z.string().max(64).optional(),
 });
 
 const offerSchema = z.object({
@@ -661,10 +662,14 @@ async function generateWithRetry(
   ai: GoogleGenAI,
   mimeType: string,
   base64Data: string,
+  extraHint?: string,
 ) {
   const timeoutMs = 20000;
   const rounds = 2;
   let lastErr: unknown;
+  const promptText = extraHint
+    ? `${FORENSIC_ANALYSIS_PROMPT}\n\n${extraHint}`
+    : FORENSIC_ANALYSIS_PROMPT;
 
   for (let round = 0; round < rounds; round++) {
     for (const model of GEMINI_MODELS) {
@@ -683,7 +688,7 @@ async function generateWithRetry(
                 role: "user",
                 parts: [
                   { inlineData: { mimeType, data: base64Data } },
-                  { text: FORENSIC_ANALYSIS_PROMPT },
+                  { text: promptText },
                 ],
               },
             ],
@@ -738,7 +743,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parsed.success) {
         return res.status(400).json({ error: fromZodError(parsed.error).toString() });
       }
-      const { image, refinements } = parsed.data;
+      const { image, refinements, barcode } = parsed.data;
+      // A scanned product code (UPC/EAN) is a strong identity hint; a QR that's
+      // a URL is not useful for pricing, so only numeric codes drive the search.
+      const productCode =
+        barcode && /^\d{8,14}$/.test(barcode.trim()) ? barcode.trim() : undefined;
 
       // Log refinements if provided
       if (refinements) {
@@ -812,7 +821,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return null as ClarifaiAnalysisResult | null;
         }),
         // Gemini free tier intermittently returns 503 (overloaded); retry with backoff.
-        generateWithRetry(ai, mimeType, base64Data),
+        generateWithRetry(
+          ai,
+          mimeType,
+          base64Data,
+          productCode
+            ? `A barcode was scanned on this item: ${productCode} (UPC/EAN). Use it to identify the EXACT product, brand, model and variant, and include it in the most specific searchQueries.`
+            : undefined,
+        ),
       ]);
 
       if (ximilarResult?.success) {
@@ -990,7 +1006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Build a region-neutral query: drop locale-specific noise (e.g. a
         // "Turkish Keyboard" layout) that would only match offers in one country,
         // so every region can return results.
-        const primaryQuery =
+        const cleanedQuery =
           (searchQueries[0] || data.itemName || "")
             .replace(
               /\b(turkish|english|us|uk|arabic|german|french|spanish|italian|dutch|international)[\s-]+keyboard\b/gi,
@@ -999,6 +1015,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .replace(/\bklavye\b/gi, "")
             .replace(/\s{2,}/g, " ")
             .trim() || searchQueries[0];
+        // A scanned UPC/EAN resolves to the exact product — prefer it for search.
+        const primaryQuery = productCode || cleanedQuery;
         console.log(`Fetching SerpAPI prices for: ${primaryQuery}`);
         const serpResults = await searchPricesMultiRegion(
           primaryQuery,

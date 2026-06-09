@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   Dimensions,
@@ -64,6 +65,15 @@ export default function ResultScreen({ navigation, route }: Props) {
     assetData?.priceFound ?? safeAssetData.estimatedPrice > 0;
 
   const [showRatingSheet, setShowRatingSheet] = useState(false);
+  const [listingPrice, setListingPrice] = useState("");
+
+  // Decision-moment: compare a listing/asking price to the real retail median.
+  const median = safeAssetData.estimatedPrice;
+  const listingValue = parseFloat(listingPrice.replace(/[^0-9.]/g, ""));
+  const dealDiffPct =
+    priceFound && median > 0 && listingValue > 0
+      ? Math.round(((listingValue - median) / median) * 100)
+      : null;
 
   const handleClose = () => {
     navigation.popToTop();
@@ -361,6 +371,56 @@ Analyzed by SCOPE - AI Asset Scanner
           </View>
 
           <Text style={styles.disclaimer}>{RATING_DISCLAIMER}</Text>
+
+          {priceFound && (
+            <View style={styles.dealCheck}>
+              <Text style={styles.dealCheckLabel}>IS IT A GOOD DEAL?</Text>
+              <View style={styles.dealCheckRow}>
+                <Text style={styles.dealCheckCurrency}>$</Text>
+                <TextInput
+                  style={styles.dealCheckInput}
+                  value={listingPrice}
+                  onChangeText={setListingPrice}
+                  placeholder="Enter the asking price"
+                  placeholderTextColor={Colors.dark.textTertiary}
+                  keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  accessibilityLabel="Asking price to compare against retail"
+                />
+              </View>
+              {dealDiffPct !== null && (
+                <View
+                  style={[
+                    styles.dealVerdict,
+                    {
+                      backgroundColor:
+                        dealDiffPct <= 0
+                          ? Colors.dark.successTint
+                          : Colors.dark.alertTint,
+                    },
+                  ]}
+                >
+                  <Feather
+                    name={dealDiffPct <= 0 ? "trending-down" : "trending-up"}
+                    size={16}
+                    color={dealDiffPct <= 0 ? Colors.dark.successGreen : Colors.dark.alertRed}
+                  />
+                  <Text
+                    style={[
+                      styles.dealVerdictText,
+                      { color: dealDiffPct <= 0 ? Colors.dark.successGreen : Colors.dark.alertRed },
+                    ]}
+                  >
+                    {dealDiffPct === 0
+                      ? "Right at retail price"
+                      : dealDiffPct < 0
+                        ? `${Math.abs(dealDiffPct)}% below retail · good deal`
+                        : `${dealDiffPct}% above retail`}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {safeAssetData.regulatedCategory ? (
             <View style={styles.regulatedNotice}>
@@ -731,6 +791,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     color: Colors.dark.textSecondary,
+    fontFamily: Fonts?.mono,
+  },
+  dealCheck: {
+    marginTop: Spacing.lg,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.dark.accentBorder,
+    backgroundColor: Colors.dark.accentTint,
+  },
+  dealCheckLabel: {
+    fontSize: 11,
+    letterSpacing: 2,
+    color: Colors.dark.accentIce,
+    fontFamily: Fonts?.mono,
+    marginBottom: Spacing.sm,
+  },
+  dealCheckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.25)",
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+  },
+  dealCheckCurrency: {
+    fontSize: 20,
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts?.mono,
+  },
+  dealCheckInput: {
+    flex: 1,
+    height: 48,
+    marginLeft: 6,
+    fontSize: 18,
+    color: Colors.dark.text,
+    fontFamily: Fonts?.mono,
+  },
+  dealVerdict: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  dealVerdictText: {
+    fontSize: 14,
+    fontWeight: "700",
     fontFamily: Fonts?.mono,
   },
   disclaimer: {

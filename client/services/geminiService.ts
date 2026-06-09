@@ -14,8 +14,9 @@ export interface RefinementData {
 }
 
 export async function analyzeImage(
-  imageBase64: string, 
-  refinements?: RefinementData
+  imageBase64: string,
+  refinements?: RefinementData,
+  barcode?: string,
 ): Promise<AssetData> {
   const apiUrl = getApiUrl();
   const url = new URL("/api/analyze", apiUrl);
@@ -30,6 +31,7 @@ export async function analyzeImage(
       body: JSON.stringify({
         image: imageBase64,
         refinements: refinements || undefined,
+        barcode: barcode || undefined,
       }),
     },
     ANALYZE_TIMEOUT_MS,

@@ -11,18 +11,18 @@ type Props = NativeStackScreenProps<RootStackParamList, "Review">;
 
 export default function ReviewScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { imageBase64 } = route.params;
+  const { imageBase64, barcode } = route.params;
 
   const handleRetake = () => {
     navigation.replace("Scanner");
   };
 
   const handleQuickAnalyze = () => {
-    navigation.replace("Analyzing", { imageBase64 });
+    navigation.replace("Analyzing", { imageBase64, barcode });
   };
 
   const handleRefine = () => {
-    navigation.replace("Confirm", { imageBase64 });
+    navigation.replace("Confirm", { imageBase64, barcode });
   };
 
   return (

@@ -38,6 +38,9 @@ export default function ScannerScreen({ navigation }: Props) {
   const [stability, setStability] = useState(0);
   const [scanStatus, setScanStatus] = useState<"SEARCHING" | "STABILIZING" | "LOCKED">("SEARCHING");
   const prevStatusRef = useRef(scanStatus);
+  // Latest barcode seen in frame — passed along to sharpen identification.
+  const barcodeRef = useRef<string | null>(null);
+  const [hasBarcode, setHasBarcode] = useState(false);
 
   useEffect(() => {
     if (Platform.OS === "web") {
@@ -86,6 +89,7 @@ export default function ScannerScreen({ navigation }: Props) {
       if (photo?.base64) {
         navigation.replace("Review", {
           imageBase64: `data:image/jpeg;base64,${photo.base64}`,
+          barcode: barcodeRef.current ?? undefined,
         });
       }
     } catch (e) {
@@ -125,8 +129,23 @@ export default function ScannerScreen({ navigation }: Props) {
         facing="back"
         animateShutter={false}
         autofocus="on"
+        barcodeScannerSettings={{
+          barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128", "qr"],
+        }}
+        onBarcodeScanned={({ data }) => {
+          if (data && data !== barcodeRef.current) {
+            barcodeRef.current = data;
+            setHasBarcode(true);
+          }
+        }}
       />
       <ScannerOverlay scanStatus={scanStatus} stability={stability} />
+
+      {hasBarcode && (
+        <View style={styles.barcodeChip}>
+          <Text style={styles.barcodeChipText}>BARCODE LOCKED</Text>
+        </View>
+      )}
 
       <View style={styles.controls}>
         <TouchableOpacity
@@ -194,6 +213,24 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: Colors.dark.textSecondary,
+    fontFamily: Fonts?.mono,
+  },
+  barcodeChip: {
+    position: "absolute",
+    top: 110,
+    alignSelf: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 999,
+    backgroundColor: Colors.dark.accentTint,
+    borderWidth: 1,
+    borderColor: Colors.dark.accentBorder,
+  },
+  barcodeChipText: {
+    color: Colors.dark.accentIce,
+    fontSize: Typography.micro.fontSize,
+    fontWeight: "700",
+    letterSpacing: 1.5,
     fontFamily: Fonts?.mono,
   },
   controls: {

@@ -63,7 +63,7 @@ const CATEGORY_VARIANTS: Record<string, { sizes?: string[]; colors?: string[]; m
 
 export default function ConfirmScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { imageBase64, initialData } = route.params;
+  const { imageBase64, initialData, barcode } = route.params;
   
   const [condition, setCondition] = useState<Condition>("LIKE_NEW");
   const [country, setCountry] = useState<Country>("USA");
@@ -88,6 +88,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 
     navigation.replace("Analyzing", {
       imageBase64,
+      barcode,
       refinements: {
         condition,
         country,
