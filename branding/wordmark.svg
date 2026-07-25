@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="80" viewBox="0 0 340 80" fill="none" role="img" aria-label="SCOPE">
+  <!--
+    SCOPE horizontal lockup — aperture mark + wordmark.
+
+    The mark carries the gradient; the wordmark stays solid white so the two
+    never compete for attention. Use this on dark surfaces. On light surfaces
+    swap the wordmark fill to #07122A (navyGlow) — the mark gradient is legible
+    on both.
+
+    Spacing rule: the gap between mark and wordmark is half the mark's height
+    (32 at this size). Clear space around the whole lockup is one mark-height
+    (64) on every side. Do not re-space these by eye.
+
+    The wordmark is live text set in Inter ExtraBold, matching how docs/hero.svg
+    already does it. The artboard is deliberately wider than Inter needs so a
+    fallback font cannot clip the final E — trailing transparent padding is
+    harmless, a cropped letterform is not. For print, or anywhere Inter will not
+    resolve, convert the <text> element to outlines first.
+  -->
+  <defs>
+    <linearGradient id="scopeGrad" x1="9.48" y1="14" x2="54.52" y2="66" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B7CFF"/>
+      <stop offset="0.5" stop-color="#B9D4FF"/>
+      <stop offset="1" stop-color="#8B5CFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Aperture mark, logo-mark.svg geometry offset by +8 on Y -->
+  <path fill="url(#scopeGrad)" fill-rule="evenodd"
+        d="M32,14 L54.52,27 L54.52,53 L32,66 L9.48,53 L9.48,27 Z
+           M32,26 L44.12,33 L44.12,47 L32,54 L19.88,47 L19.88,33 Z"/>
+  <circle cx="32" cy="40" r="4.5" fill="#B9D4FF"/>
+
+  <!-- Wordmark -->
+  <text x="96" y="56" fill="#FFFFFF"
+        font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+        font-size="44" font-weight="800" letter-spacing="8">SCOPE</text>
+</svg>

@@ -24,18 +24,15 @@
 
   <rect width="1280" height="440" fill="url(#bg)"/>
 
-  <!-- aperture mark -->
+  <!-- aperture mark — same hexagonal geometry as branding/logo-mark.svg,
+       scaled 3× (outer R=78, inner r=42, node r=13.5) and sitting in the
+       navy orb glow. One mark across icon, lockup and hero. -->
   <g transform="translate(640 150)">
     <circle r="150" fill="url(#orb)"/>
-    <circle r="78" fill="none" stroke="url(#ring)" stroke-width="2.5" opacity="0.95"/>
-    <circle r="64" fill="none" stroke="#5B7CFF" stroke-opacity="0.35" stroke-width="1.5"/>
-    <circle r="6" fill="#B9D4FF"/>
-    <g stroke="url(#ring)" stroke-width="2.5" stroke-linecap="round" opacity="0.9">
-      <line x1="0" y1="-78" x2="0" y2="-58"/>
-      <line x1="0" y1="78" x2="0" y2="58"/>
-      <line x1="-78" y1="0" x2="-58" y2="0"/>
-      <line x1="78" y1="0" x2="58" y2="0"/>
-    </g>
+    <path fill="url(#ring)" fill-rule="evenodd"
+          d="M0,-78 L67.55,-39 L67.55,39 L0,78 L-67.55,39 L-67.55,-39 Z
+             M0,-42 L36.37,-21 L36.37,21 L0,42 L-36.37,21 L-36.37,-21 Z"/>
+    <circle r="13.5" fill="#B9D4FF"/>
   </g>
 
   <!-- wordmark -->

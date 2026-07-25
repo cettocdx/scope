@@ -1,15 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
-  <!-- SCOPE app icon — 1024×1024, full-bleed black, centered hexagonal aperture mark. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" role="img" aria-label="SCOPE app icon">
+  <!--
+    SCOPE app icon — 1024×1024, full-bleed.
+
+    Black canvas carrying the same navy radial glow the home screen uses
+    (theme navyGlow #07122A), so the icon and the first screen the user sees
+    share one atmosphere instead of reading as two different products.
+
+    Mark geometry is branding/logo-mark.svg scaled 16× (R=320, r=172, node 55),
+    which leaves ~19% margin at the top and bottom vertices — enough breathing
+    room for the iOS corner mask and the Android adaptive-icon safe zone.
+  -->
   <defs>
-    <linearGradient id="scopeGrad" x1="192" y1="96" x2="832" y2="928" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5BFFC0"/>
-      <stop offset="0.5" stop-color="#00FF94"/>
-      <stop offset="1" stop-color="#00B36A"/>
+    <radialGradient id="iconBg" cx="50%" cy="46%" r="66%">
+      <stop offset="0" stop-color="#07122A"/>
+      <stop offset="0.55" stop-color="#02040A"/>
+      <stop offset="1" stop-color="#000000"/>
+    </radialGradient>
+
+    <radialGradient id="iconGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#5B7CFF" stop-opacity="0.34"/>
+      <stop offset="0.5" stop-color="#8B5CFF" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#5B7CFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="scopeGrad" x1="234.87" y1="192" x2="789.13" y2="832" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B7CFF"/>
+      <stop offset="0.5" stop-color="#B9D4FF"/>
+      <stop offset="1" stop-color="#8B5CFF"/>
     </linearGradient>
   </defs>
-  <rect width="1024" height="1024" fill="#000000"/>
+
+  <rect width="1024" height="1024" fill="url(#iconBg)"/>
+  <circle cx="512" cy="512" r="430" fill="url(#iconGlow)"/>
+
+  <!-- Aperture ring: outer hex + inner hex hole, even-odd fill -->
   <path fill="url(#scopeGrad)" fill-rule="evenodd"
-        d="M512,96 L872.32,304 L872.32,720 L512,928 L151.68,720 L151.68,304 Z
-           M512,288 L710.24,402.4 L710.24,631.2 L512,745.6 L313.76,631.2 L313.76,402.4 Z"/>
-  <circle cx="512" cy="512" r="67.2" fill="#5BFFC0"/>
+        d="M512,192 L789.13,352 L789.13,672 L512,832 L234.87,672 L234.87,352 Z
+           M512,340 L660.96,426 L660.96,598 L512,684 L363.04,598 L363.04,426 Z"/>
+
+  <!-- Center node — the asset being scoped -->
+  <circle cx="512" cy="512" r="55" fill="#B9D4FF"/>
 </svg>

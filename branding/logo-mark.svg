@@ -1,14 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <!-- SCOPE logo mark — hexagonal aperture. Bold gradient hex ring + center node. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="SCOPE">
+  <!--
+    SCOPE logo mark — hexagonal aperture.
+
+    The hexagon IS the aperture: a six-blade lens opening. That is why the
+    geometry is hexagonal rather than a generic circle, and why it stays
+    hexagonal across every surface.
+
+    Solid gradient ring plus a bright center node. The ring carries ~46% of the
+    radius as mass, so the mark holds together from a 1024px app icon down to a
+    16px favicon without thinning out.
+
+    Palette is the Scope accent ramp from client/constants/theme.ts:
+    accent #5B7CFF → accentIce #B9D4FF → accentDeep #8B5CFF.
+  -->
   <defs>
-    <linearGradient id="scopeGrad" x1="12" y1="6" x2="52" y2="58" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5BFFC0"/>
-      <stop offset="0.5" stop-color="#00FF94"/>
-      <stop offset="1" stop-color="#00B36A"/>
+    <linearGradient id="scopeGrad" x1="9.48" y1="6" x2="54.52" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B7CFF"/>
+      <stop offset="0.5" stop-color="#B9D4FF"/>
+      <stop offset="1" stop-color="#8B5CFF"/>
     </linearGradient>
   </defs>
+
+  <!-- Aperture ring: outer hex (R=26) + inner hex hole (r=14), even-odd fill -->
   <path fill="url(#scopeGrad)" fill-rule="evenodd"
         d="M32,6 L54.52,19 L54.52,45 L32,58 L9.48,45 L9.48,19 Z
-           M32,18 L44.39,25.15 L44.39,39.45 L32,46.6 L19.61,39.45 L19.61,25.15 Z"/>
-  <circle cx="32" cy="32" r="4.2" fill="#5BFFC0"/>
+           M32,18 L44.12,25 L44.12,39 L32,46 L19.88,39 L19.88,25 Z"/>
+
+  <!-- Center node — the asset being scoped -->
+  <circle cx="32" cy="32" r="4.5" fill="#B9D4FF"/>
 </svg>

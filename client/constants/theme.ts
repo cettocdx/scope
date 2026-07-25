@@ -8,8 +8,11 @@ export const Colors = {
     textDim: "rgba(255, 255, 255, 0.2)",
     buttonText: "#000000",
     tabIconDefault: "rgba(255, 255, 255, 0.4)",
-    tabIconSelected: "#00FF94",
-    link: "#00FF94",
+    // Interaction colors are BRAND, not semantic: they point at the accent, not
+    // at successGreen. These drove Button, ErrorFallback and ThemedText
+    // type="link" green while every screen hardcoded accent blue.
+    tabIconSelected: "#5B7CFF",
+    link: "#5B7CFF",
     backgroundRoot: "#000000",
     backgroundDefault: "#0A0A0A",
     backgroundSecondary: "#111111",
@@ -46,8 +49,11 @@ export const Colors = {
     textDim: "rgba(255, 255, 255, 0.2)",
     buttonText: "#000000",
     tabIconDefault: "rgba(255, 255, 255, 0.4)",
-    tabIconSelected: "#00FF94",
-    link: "#00FF94",
+    // Interaction colors are BRAND, not semantic: they point at the accent, not
+    // at successGreen. These drove Button, ErrorFallback and ThemedText
+    // type="link" green while every screen hardcoded accent blue.
+    tabIconSelected: "#5B7CFF",
+    link: "#5B7CFF",
     backgroundRoot: "#000000",
     backgroundDefault: "#0A0A0A",
     backgroundSecondary: "#111111",

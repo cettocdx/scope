@@ -1,7 +1,11 @@
 # SCOPE Mobile App - Design Guidelines (Compacted)
 
 ## App Overview
-AI-powered asset scanning utility with cyber-tactical HUD aesthetic for product identification, market valuation, and portfolio tracking. Local-first, no authentication required.
+AI-powered asset scanning app for product identification, market valuation, and portfolio tracking. The look is clean and premium AI-native: black canvas, a blue/violet accent, Inter throughout. Accounts (Apple/Google Sign-In) back the cross-device Vault and Pro subscription.
+
+> Brand identity — mark, palette roles, typography, misuse — lives in
+> [`branding/BRAND.md`](branding/BRAND.md). This file covers screen and
+> component specs; where the two overlap, BRAND.md is authoritative.
 
 ## Architecture
 
@@ -20,7 +24,7 @@ States: `HOME` → `SCANNING` → `REVIEW` → `ANALYZING` → `RESULT` → `ASS
 - **Insets:** Top: `insets.top + 20px`, Bottom: `insets.bottom + 20px`
 
 #### 2. Portfolio Vault
-- **Header (fixed):** Back button, net worth (monospace), mini chart (80px), border-bottom
+- **Header (fixed):** Back button, net worth (Inter Medium), mini chart (80px), border-bottom
 - **List:** Asset cards (image, name, category, price, trend) or empty state (dashed border, wallet icon)
 - **FAB:** 64px white circle, scan icon, bottom-center, shadow with glow
 - **Insets:** Custom header, Bottom: `20px + FAB + 20px`
@@ -34,11 +38,11 @@ States: `HOME` → `SCANNING` → `REVIEW` → `ANALYZING` → `RESULT` → `ASS
 
 #### 4. Review (REVIEW)
 - **Layout:** Full-screen image (contain, black bg)
-- **Bottom:** Glass overlay (80% opacity), RETAKE (secondary) + ANALYZE (green primary) buttons
+- **Bottom:** Glass overlay (80% opacity), RETAKE (secondary) + ANALYZE (accent primary) buttons
 - **Insets:** Bottom: `insets.bottom + 12px`
 
 #### 5. Analyzing (ANALYZING)
-- **Center:** Green spinner, animated status text (updates 700ms)
+- **Center:** Accent spinner, animated status text (updates 700ms)
 - **Messages:** "EXTRACTING DATA..." → "MAPPING GEOMETRY..." → "CHECKING ID..." → "VERIFYING MARKET..." → "CALCULATING VALUE..."
 
 #### 6. Result Modal (RESULT)
@@ -58,21 +62,48 @@ States: `HOME` → `SCANNING` → `REVIEW` → `ANALYZING` → `RESULT` → `ASS
 ## Design System
 
 ### Colors
-| Purpose | Value | Usage |
-|---------|-------|-------|
-| **Cyber Black** | `#000000` | Main background |
-| **Success Green** | `#00FF94` | Primary accent, success |
-| **Alert Red** | `#FF3B30` | Warnings, sell |
-| **Glass Surface** | `rgba(20,20,20,0.6)` | Cards, overlays |
-| **Glass Border** | `rgba(255,255,255,0.08)` | Subtle borders |
-| **Dark Card** | `#0A0A0A` / `#111` | Content backgrounds |
-| **Dark Border** | `#222` / `#333` | Card borders |
-| **Text Primary** | `#FFFFFF` | Main text |
-| **Text Secondary** | `rgba(255,255,255,0.6)` | Subtext |
-| **Text Tertiary** | `rgba(255,255,255,0.4)` | Labels |
-| **Text Dim** | `rgba(255,255,255,0.2)` | Disabled |
+Tokens are `client/constants/theme.ts`; names below are the token names.
 
-### Typography (JetBrains Mono)
+**Brand accent** — identity, never meaning:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `accent` | `#5B7CFF` | Primary accent. Buttons, active states, highlights |
+| `accentDeep` | `#8B5CFF` | Violet end of the ramp — gradients only |
+| `accentIce` | `#B9D4FF` | Light end — logo node, taglines, emphasis |
+| `navyGlow` | `#07122A` | Atmospheric glow behind the mark / home screen |
+
+**Semantic** — meaning, never identity:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `successGreen` | `#00FF94` | **Gain only** — upward trend, profit, verified |
+| `alertRed` | `#FF3B30` | **Loss only** — downward trend, liquidate, destructive |
+| `warningYellow` | `#FACC15` | Caution, degraded state |
+
+Green and red carry financial meaning here. A green button means "up", not
+"primary" — reach for `accent` when you want emphasis. See BRAND.md.
+
+**Surfaces and text:**
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `backgroundRoot` | `#000000` | Main background |
+| `backgroundDefault` / `backgroundSecondary` / `backgroundTertiary` | `#0A0A0A` / `#111111` / `#141414` | Content backgrounds |
+| `glassSurface` | `rgba(20,20,20,0.6)` | Cards, overlays |
+| `glassBorder` | `rgba(255,255,255,0.08)` | Subtle borders |
+| `cardBorder` / `cardBorderLight` | `#222222` / `#333333` | Card borders |
+| `text` | `#FFFFFF` | Main text |
+| `textSecondary` | `rgba(255,255,255,0.6)` | Subtext |
+| `textTertiary` | `rgba(255,255,255,0.4)` | Labels |
+| `textDim` | `rgba(255,255,255,0.2)` | Disabled |
+
+### Typography (Inter)
+Loaded per-weight in `App.tsx`. On native, reference the exact weight family
+(`Inter_700Bold`) — React Native ignores `fontWeight` for single-weight
+families. `Fonts.mono` is a backward-compat alias mapping to Inter Medium; it is
+not monospace, so don't reach for it expecting one.
+
 | Type | Size | Weight | Specs |
 |------|------|--------|-------|
 | Hero Title | 64pt | 900 | Letter-spacing: -2 |
@@ -88,7 +119,7 @@ States: `HOME` → `SCANNING` → `REVIEW` → `ANALYZING` → `RESULT` → `ASS
 ### Components
 
 #### Buttons
-**Primary:** White/green bg, black text, 56-64px height, 16px radius, icon+text (gap 8-12px), no shadow  
+**Primary:** White or `accent` bg, black text, 56-64px height, 16px radius, icon+text (gap 8-12px), no shadow  
 **Secondary:** `#222` bg, white text, 56px height, 16px radius, 1px border (`#333`)  
 **Icon:** 40-48px circle, glass bg, 1px glass-border, 20-24px icon  
 **FAB:** 64px circle, white bg, black icon (24px), shadow: `{offset: {0,2}, opacity: 0.2, radius: 10, color: white}`
@@ -125,7 +156,7 @@ States: `HOME` → `SCANNING` → `REVIEW` → `ANALYZING` → `RESULT` → `ASS
 **Animations:** Scan line 2s infinite, state crossfades, modal spring slide, chart fade-in, reticle 300ms transitions
 
 ### Accessibility
-**Contrast:** WCAG AA, white on black 21:1, green `#00FF94` high contrast, red `#FF3B30` high contrast  
+**Contrast:** WCAG AA against `backgroundRoot` — white 21:1, `accentIce` 13.9:1, `accent` 5.8:1, `successGreen` and `alertRed` high contrast. `accent` clears AA for body text and clears AA as a button fill under black `buttonText`, but not AAA — don't drop it below 16pt for long-form text.  
 **Touch Targets:** Min 40px, primary 56-64px, adequate spacing  
 **Text:** Min 10pt, body 12-16pt, high letter-spacing for uppercase  
 **Feedback:** Visual states, haptics, loading indicators, error messages
@@ -143,4 +174,4 @@ States: `HOME` → `SCANNING` → `REVIEW` → `ANALYZING` → `RESULT` → `ASS
 
 ---
 
-**Design Philosophy:** Tactical, high-tech aesthetic with precision. Monospace typography, HUD overlays, neon accents. Functional and purposeful—no decoration, visual interest through transparency, borders, color accents.
+**Design Philosophy:** Clean, premium, AI-native. A true-black canvas, Inter throughout, and one blue/violet accent doing the identity work while green and red are held back for financial meaning. Depth comes from transparency, hairline borders and the navy glow — not from shadows. Functional and purposeful: no decoration for its own sake.
