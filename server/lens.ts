@@ -17,7 +17,7 @@ const LOCALE: Record<Market, { country: string; hl: string }> = {
 
 /** Sources that are not somewhere to buy it new. */
 const SKIP_SOURCES =
-  /ebay|wallapop|vinted|depop|poshmark|mercari|letgo|sahibinden|dolap|gittigidiyor|kleinanzeigen|leboncoin|subito|craigslist|facebook|instagram|pinterest|tiktok|youtube|reddit|wikipedia|x\.com|twitter/i;
+  /ebay|wallapop|vinted|depop|poshmark|mercari|letgo|sahibinden|dolap|gardrops|modacruz|vestiaire|fashionphile|therealreal|rebag|luxspace|gittigidiyor|kleinanzeigen|leboncoin|subito|craigslist|facebook|instagram|pinterest|tiktok|youtube|reddit|wikipedia|x\.com|twitter/i;
 
 interface LensMatch {
   title?: string;

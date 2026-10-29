@@ -47,3 +47,11 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Vercel function bundle (npm run api:build)
+api/index.mjs
+.vercel
+.env*
+
+# Local run logs
+.*.log

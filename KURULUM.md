@@ -64,6 +64,22 @@ galeri düğmesiyle bir fotoğraf seç (simülatörde kamera olmadığı için b
 
 ---
 
+## 4. Yayındaki sunucu (Vercel)
+Telefondaki uygulama varsayılan olarak `https://scope-api-flax.vercel.app` adresine bağlanır
+(Frankfurt bölgesi). Mac'in açık olması ya da aynı Wi-Fi gerekmez.
+
+- Anahtarlar Vercel projesinde (`scope-api`) tanımlı: `OPENROUTER_API_KEY`, `SERPAPI_KEY`,
+  `BLOB_READ_WRITE_TOKEN`, `APPLE_BUNDLE_ID`. Değer girerken tırnak kullanma.
+- Yeniden yayınlamak için:
+  ```
+  npx vercel deploy --prod
+  ```
+  (`npm run api:build` sunucuyu `api/index.mjs` olarak paketler; Vercel bunu kendisi çalıştırır.)
+- Telefonu yine Mac'teki sunucuya bağlamak istersen derlerken
+  `EXPO_PUBLIC_DOMAIN=<mac-adı>.local:4000` ver.
+
+---
+
 ## Sık karşılaşılan sorunlar
 - **"Sunucuda yapay zekâ henüz ayarlı değil"** → `.env` içinde `OPENROUTER_API_KEY` ya da
   `GEMINI_API_KEY` yok. Ekle ve sunucuyu yeniden başlat.

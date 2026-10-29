@@ -279,6 +279,8 @@ const RESALE_STORES = [
   "rebelle",
   "fashionphile",
   "dolap",
+  "gardrops",
+  "modacruz",
   "letgo",
   "sahibinden",
   "gittigidiyor",
