@@ -302,11 +302,17 @@ const RESALE_STORES = [
 ];
 
 /** Seller names that say "second-hand" (Secondipity, SecondBest, 2nd Hand…). */
+// Shops that sell second-hand by trade: vintage, antique, consignment and
+// "pre-loved" luxury resellers (LuxSpace, 58 Facettes, The Antique Guild…).
 const RESALE_NAME_RE =
-  /\bsecond|\b2nd[\s-]?hand|\brefurb|\brenewed|\bpre-?owned|\bikinci ?el/i;
+  /\bsecond|\b2nd[\s-]?hand|\brefurb|\brenewed|\bpre-?owned|\bpre-?loved|\bikinci ?el|vintage|antiq|\bantik|\bconsign|\bcollective\b|\bestate\b|\bluxspace|\bfacettes\b|\bchronomentum|\bcollector ?square|\brebag\b|\breebonz|\bluxury ?closet|\bbrandoff|\bkomehyo|\bvestiaire/i;
 
 const USED_RE =
-  /\b(used|pre-?owned|second[\s-]?hand|segunda mano|refurb(ished)?|renewed|open[\s-]?box|gebraucht|generalüberholt|occasion|reconditionn[ée]e?|usag[ée]e?|usato|usata|ricondizionat[oa]|usado|usada|seminuevo|reacondicionad[oa]|ikinci el|2\.? ?el|yenilenmi[sş]|teşhir)\b/i;
+  /\b(used|pre-?owned|pre-?loved|second[\s-]?hand|segunda mano|refurb(ished)?|renewed|open[\s-]?box|gebraucht|generalüberholt|occasion|reconditionn[ée]e?|usag[ée]e?|usato|usata|ricondizionat[oa]|usado|usada|seminuevo|reacondicionad[oa]|ikinci el|2\.? ?el|yenilenmi[sş]|teşhir)\b/i;
+
+const FAKE_RE =
+  /\b(replica|réplica|replika|1:1|aaa\+?|mirror quality|super ?copy|inspired by|dupe|fake|imitation|kopya|muadil)\b/i;
+const FAKE_STORE_RE = /^account\b|\breplica|\breplika/i;
 
 /** "Platform - Seller" or "… Marketplace": a third-party seller on a big platform. */
 const THIRD_PARTY_RE =
@@ -425,7 +431,14 @@ export type Fetcher = (
   url: string,
 ) => Promise<{ ok: boolean; json: () => Promise<unknown> }>;
 
-const defaultFetcher: Fetcher = (url) => fetchWithTimeout(url, {}, 10_000);
+const defaultFetcher: Fetcher = (url) => fetchWithTimeout(url, {}, 6_000);
+
+/**
+ * The whole price search answers within this budget. A country still loading
+ * is left out of this answer (its request keeps running and fills the cache, so
+ * a refresh moments later has it) instead of holding every other market back.
+ */
+const PRICE_DEADLINE_MS = 7_000;
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_MAX = 500;
@@ -494,6 +507,8 @@ function toOffer(
     return null;
   // Google only sets this for second-hand listings ("usado", "gebraucht"…).
   if (r.second_hand_condition?.trim()) return null;
+  // Replicas and throwaway seller accounts are never a buy.
+  if (FAKE_RE.test(r.title ?? "") || FAKE_STORE_RE.test(store)) return null;
   const condition = `${r.condition ?? ""} ${r.second_hand_condition ?? ""} ${r.tag ?? ""} ${(r.extensions ?? []).join(" ")}`;
   if (USED_RE.test(condition) || USED_RE.test(r.title ?? "")) return null;
 
@@ -545,7 +560,8 @@ function median(sorted: number[]): number {
 function dedupe(offers: Offer[]): Offer[] {
   const best = new Map<string, Offer>();
   for (const o of offers) {
-    const key = `${o.country}|${compact(o.store)}`;
+    // One row per store per market: a shop listed in DE, FR and IT shows once.
+    const key = `${o.market}|${compact(o.store)}`;
     const prev = best.get(key);
     if (!prev || o.priceUSD < prev.priceUSD) best.set(key, o);
   }
@@ -625,8 +641,15 @@ export function buildReport(
   const bestBalance = (pool: Offer[]) =>
     [...pool].filter((o) => o.trust.score >= 80).sort(byPrice)[0] ??
     [...pool].filter((o) => o.trust.score >= 55).sort(byPrice)[0];
+  // An official store or big retailer abroad beats an unknown shop at home:
+  // for luxury goods the local results are often resellers or fakes.
+  const solid = (pool: Offer[]) =>
+    [...pool].filter((o) => o.trust.score >= 80).sort(byPrice)[0];
+  const homePool = homeMarket
+    ? clean.filter((o) => o.market === homeMarket)
+    : [];
   const local = homeMarket
-    ? bestBalance(clean.filter((o) => o.market === homeMarket))
+    ? (solid(homePool) ?? (solid(clean) ? undefined : bestBalance(homePool)))
     : undefined;
   const recommended = local ?? bestBalance(clean) ?? cheapest;
 
@@ -656,19 +679,84 @@ export function buildReport(
   };
 }
 
+/**
+ * Queries to try, most specific first. Google Shopping often returns nothing
+ * for a long, exact listing name in one country while the short brand + model
+ * name finds dozens of offers, so each country falls back on its own.
+ */
+export function queriesFor(req: PricesRequest): string[] {
+  const out: string[] = [];
+  const add = (q: string | null | undefined) => {
+    const clean = q?.replace(/\s+/g, " ").trim();
+    if (clean && !out.some((o) => o.toLowerCase() === clean.toLowerCase()))
+      out.push(clean);
+  };
+  add(req.query);
+  if (req.brand && req.model) add(`${req.brand} ${req.model}`);
+  for (const q of req.altQueries ?? []) add(q);
+  // Last resort: the first four words ("Louis Vuitton Neverfull MM").
+  add(req.query.split(/\s+/).slice(0, 4).join(" "));
+  return out.slice(0, 3);
+}
+
+/** Enough listings in one country to stop trying broader queries. */
+const ENOUGH_RESULTS = 3;
+
+async function searchCountryCascade(
+  queries: string[],
+  country: CountryConfig,
+  fetcher: Fetcher,
+): Promise<SerpShoppingResult[]> {
+  let best: SerpShoppingResult[] = [];
+  for (const q of queries) {
+    const results = await searchCountry(q, country, fetcher);
+    if (results.length > best.length) best = results;
+    if (best.length >= ENOUGH_RESULTS) break;
+  }
+  return best;
+}
+
+function withDeadline<T>(
+  work: Promise<T>,
+  ms: number,
+  fallback: T,
+): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    work.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
+
 async function collect(
-  query: string,
   req: PricesRequest,
   countries: string[],
   fetcher: Fetcher,
+  deadlineMs: number,
 ): Promise<Offer[]> {
+  const queries = queriesFor(req);
   const perCountry = await Promise.all(
     countries.map(async (code) => {
       const country = COUNTRIES[code];
-      const results = await searchCountry(query, country, fetcher);
+      const results = await withDeadline(
+        searchCountryCascade(queries, country, fetcher),
+        deadlineMs,
+        [],
+      );
       return results
         .filter((r) =>
-          isSameProduct(r.title ?? null, { query, mustHave: req.mustHave }),
+          isSameProduct(r.title ?? null, {
+            query: req.query,
+            mustHave: req.mustHave,
+          }),
         )
         .map((r, i) => toOffer(r, country, req.brand, i))
         .filter((o): o is Offer => o !== null);
@@ -687,24 +775,19 @@ async function collect(
   return offers;
 }
 
-/** Find new-price offers for a product across US, Europe and Turkey. */
 export async function findPrices(
   req: PricesRequest,
   fetcher: Fetcher = defaultFetcher,
+  deadlineMs: number = PRICE_DEADLINE_MS,
 ): Promise<PriceReport> {
   const query = req.query.trim();
   if (!process.env.SERPAPI_KEY) return buildReport([], query, false);
-
-  const countries = activeCountries();
-  let offers = await collect(query, req, countries, fetcher);
-
-  // Too specific? Retry once with the first broader query.
-  const fallback = req.altQueries?.find((q) => q.trim() && q.trim() !== query);
-  if (offers.length < 2 && fallback) {
-    const more = await collect(fallback.trim(), req, countries, fetcher);
-    if (more.length > offers.length) offers = more;
-  }
-
+  const offers = await collect(
+    { ...req, query },
+    activeCountries(),
+    fetcher,
+    deadlineMs,
+  );
   return buildReport(offers, query, true, req.homeMarket);
 }
 

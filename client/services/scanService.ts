@@ -88,6 +88,7 @@ export function pricesRequestFor(
     altQueries: identity.altQueries,
     mustHave: identity.mustHave,
     brand: identity.brand,
+    model: identity.model,
     barcode: identity.barcode,
     estimateUSD: identity.estimateUSD,
   };

@@ -19,6 +19,8 @@ Rules:
 - Read every visible text first: logos, brand names, model numbers, labels, tags, packaging, prints, screens — in any language. Printed text beats visual guesses.
 - Be specific: brand + product line + model/generation + the details that change the price (size, storage, colour, material, edition).
 - Clothing, shoes and bags: name the exact item when you can — brand, line/collection, garment type, colour, and the logo/graphic/print (e.g. "Nike Sportswear Club Fleece Hoodie, Grey, small chest swoosh"). Put the colour and print in variant.
+- Jewellery and watches: look for engravings, hallmarks and signature motifs (e.g. Cartier Love screws, Van Cleef Alhambra clover, Tiffany T, Rolex crown). Never claim a precious material you cannot see confirmed: say "clear stone" not "diamond", "gold-tone"/"silver-tone" unless a stamp or the brand settles it.
+- Luxury bags: read the monogram/pattern, hardware and shape to name the line and size (e.g. "Louis Vuitton Neverfull MM Monogram").
 - Generic or unbranded things: set brand null and describe them the way a shop lists them (e.g. "White ceramic coffee mug 350 ml"). Never force a brand that is not visible.
 - People: never say who a person is. If a person is in the photo, identify what they wear or hold instead.
 - kind: "product" for a specific branded product or model; "generic" for a buyable thing without an identifiable brand/model; "not_for_sale" for things you cannot buy new in a shop (animals, people, landscapes, buildings, served food, one-off artworks).

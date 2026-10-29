@@ -24,7 +24,7 @@ const ease = Easing.bezier(0.2, 0.8, 0.2, 1);
 
 /**
  * The first thing a new user sees: a studio still life of everyday things
- * (made with Higgsfield) that a lime scan line keeps sweeping across, then the
+ * (made with Higgsfield) that a white scan line keeps sweeping across, then the
  * one-sentence promise.
  */
 export function Welcome({

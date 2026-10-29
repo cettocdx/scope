@@ -142,6 +142,8 @@ export interface PricesRequest {
   altQueries?: string[];
   mustHave?: string[];
   brand?: string | null;
+  /** Lets each country fall back to the short "brand model" name. */
+  model?: string | null;
   barcode?: string | null;
   estimateUSD?: number | null;
   /** The user's own market: its trustworthy offers are recommended first. */

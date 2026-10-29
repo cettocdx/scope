@@ -3,6 +3,7 @@ import {
   buildReport,
   clearPriceCache,
   findPrices,
+  queriesFor,
   isSameProduct,
   resolveOfferLink,
   trustFor,
@@ -295,11 +296,79 @@ describe("findPrices", () => {
       { query: "Apple AirPods Pro 2 USB-C", mustHave: ["airpods pro"] },
       counting,
     );
+    const first = calls;
     await findPrices(
       { query: "Apple AirPods Pro 2 USB-C", mustHave: ["airpods pro"] },
       counting,
     );
-    expect(calls).toBe(3);
+    expect(first).toBeGreaterThanOrEqual(3);
+    expect(calls).toBe(first);
+  });
+
+  it("falls back to the short brand + model name where the full name finds nothing", async () => {
+    const seen: string[] = [];
+    const picky: Fetcher = async (url) => {
+      const q = new URL(url).searchParams.get("q") ?? "";
+      seen.push(q);
+      const hit = q === "Louis Vuitton Neverfull MM";
+      return {
+        ok: true,
+        json: async () => ({
+          shopping_results: hit
+            ? [1, 2, 3].map((n) => ({
+                title: "Louis Vuitton Neverfull MM",
+                source: "Louis Vuitton",
+                extracted_price: 2000 + n,
+                link: `https://louisvuitton.com/${n}`,
+              }))
+            : [],
+        }),
+      };
+    };
+    const report = await findPrices(
+      {
+        query: "Louis Vuitton Neverfull MM Monogram Canvas Tote",
+        brand: "Louis Vuitton",
+        model: "Neverfull MM",
+      },
+      picky,
+    );
+    expect(seen).toContain("Louis Vuitton Neverfull MM");
+    expect(report.sourceCount).toBeGreaterThan(0);
+  });
+
+  it("answers by the deadline without waiting for a slow country", async () => {
+    const slowTR: Fetcher = async (url) => {
+      const gl = new URL(url).searchParams.get("gl");
+      if (gl === "tr") await new Promise((r) => setTimeout(r, 500));
+      return fetcher(url);
+    };
+    const t = Date.now();
+    const report = await findPrices(
+      { query: "Apple AirPods Pro 2 USB-C", mustHave: ["airpods pro"] },
+      slowTR,
+      100,
+    );
+    expect(Date.now() - t).toBeLessThan(400);
+    expect(report.markets.find((m) => m.market === "TR")?.offers).toHaveLength(
+      0,
+    );
+    expect(report.sourceCount).toBeGreaterThan(0);
+  });
+
+  it("builds at most three distinct queries, most specific first", () => {
+    expect(
+      queriesFor({
+        query: "Sony WH-1000XM5 Black Wireless Headphones",
+        brand: "Sony",
+        model: "WH-1000XM5",
+        altQueries: ["Sony WH-1000XM5"],
+      }),
+    ).toEqual([
+      "Sony WH-1000XM5 Black Wireless Headphones",
+      "Sony WH-1000XM5",
+      "Sony WH-1000XM5 Black Wireless",
+    ]);
   });
 });
 
@@ -336,5 +405,114 @@ describe("resolveOfferLink", () => {
     expect(
       await resolveOfferLink("token-other-0001", "Unknown shop", fetcher),
     ).toBeNull();
+  });
+});
+
+describe("resale shops", () => {
+  const saved = { ...process.env };
+  beforeEach(() => {
+    clearPriceCache();
+    process.env.SERPAPI_KEY = "test";
+    process.env.PRICE_COUNTRIES = "DE,FR,TR";
+  });
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  it("drops vintage, antique and pre-loved luxury resellers and lists a shop once per market", async () => {
+    const listing = (source: string, price: number) => ({
+      title: "Cartier LOVE Ring Yellow Gold",
+      source,
+      extracted_price: price,
+      link: `https://shop.example/${encodeURIComponent(source)}`,
+    });
+    const fetcher: Fetcher = async (url) => {
+      const gl = new URL(url).searchParams.get("gl");
+      const byCountry: Record<string, unknown[]> = {
+        de: [
+          listing("Juwelier Epple", 1990),
+          listing("Bruens Fine Jewelry & Antiques", 995),
+        ],
+        fr: [
+          listing("Juwelier Epple", 1950),
+          listing("Valois Vintage Paris", 2939),
+        ],
+        tr: [listing("LuxSpace", 60000), listing("58 Facettes", 71000)],
+      };
+      return {
+        ok: true,
+        json: async () => ({ shopping_results: byCountry[gl ?? ""] ?? [] }),
+      };
+    };
+    const report = await findPrices({ query: "Cartier Love Ring" }, fetcher);
+    const stores = report.markets.flatMap((m) => m.offers.map((o) => o.store));
+    expect(stores).toEqual(["Juwelier Epple"]);
+    expect(report.markets.find((m) => m.market === "EU")?.offers[0].price).toBe(
+      1950,
+    );
+  });
+});
+
+describe("luxury recommendations", () => {
+  const saved = { ...process.env };
+  beforeEach(() => {
+    clearPriceCache();
+    process.env.SERPAPI_KEY = "test";
+    process.env.PRICE_COUNTRIES = "US,TR";
+  });
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  it("prefers the brand's own store abroad over an unknown shop at home, and drops replicas", async () => {
+    const fetcher: Fetcher = async (url) => {
+      const gl = new URL(url).searchParams.get("gl");
+      const byCountry: Record<string, unknown[]> = {
+        us: [
+          {
+            title: "Louis Vuitton Neverfull MM",
+            source: "Louis Vuitton",
+            extracted_price: 2240,
+            link: "https://us.louisvuitton.com/a",
+          },
+        ],
+        tr: [
+          {
+            title: "Louis Vuitton Neverfull MM",
+            source: "Coco Et Loco",
+            extracted_price: 90000,
+            link: "https://cocoetloco.com/a",
+          },
+          {
+            title: "Neverfull MM replica bag",
+            source: "weiqueen.com",
+            extracted_price: 4000,
+            link: "https://weiqueen.com/a",
+          },
+          {
+            title: "Louis Vuitton Neverfull MM",
+            source: "Account 07Aug26",
+            extracted_price: 5000,
+            link: "https://x.example/a",
+          },
+        ],
+      };
+      return {
+        ok: true,
+        json: async () => ({ shopping_results: byCountry[gl ?? ""] ?? [] }),
+      };
+    };
+    const report = await findPrices(
+      {
+        query: "Louis Vuitton Neverfull MM",
+        brand: "Louis Vuitton",
+        homeMarket: "TR",
+      },
+      fetcher,
+    );
+    expect(report.picks.recommended?.store).toBe("Louis Vuitton");
+    expect(report.picks.recommendedIsLocal).toBe(false);
+    const tr = report.markets.find((m) => m.market === "TR")?.offers ?? [];
+    expect(tr.map((o) => o.store)).toEqual(["Coco Et Loco"]);
   });
 });

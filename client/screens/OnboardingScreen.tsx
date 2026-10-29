@@ -252,7 +252,7 @@ function CompareArt({ active }: { active: boolean }) {
               row.pick && {
                 borderColor: badge.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ["rgba(215,255,58,0)", "rgba(215,255,58,0.55)"],
+                  outputRange: ["rgba(255,255,255,0)", "rgba(255,255,255,0.5)"],
                 }),
               },
             ]}

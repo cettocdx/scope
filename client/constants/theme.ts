@@ -4,7 +4,7 @@ import { TextStyle } from "react-native";
  * SCOPE design tokens.
  *
  * Camera-first and dark: the photo is the hero, chrome stays quiet. One signal
- * colour (lime) marks the action and the recommended buy; trust has its own
+ * colour (white) marks the action and the recommended buy; trust has its own
  * three-step scale so "cheap" and "safe" never get confused.
  */
 export const Colors = {
@@ -21,9 +21,10 @@ export const Colors = {
   textTertiary: "rgba(235,235,245,0.32)",
   textInverse: "#000000",
 
-  accent: "#D7FF3A",
-  accentPressed: "#C2EB24",
-  accentTint: "rgba(215,255,58,0.14)",
+  // Apple-style: the action colour is plain white on black.
+  accent: "#FFFFFF",
+  accentPressed: "#E5E5EA",
+  accentTint: "rgba(255,255,255,0.12)",
 
   // iOS system green / yellow / red (dark variants).
   trustHigh: "#30D158",

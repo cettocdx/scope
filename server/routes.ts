@@ -48,6 +48,7 @@ const pricesRequestSchema = z.object({
   altQueries: z.array(z.string().max(160)).max(3).optional(),
   mustHave: z.array(z.string().max(60)).max(4).optional(),
   brand: z.string().max(60).nullable().optional(),
+  model: z.string().max(80).nullable().optional(),
   barcode: z.string().max(64).nullable().optional(),
   estimateUSD: z.number().positive().nullable().optional(),
   homeMarket: z.enum(["US", "EU", "TR"]).nullable().optional(),

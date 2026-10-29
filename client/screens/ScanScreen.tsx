@@ -387,8 +387,8 @@ export default function ScanScreen({ navigation }: Props) {
 const FRAME = 260;
 
 /**
- * The viewfinder: four corners with a soft lime line sweeping through, which
- * snaps to solid lime corners once a barcode is locked.
+ * The viewfinder: four corners with a soft light line sweeping through, which
+ * turn green (like a lock) once a barcode is found.
  */
 function ScanFrame({ locked }: { locked: boolean }) {
   const sweep = useSharedValue(0);
@@ -416,7 +416,7 @@ function ScanFrame({ locked }: { locked: boolean }) {
     transform: [{ scale: 1 - lock.value * 0.06 }],
   }));
 
-  const corner = locked ? Colors.accent : "rgba(255,255,255,0.92)";
+  const corner = locked ? Colors.trustHigh : "rgba(255,255,255,0.92)";
   return (
     <Animated.View style={[styles.frame, frameStyle]} pointerEvents="none">
       <Animated.View style={[styles.scanLine, lineStyle]}>

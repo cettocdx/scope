@@ -222,10 +222,12 @@ function setupErrorHandler(app: express.Application) {
 function setupSecurity(app: express.Application) {
   app.use(helmet());
 
-  // Strict limiter for expensive AI endpoints.
+  // Limiter for the paid AI / shopping endpoints. One scan costs 3–4 calls
+  // (identify, prices, visual matches, a tapped link), so 60 a minute still
+  // lets someone scan quickly without ever hitting it.
   const aiLimiter = rateLimit({
     windowMs: 60_000,
-    max: 20,
+    max: 60,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many requests. Please slow down." },
