@@ -23,7 +23,7 @@ export type RootStackParamList = {
     historyId?: string;
     query?: string;
   };
-  Saved: undefined;
+  Saved: { tab?: "saved" | "history" } | undefined;
   Settings: undefined;
   Auth: undefined;
   Paywall: undefined;

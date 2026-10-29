@@ -1,0 +1,10 @@
+env: load .env
+env: export SERPAPI_KEY BLOB_READ_WRITE_TOKEN APPLE_BUNDLE_ID
+- Creating native directory (./ios)
+✔ Created native directory | reusing /ios
+- Updating package.json
+✔ Updated package.json | no changes
+- Running prebuild
+» ios: userInterfaceStyle: The existing `userInterfaceStyle` property is preventing splash screen from working properly. Remove it or disable dark mode splash screens.
+- Running prebuild
+✔ Finished prebuild

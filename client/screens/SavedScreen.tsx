@@ -283,14 +283,14 @@ function Empty({
   );
 }
 
-export default function SavedScreen({ navigation }: Props) {
+export default function SavedScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { assets } = usePortfolio();
   const history = useHistory();
   const remove = useRemoveAsset();
   const addAsset = useAddAsset();
   const { homeMarket } = useSettings();
-  const [tab, setTab] = useState<Tab>("saved");
+  const [tab, setTab] = useState<Tab>(route.params?.tab ?? "saved");
   const [refreshing, setRefreshing] = useState(false);
 
   const confirmRemove = (item: SavedItem) =>

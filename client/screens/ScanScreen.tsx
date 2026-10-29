@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +11,16 @@ import {
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Image } from "expo-image";
+import Animated, {
+  Easing,
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useIsFocused } from "@react-navigation/native";
@@ -26,6 +36,7 @@ import {
   Chip,
   Glass,
   IconButton,
+  notify,
   Press,
   Txt,
   select,
@@ -35,6 +46,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { putPhoto } from "@/lib/scan-session";
 import { quotaStatus, FREE_DAILY_SCANS } from "@/lib/quota";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { useHistory } from "@/lib/history";
 import { useAuth } from "@/contexts/AuthContext";
 import { t } from "@/lib/i18n";
 
@@ -71,6 +83,8 @@ export default function ScanScreen({ navigation }: Props) {
   const pinchStart = useRef(0);
   const [searching, setSearching] = useState(false);
   const { assets } = usePortfolio();
+  const history = useHistory();
+  const last = history[0];
   const { isPro } = useAuth();
 
   const go = useCallback(
@@ -166,8 +180,10 @@ export default function ScanScreen({ navigation }: Props) {
             barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e"],
           }}
           onBarcodeScanned={({ data }) => {
-            if (data && /^\d{8,14}$/.test(data) && data !== barcode)
+            if (data && /^\d{8,14}$/.test(data) && data !== barcode) {
+              notify();
               setBarcode(data);
+            }
           }}
         />
       ) : null}
@@ -175,12 +191,7 @@ export default function ScanScreen({ navigation }: Props) {
       {cameraUsable ? (
         <GestureDetector gesture={pinch}>
           <View style={styles.center}>
-            <View style={styles.frame} pointerEvents="none">
-              <View style={[styles.corner, styles.tl]} />
-              <View style={[styles.corner, styles.tr]} />
-              <View style={[styles.corner, styles.bl]} />
-              <View style={[styles.corner, styles.br]} />
-            </View>
+            <ScanFrame locked={!!barcode} />
             {zoom > 0.005 ? (
               <Press
                 onPress={() => {
@@ -191,9 +202,9 @@ export default function ScanScreen({ navigation }: Props) {
                 accessibilityLabel={t("Reset zoom")}
                 style={styles.zoomPill}
               >
-                <Glass style={styles.zoomPillInner}>
-                  <Txt variant="caption" color={Colors.accent}>
-                    {`${(1 + zoom * 9).toFixed(1)}×`}
+                <Glass interactive style={styles.zoomPillInner}>
+                  <Txt variant="subheadStrong" color={Colors.accent}>
+                    1×
                   </Txt>
                 </Glass>
               </Press>
@@ -296,22 +307,50 @@ export default function ScanScreen({ navigation }: Props) {
               bg={Colors.accent}
             />
           ) : cameraUsable ? (
-            <>
-              <Txt variant="headline">{t("Point at a product")}</Txt>
-              <Txt variant="callout" color={Colors.textSecondary}>
-                {t("Tap to scan · or pick a photo")}
-              </Txt>
-            </>
+            <Txt variant="headline">{t("Point at a product")}</Txt>
           ) : null}
+          <Press
+            onPress={() => setSearching(true)}
+            haptic
+            scale={0.95}
+            accessibilityRole="button"
+            accessibilityLabel={t("Search by name")}
+          >
+            <Glass interactive style={styles.searchPill}>
+              <Icon name="search" size={14} color={Colors.textSecondary} />
+              <Txt variant="subhead" color={Colors.textSecondary}>
+                {t("or type its name")}
+              </Txt>
+            </Glass>
+          </Press>
         </View>
 
         <View style={styles.controls}>
-          <IconButton
-            icon="image"
-            label={t("Pick a photo instead")}
-            onPress={pick}
-            size={52}
-          />
+          {last ? (
+            // Like the Camera app: the last capture, one tap from History.
+            <Press
+              onPress={() => navigation.navigate("Saved", { tab: "history" })}
+              haptic
+              scale={0.92}
+              accessibilityRole="button"
+              accessibilityLabel={t("History")}
+              style={styles.recent}
+            >
+              <Animated.View
+                key={last.id}
+                entering={FadeIn.duration(350)}
+                style={StyleSheet.absoluteFill}
+              >
+                <Image
+                  source={{ uri: last.thumbnailUri ?? last.imageUri }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                />
+              </Animated.View>
+            </Press>
+          ) : (
+            <View style={styles.recentEmpty} />
+          )}
           <Press
             onPress={capture}
             disabled={!cameraUsable || !ready || busy}
@@ -325,9 +364,9 @@ export default function ScanScreen({ navigation }: Props) {
             </View>
           </Press>
           <IconButton
-            icon="type"
-            label={t("Search by name")}
-            onPress={() => setSearching(true)}
+            icon="image"
+            label={t("Pick a photo instead")}
+            onPress={pick}
             size={52}
           />
         </View>
@@ -342,6 +381,57 @@ export default function ScanScreen({ navigation }: Props) {
         }}
       />
     </View>
+  );
+}
+
+const FRAME = 260;
+
+/**
+ * The viewfinder: four corners with a soft lime line sweeping through, which
+ * snaps to solid lime corners once a barcode is locked.
+ */
+function ScanFrame({ locked }: { locked: boolean }) {
+  const sweep = useSharedValue(0);
+  const lock = useSharedValue(0);
+
+  useEffect(() => {
+    sweep.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+    );
+  }, [sweep]);
+
+  useEffect(() => {
+    lock.value = withTiming(locked ? 1 : 0, { duration: 220 });
+  }, [lock, locked]);
+
+  const lineStyle = useAnimatedStyle(() => ({
+    opacity: 0.55 * (1 - lock.value),
+    transform: [{ translateY: 18 + sweep.value * (FRAME - 36) }],
+  }));
+  const frameStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - lock.value * 0.06 }],
+  }));
+
+  const corner = locked ? Colors.accent : "rgba(255,255,255,0.92)";
+  return (
+    <Animated.View style={[styles.frame, frameStyle]} pointerEvents="none">
+      <Animated.View style={[styles.scanLine, lineStyle]}>
+        <LinearGradient
+          colors={["transparent", Colors.accent, "transparent"]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+      <View style={[styles.corner, styles.tl, { borderColor: corner }]} />
+      <View style={[styles.corner, styles.tr, { borderColor: corner }]} />
+      <View style={[styles.corner, styles.bl, { borderColor: corner }]} />
+      <View style={[styles.corner, styles.br, { borderColor: corner }]} />
+    </Animated.View>
   );
 }
 
@@ -504,7 +594,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  frame: { width: 260, height: 260, marginTop: -40 },
+  frame: { width: FRAME, height: FRAME, marginTop: -40 },
+  scanLine: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    height: 2,
+    shadowColor: Colors.accent,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  searchPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 34,
+    paddingHorizontal: Spacing.md + 2,
+    borderRadius: 17,
+    overflow: "hidden",
+    marginTop: Spacing.sm,
+  },
+  recent: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.9)",
+    backgroundColor: Colors.surfaceRaised,
+  },
+  recentEmpty: { width: 52, height: 52 },
   corner: {
     position: "absolute",
     width: CORNER,

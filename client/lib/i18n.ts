@@ -166,6 +166,7 @@ const tr = {
     "SCOPE ne olduğunu saniyeler içinde anlar; ABD, Avrupa ve Türkiye'deki en ucuz ve en güvenilir mağazaları gösterir.",
   "Get started": "Başla",
   "Searched by name": "Adıyla arandı",
+  "or type its name": "ya da adını yaz",
   "Skip the tour": "Tanıtımı geç",
   "Cheaper by {n}% since saved": "Kaydettiğinden beri %{n} ucuzladı",
   "Pricier by {n}% since saved": "Kaydettiğinden beri %{n} pahalandı",
