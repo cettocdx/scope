@@ -38,7 +38,10 @@ export interface IStorage {
   linkRevenueCat(userId: string, revenueCatId: string): Promise<void>;
 
   getPortfolioAssets(owner: OwnerKey): Promise<PortfolioAsset[]>;
-  getPortfolioAsset(id: string, owner: OwnerKey): Promise<PortfolioAsset | undefined>;
+  getPortfolioAsset(
+    id: string,
+    owner: OwnerKey,
+  ): Promise<PortfolioAsset | undefined>;
   upsertPortfolioAsset(asset: InsertPortfolioAsset): Promise<PortfolioAsset>;
   updatePortfolioAsset(
     id: string,
@@ -92,7 +95,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async touchUser(id: string): Promise<void> {
-    await db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, id));
+    await db
+      .update(users)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(users.id, id));
   }
 
   async setPro(args: {
@@ -138,7 +144,9 @@ export class DatabaseStorage implements IStorage {
     return asset || undefined;
   }
 
-  async upsertPortfolioAsset(asset: InsertPortfolioAsset): Promise<PortfolioAsset> {
+  async upsertPortfolioAsset(
+    asset: InsertPortfolioAsset,
+  ): Promise<PortfolioAsset> {
     const [created] = await db
       .insert(portfolioAssets)
       .values(asset)

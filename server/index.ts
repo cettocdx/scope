@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
@@ -82,7 +82,10 @@ function setupRequestLogging(app: express.Application) {
 
       // Log only metadata, never the response body (may contain sensitive data).
       // Mask the device id embedded in portfolio paths so it never lands in logs.
-      const safePath = path.replace(/\/api\/portfolio\/[^/]+/, "/api/portfolio/:deviceId");
+      const safePath = path.replace(
+        /\/api\/portfolio\/[^/]+/,
+        "/api/portfolio/:deviceId",
+      );
       log(`${req.method} ${safePath} ${res.statusCode} in ${duration}ms`);
     });
 
@@ -210,7 +213,8 @@ function setupErrorHandler(app: express.Application) {
     // Log the real error server-side; never leak details to the client.
     console.error("Unhandled error:", err);
 
-    const message = status < 500 ? error.message || "Request error" : "Internal Server Error";
+    const message =
+      status < 500 ? error.message || "Request error" : "Internal Server Error";
     res.status(status).json({ message });
   });
 }
@@ -221,12 +225,13 @@ function setupSecurity(app: express.Application) {
   // Strict limiter for expensive AI endpoints.
   const aiLimiter = rateLimit({
     windowMs: 60_000,
-    max: 10,
+    max: 20,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many requests. Please slow down." },
   });
-  app.use("/api/analyze", aiLimiter);
+  app.use("/api/identify", aiLimiter);
+  app.use("/api/prices", aiLimiter);
   app.use("/api/valuate", aiLimiter);
 
   // Looser limiter for the rest of the API surface.

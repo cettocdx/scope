@@ -65,5 +65,7 @@ export function affiliateUrl(url: string): string {
 
 /** Whether any affiliate id is configured (used to disclose "#ad" in the UI). */
 export function affiliateEnabled(): boolean {
-  return Boolean(process.env.AMAZON_AFFILIATE_TAG || process.env.AFFILIATE_TAGS);
+  return Boolean(
+    process.env.AMAZON_AFFILIATE_TAG || process.env.AFFILIATE_TAGS,
+  );
 }
