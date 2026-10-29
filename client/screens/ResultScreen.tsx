@@ -64,6 +64,7 @@ import {
   identify,
   identityFromName,
   pricesRequestFor,
+  sendFeedback,
   titleFor,
   visualMatches,
 } from "@/services/scanService";
@@ -273,6 +274,20 @@ export default function ResultScreen({ navigation, route }: Props) {
     (name: string) => {
       const clean = name.trim();
       if (clean.length < 2) return;
+      if (identity && clean.toLowerCase() !== identity.name.toLowerCase())
+        sendFeedback({
+          wrong: identity.name,
+          right: clean,
+          category: identity.category,
+          confidence: identity.confidence,
+          source: photo
+            ? "photo"
+            : saved
+              ? "saved"
+              : past
+                ? "history"
+                : "typed",
+        });
       const next = identityFromName(clean, identity);
       setIdentity(next);
       setIdError(null);
@@ -280,7 +295,7 @@ export default function ResultScreen({ navigation, route }: Props) {
       if (saved) refreshed.current = true;
       void runPrices(next);
     },
-    [identity, runPrices, saved],
+    [identity, past, photo, runPrices, saved],
   );
 
   const onSave = useCallback(async () => {
@@ -553,6 +568,38 @@ export default function ResultScreen({ navigation, route }: Props) {
               <Skeleton width="40%" height={16} style={{ marginTop: 4 }} />
             </View>
           )}
+
+          {photo &&
+          identity &&
+          identity.kind !== "not_for_sale" &&
+          identity.confidence < 60 ? (
+            // Unsure: the fastest fix is a closer photo of the label or logo.
+            <Animated.View
+              entering={FadeInDown.duration(420)}
+              style={styles.notice}
+            >
+              <Icon name="camera" size={16} color={Colors.trustMid} />
+              <View style={styles.flex}>
+                <Txt variant="calloutStrong">{t("Not sure yet")}</Txt>
+                <Txt variant="callout" color={Colors.textSecondary}>
+                  {t(
+                    "Take a closer photo of the label, logo or tag and I'll pin down the exact model.",
+                  )}
+                </Txt>
+                <Press
+                  onPress={() => navigation.goBack()}
+                  haptic
+                  accessibilityRole="button"
+                  style={styles.notRight}
+                >
+                  <Icon name="camera" size={14} color={Colors.accent} />
+                  <Txt variant="calloutStrong" color={Colors.accent}>
+                    {t("Take a closer photo")}
+                  </Txt>
+                </Press>
+              </View>
+            </Animated.View>
+          ) : null}
 
           {matches.length > 0 ? (
             <Animated.View entering={FadeInDown.duration(420).delay(80)}>

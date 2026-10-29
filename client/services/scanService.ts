@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import { getApiUrl } from "@/lib/query-client";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { t } from "@/lib/i18n";
@@ -23,7 +24,32 @@ export class ScanError extends Error {
   }
 }
 
+/**
+ * POST with one quiet retry when the request never reached the server (a
+ * dropped connection on mobile data) or the server answered 502/503/504.
+ */
 async function post<T>(
+  path: string,
+  body: unknown,
+  timeoutMs: number,
+): Promise<T> {
+  try {
+    return await postOnce<T>(path, body, timeoutMs);
+  } catch (e) {
+    const retryable =
+      e instanceof ScanError &&
+      (e.status === null ||
+        e.status === 502 ||
+        e.status === 503 ||
+        e.status === 504) &&
+      !/timed out/i.test(e.message);
+    if (!retryable) throw e;
+    await new Promise((r) => setTimeout(r, 800));
+    return postOnce<T>(path, body, timeoutMs);
+  }
+}
+
+async function postOnce<T>(
   path: string,
   body: unknown,
   timeoutMs: number,
@@ -164,4 +190,33 @@ export async function visualMatches(
   } catch {
     return { available: false, matches: [], tookMs: 0 };
   }
+}
+
+/** "Not right?" corrections, so we learn which products get misread. Fire and forget. */
+export function sendFeedback(args: {
+  wrong: string;
+  right: string;
+  category?: string | null;
+  confidence?: number | null;
+  source?: "photo" | "saved" | "history" | "typed";
+}): void {
+  post("/api/feedback", args, 8_000).catch(() => {});
+}
+
+/** Crash reports from the error boundary. Fire and forget. */
+export function reportClientError(args: {
+  message: string;
+  stack?: string;
+  screen?: string;
+}): void {
+  post(
+    "/api/client-error",
+    {
+      ...args,
+      message: args.message.slice(0, 500),
+      stack: args.stack?.slice(0, 4000),
+      version: Constants.expoConfig?.version,
+    },
+    8_000,
+  ).catch(() => {});
 }

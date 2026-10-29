@@ -20,7 +20,8 @@
     "test:watch": "vitest",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "api:build": "esbuild server/vercel.ts --platform=node --target=node20 --packages=external --bundle --format=esm --tsconfig=tsconfig.server.json --outfile=api/index.mjs"
+    "api:build": "esbuild server/vercel.ts --platform=node --target=node20 --packages=external --bundle --format=esm --tsconfig=tsconfig.server.json --outfile=api/index.mjs",
+    "eval": "tsx eval/run.ts"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

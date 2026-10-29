@@ -1,0 +1,112 @@
+[
+  {
+    "file": "sony-xm5.jpg",
+    "kind": "product",
+    "brand": "Sony",
+    "name": [["1000xm5", "xm5"]]
+  },
+  {
+    "file": "tshirt.jpg",
+    "kind": "product",
+    "brand": "Nike",
+    "name": [["t-shirt", "tee", "shirt"]]
+  },
+  { "file": "mug.jpg", "kind": "generic", "brand": null, "name": [["mug"]] },
+  { "file": "dog.jpg", "kind": "not_for_sale" },
+  {
+    "file": "lv-bag.jpg",
+    "kind": "product",
+    "brand": "Louis Vuitton",
+    "name": [["neverfull"]]
+  },
+  {
+    "file": "plain-bag.jpg",
+    "kind": "generic",
+    "brand": null,
+    "name": [["bag"]]
+  },
+  {
+    "file": "cartier-ring.jpg",
+    "kind": "product",
+    "brand": "Cartier",
+    "name": [["love"]]
+  },
+  {
+    "file": "silver-ring.jpg",
+    "kind": "generic",
+    "brand": null,
+    "name": [["ring"]]
+  },
+  {
+    "file": "nike-af1.jpg",
+    "kind": "product",
+    "brand": "Nike",
+    "name": [["air force 1", "af1"]]
+  },
+  {
+    "file": "iphone-15-pro.jpg",
+    "kind": "product",
+    "brand": "Apple",
+    "name": [["iphone"], ["15 pro", "pro"]]
+  },
+  {
+    "file": "stanley-quencher.jpg",
+    "kind": "product",
+    "brand": "Stanley",
+    "name": [["quencher"]]
+  },
+  {
+    "file": "rayban-wayfarer.jpg",
+    "kind": "product",
+    "brand": "Ray-Ban",
+    "name": [["wayfarer"]]
+  },
+  {
+    "file": "chanel-no5.jpg",
+    "kind": "product",
+    "brand": "Chanel",
+    "name": [["5", "no5", "n°5"]]
+  },
+  {
+    "file": "dyson-v15.jpg",
+    "kind": "product",
+    "brand": "Dyson",
+    "name": [["v15", "v12", "v11", "v10", "vacuum"]]
+  },
+  {
+    "file": "adidas-samba.jpg",
+    "kind": "product",
+    "brand": "Adidas",
+    "name": [["samba"]]
+  },
+  {
+    "file": "apple-watch.jpg",
+    "kind": "product",
+    "brand": "Apple",
+    "name": [["watch"]]
+  },
+  {
+    "file": "nespresso-vertuo.jpg",
+    "kind": "product",
+    "brand": "Nespresso",
+    "name": [["vertuo"]]
+  },
+  {
+    "file": "kindle-paperwhite.jpg",
+    "kind": "product",
+    "brand": "Kindle",
+    "name": [["kindle"]]
+  },
+  {
+    "file": "plain-hoodie.jpg",
+    "kind": "generic",
+    "brand": null,
+    "name": [["hoodie", "sweatshirt"]]
+  },
+  {
+    "file": "gucci-marmont.jpg",
+    "kind": "product",
+    "brand": "Gucci",
+    "name": [["marmont"]]
+  }
+]

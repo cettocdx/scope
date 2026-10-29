@@ -54,6 +54,21 @@ const pricesRequestSchema = z.object({
   homeMarket: z.enum(["US", "EU", "TR"]).nullable().optional(),
 });
 
+const feedbackSchema = z.object({
+  wrong: z.string().max(200),
+  right: z.string().max(200),
+  category: z.string().max(40).nullable().optional(),
+  confidence: z.number().min(0).max(100).nullable().optional(),
+  source: z.enum(["photo", "saved", "history", "typed"]).optional(),
+});
+
+const clientErrorSchema = z.object({
+  message: z.string().max(500),
+  stack: z.string().max(4000).optional(),
+  screen: z.string().max(60).optional(),
+  version: z.string().max(20).optional(),
+});
+
 const offerSchema = z
   .object({
     price: z.number(),
@@ -497,6 +512,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // Turns a tapped offer into the seller's own page (one lookup per product,
   // cached), so "Buy" lands on the store instead of a Google results page.
+  // "Not right?" corrections and crashes from the app: logged so we can see
+  // which products the model gets wrong and which screens break.
+  app.post("/api/feedback", (req, res) => {
+    const parsed = feedbackSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Bad feedback" });
+    track("scan_corrected", parsed.data);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/client-error", (req, res) => {
+    const parsed = clientErrorSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Bad report" });
+    track("client_error", parsed.data);
+    res.json({ ok: true });
+  });
+
   app.post("/api/offer-link", async (req, res) => {
     const parsed = offerLinkSchema.safeParse(req.body);
     if (!parsed.success) {

@@ -84,7 +84,7 @@ function isTransient(status: number | undefined, message: string): boolean {
     status === 408 ||
     status === 429 ||
     (typeof status === "number" && status >= 500) ||
-    /\b(503|429|overloaded|UNAVAILABLE|RESOURCE_EXHAUSTED|timed out|aborted)\b/i.test(
+    /\b(503|429|overloaded|UNAVAILABLE|RESOURCE_EXHAUSTED|timed out|aborted|fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up)\b/i.test(
       message,
     )
   );
@@ -266,9 +266,20 @@ export async function askVision(
   const provider = activeProvider();
   if (!provider) throw new AiNotConfiguredError();
   const precise = opts.precise === true;
-  return provider === "openrouter"
-    ? callOpenRouter(mimeType, base64, prompt, precise)
-    : callGemini(mimeType, base64, prompt, precise);
+  const call = () =>
+    provider === "openrouter"
+      ? callOpenRouter(mimeType, base64, prompt, precise)
+      : callGemini(mimeType, base64, prompt, precise);
+  try {
+    return await call();
+  } catch (err) {
+    // A dropped connection (DNS blip, reset socket) is worth one more try
+    // before the user sees an error.
+    const e = err as { status?: number; message?: string };
+    if (!isTransient(e?.status, e?.message ?? "")) throw err;
+    await new Promise((r) => setTimeout(r, 700));
+    return call();
+  }
 }
 
 /** Parse a model's JSON answer, tolerating code fences and leading prose. */

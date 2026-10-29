@@ -1,3 +1,4 @@
+import { lookupBarcode } from "./barcode";
 import { askVision, parseModelJson } from "./ai";
 import {
   CATEGORIES,
@@ -157,8 +158,11 @@ export async function identifyProduct(
 }> {
   const extra: string[] = [];
   if (opts.barcode) {
+    const known = await lookupBarcode(opts.barcode);
     extra.push(
-      `A barcode was scanned on this item: ${opts.barcode}. Use it to pin down the exact product.`,
+      known
+        ? `A barcode was scanned on this item: ${opts.barcode}. Product databases list it as "${known.name}"${known.brand ? ` by ${known.brand}` : ""}. Treat that as the product unless the photo clearly shows something else, and keep its exact name.`
+        : `A barcode was scanned on this item: ${opts.barcode}. Use it to pin down the exact product.`,
     );
   }
   if (opts.hint) {

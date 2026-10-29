@@ -1,3 +1,4 @@
+import { reportClientError } from "@/services/scanService";
 import React, { useEffect, useState } from "react";
 import {
   AppState,
@@ -58,7 +59,11 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary
+      onError={(error, stack) =>
+        reportClientError({ message: error.message, stack })
+      }
+    >
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SettingsProvider>

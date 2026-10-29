@@ -167,6 +167,10 @@ const tr = {
   "Get started": "Başla",
   "Searched by name": "Adıyla arandı",
   "or type its name": "ya da adını yaz",
+  "Not sure yet": "Henüz emin değilim",
+  "Take a closer photo of the label, logo or tag and I'll pin down the exact model.":
+    "Etiketi, logoyu ya da fiyat etiketini yakından çek; tam modeli bulayım.",
+  "Take a closer photo": "Yakından çek",
   "Skip the tour": "Tanıtımı geç",
   "Cheaper by {n}% since saved": "Kaydettiğinden beri %{n} ucuzladı",
   "Pricier by {n}% since saved": "Kaydettiğinden beri %{n} pahalandı",
