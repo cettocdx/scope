@@ -29,13 +29,8 @@ jobs:
       - name: Check formatting
         run: npm run check:format
 
-      # NOTE: `check:types` is currently red due to a client-side tsconfig issue
-      # that another agent is fixing (monorepo tsconfig split). We keep the step
-      # in CI but allow it to fail for now via `continue-on-error`. Once the type
-      # setup is fixed, remove `continue-on-error: true` so type errors block CI.
       - name: Type check
         run: npm run check:types
-        continue-on-error: true
 
       - name: Run tests
         run: npm test

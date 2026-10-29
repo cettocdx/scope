@@ -5,34 +5,37 @@
 <h1 align="center">SCOPE</h1>
 
 <p align="center">
-  <strong>Point your camera at anything. Know its real price.</strong><br/>
-  An AI product scanner that identifies any object and compares real retail prices across 8 regions.
+  <strong>Point your camera at a product. See where to buy it — cheapest and safest.</strong><br/>
+  Identifies the exact product in seconds and compares new prices across the US, Europe and Türkiye.
 </p>
 
 <p align="center">
   <img alt="Expo" src="https://img.shields.io/badge/Expo-54-000?logo=expo&logoColor=white" />
   <img alt="React Native" src="https://img.shields.io/badge/React%20Native-0.81-20232a?logo=react&logoColor=61dafb" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white" />
-  <img alt="Express" src="https://img.shields.io/badge/Express-5-000?logo=express&logoColor=white" />
-  <img alt="Gemini" src="https://img.shields.io/badge/AI-Gemini-4285F4?logo=google&logoColor=white" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-47%20passing-3fb950" />
+  <img alt="Express" src="https://img.shields.io/badge/Express-4-000?logo=express&logoColor=white" />
+  <img alt="AI" src="https://img.shields.io/badge/AI-OpenRouter%20%7C%20Gemini-6E56CF" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-64%20passing-3fb950" />
 </p>
 
 ---
 
 ## What is SCOPE?
 
-SCOPE turns your camera into a universal price oracle. Snap a photo of **anything** —
-a phone, a laptop, a vape, a handbag, a pair of sneakers, an appliance — and SCOPE:
+Point your camera at a product. In a couple of seconds SCOPE tells you **exactly what it is**,
+then shows **where to buy it new** in the **US, Europe and Türkiye** — the cheapest offer, the
+most trustworthy seller, and the best balance of the two.
 
-1. **Identifies it** with a multi-modal AI pipeline (Google Gemini) that classifies the
-   category first, then extracts brand, model and the variant details that move the price.
-2. **Finds the real price** by querying live retail listings across **8 regions**
-   (🇺🇸 🇬🇧 🇨🇳 🇹🇷 🇮🇹 🇪🇸 🇫🇷 🇦🇪), filtering out second-hand noise and outliers, and
-   showing a **median backed by N real sources** — never a fabricated number.
-3. **Tracks it** in a synced **Vault** with net-worth, gain/loss and category analytics.
+1. **Identify** — one photo (plus a barcode when the camera sees one) goes to a fast vision model
+   via OpenRouter or Gemini. The answer is the exact product: brand, model, the variant that moves
+   the price, and shop-ready search queries.
+2. **Price** — Google Shopping is searched in every country at once (US, DE, FR, IT, ES, UK, TR).
+   Offers are filtered to the same new product (no accessories, no used/refurbished), every
+   seller gets a trust score, and too-good-to-be-true prices are flagged.
+3. **Decide** — a recommended buy, the cheapest and the most trusted offer, the typical new
+   price, and a per-market list of stores with direct links.
 
-> The whole experience is built around a single, cinematic call-to-action: **SCOPE IT**.
+SCOPE never invents a price: without live offers it says so and links to the store searches.
 
 ---
 
@@ -40,14 +43,13 @@ a phone, a laptop, a vape, a handbag, a pair of sneakers, an appliance — and S
 
 | | |
 |---|---|
-| 📸 **Universal recognition** | Category-first AI — electronics, vehicles, fashion, bags, footwear, watches, appliances, collectibles. Never forces a luxury brand onto a generic object. |
-| 💵 **Real prices only** | Live multi-region retail prices via SerpAPI. New/retail focus (resale platforms filtered). If no real price exists, it says so — and offers a search link instead of a guess. |
-| 🛡️ **Trust by design** | IQR outlier rejection, a minimum-sources threshold, and a “median of N live prices · date” badge on every result. |
-| 🔭 **Confidence-scored DNA** | Each scan produces a structured *Product DNA* (brand, model, variant, condition) with visual/OCR confidence scores. |
-| 🗄️ **The Vault** | Save scans into a portfolio with net worth, ROI, value-history charts and analytics. Offline-first with a retry queue and robust delete sync. |
-| 🌍 **8 regions, one currency** | Prices normalized to USD with **live FX rates**, shown per country. |
-| 🎨 **Premium, AI-native UI** | Dark cinematic canvas, Inter typography, fluid motion, skeleton loading, full accessibility labels. |
-| 🔒 **Responsible** | Age-restricted items (vape, alcohol, weapons) are gated; ratings use price-fairness language, never financial advice. |
+| ⚡ **Two-step scan** | Identity first (≈2 s), prices stream in after — you never stare at a spinner. |
+| 🎯 **Exact match** | Reads logos, labels and barcodes; shows how sure it is and lets you correct it in one tap. |
+| 🌍 **US · Europe · Türkiye** | All countries queried in parallel; prices shown in your currency with live FX, plus the store's own price. |
+| 🛡️ **Seller trust** | Official brand stores › major retailers › marketplaces › unknown shops. Suspiciously cheap offers are flagged. |
+| 🏷️ **Recommended / Cheapest / Most trusted** | Three clear answers, then the full list per market. |
+| 🔖 **Saved items** | Keep a scan with its prices and refresh them later; synced across devices when signed in. |
+| 🔒 **Responsible** | Age-restricted items keep prices but hide purchase links. |
 
 ---
 
@@ -58,40 +60,19 @@ sequenceDiagram
     participant U as User
     participant A as App (Expo)
     participant S as Server (Express)
-    participant G as Gemini
-    participant P as SerpAPI (8 regions)
+    participant M as Vision model (OpenRouter / Gemini)
+    participant P as Google Shopping (SerpAPI)
 
     U->>A: Snap a photo
-    A->>S: POST /api/analyze (image)
-    S->>G: Identify → Product DNA + search queries
-    S->>P: Fetch real retail prices (batched)
-    P-->>S: Offers per region
-    S->>S: Filter resale / outliers · median · live FX
-    S-->>A: Item + median price + sources + deals
-    A-->>U: Result card with trust badge
-    U->>A: Add to Vault
-```
-
-## 🏗️ Architecture
-
-```mermaid
-flowchart LR
-    subgraph Mobile["Mobile — Expo / React Native"]
-        Home["SCOPE IT"] --> Scanner --> Review --> Result --> Vault
-        Vault --> Analytics
-    end
-
-    subgraph Backend["Backend — Express + TypeScript"]
-        Analyze["/api/analyze"]
-        Portfolio["/api/portfolio"]
-        FX["/api/fx"]
-    end
-
-    Review -->|image| Analyze
-    Analyze --> Gemini[("Google Gemini")]
-    Analyze --> Serp[("SerpAPI")]
-    Vault --> Portfolio --> DB[("PostgreSQL · Drizzle")]
-    FX --> Rates[("Live FX")]
+    A->>S: POST /api/identify (image, barcode?)
+    S->>M: What exactly is this?
+    M-->>S: Product identity + queries
+    S-->>A: identity (shown immediately)
+    A->>S: POST /api/prices (query, brand, tokens)
+    S->>P: US · DE · FR · IT · ES · UK · TR in parallel
+    P-->>S: Offers
+    S->>S: Same-product filter · trust score · picks · live FX
+    S-->>A: Markets + Recommended / Cheapest / Most trusted
 ```
 
 ---
@@ -102,9 +83,9 @@ flowchart LR
 |-------|-----------|
 | **Mobile** | Expo (React Native), React Navigation, TanStack Query, react-native-svg, Reanimated |
 | **Language** | TypeScript (`strict`) end-to-end |
-| **Backend** | Express 5, Helmet, rate-limiting, Zod validation |
-| **AI** | Google Gemini (multi-modal, model-fallback chain) |
-| **Pricing** | SerpAPI (Google Shopping, 8 regions) + live FX |
+| **Backend** | Express 4, Helmet, rate-limiting, Zod validation |
+| **AI** | OpenRouter or Google Gemini (vision, model-fallback chain) |
+| **Pricing** | SerpAPI (Google Shopping, 7 countries in parallel) + live FX |
 | **Data** | PostgreSQL + Drizzle ORM |
 | **Quality** | Vitest, ESLint, Prettier, typed CI checks |
 
@@ -112,36 +93,27 @@ flowchart LR
 
 ## 🚀 Getting started
 
-**Requirements:** Node 20+, the [Expo Go](https://expo.dev/go) app on your phone, and a
-free [Google Gemini API key](https://aistudio.google.com/apikey). Phone and computer on the
-same Wi-Fi.
+**Requirements:** Node 20+, and the [Expo Go](https://expo.dev/go) app or an iOS simulator.
 
 ```bash
-# 1. Install
 npm install
-
-# 2. Configure
-cp .env.example .env
-#    then set GEMINI_API_KEY=...   (other keys are optional)
-
-# 3. Run backend + Metro bundler
-npm run server:dev      # Express API (port 4000)
-npm run expo:dev        # Expo — scan the QR with Expo Go
+cp .env.example .env        # add OPENROUTER_API_KEY (or GEMINI_API_KEY), optionally SERPAPI_KEY
+PORT=4000 npm run server:dev
+npx expo start              # scan the QR with Expo Go, or press i for the simulator
 ```
 
-Then open SCOPE on your phone, tap **SCOPE IT**, and scan something.
-
-> A detailed, step-by-step setup guide (Turkish) lives in [`KURULUM.md`](KURULUM.md).
+> A step-by-step guide in Turkish lives in [`KURULUM.md`](KURULUM.md).
 
 ### Environment
 
 | Variable | Required | Purpose |
 |----------|:--------:|---------|
-| `GEMINI_API_KEY` | ✅ | AI product recognition |
-| `SERPAPI_KEY` | – | Real multi-region prices (falls back gracefully) |
-| `DATABASE_URL` | – | Cloud portfolio sync (local-only without it) |
-| `XIMILAR_API_KEY` / `CLARIFAI_API_KEY` | – | Extra vision signals |
-| `POSTHOG_KEY`, `AMAZON_AFFILIATE_TAG`, … | – | Telemetry / monetization (optional) |
+| `OPENROUTER_API_KEY` or `GEMINI_API_KEY` | ✅ | Product identification |
+| `OPENROUTER_MODELS` | – | Comma-separated vision models to try in order |
+| `SERPAPI_KEY` | – | Live store prices and links (search links without it) |
+| `PRICE_COUNTRIES` | – | Countries to query, default `US,DE,FR,IT,ES,UK,TR` |
+| `DATABASE_URL` | – | Sync saved items across devices (device-only without it) |
+| `POSTHOG_KEY`, `AMAZON_AFFILIATE_TAG`, … | – | Telemetry / affiliate links |
 
 ---
 
@@ -149,17 +121,17 @@ Then open SCOPE on your phone, tap **SCOPE IT**, and scan something.
 
 ```
 client/          Expo React Native app
-  screens/         Home · Scanner · Review · Confirm · Analyzing · Result · Vault · Analytics · AssetDetail
-  components/      Reusable UI (ScopeBackground, ValueCard, TrendPill, Skeleton…)
-  hooks/           usePortfolio (React Query data layer)
-  lib/             image-store, quota, rating, query-client
-  constants/       theme (Inter type system + color tokens)
+  screens/         Scan (camera) · Result · Saved · Settings · Paywall · Auth
+  components/      ui (Txt, Button, Chip, Skeleton…) · offers (cards, rows, tabs) · StoreAvatar
+  contexts/        Auth (accounts + Pro) · Settings (display currency + live FX)
+  services/        scanService (identify / prices) · portfolioService (saved items + sync)
+  lib/             i18n (EN/TR) · quota · image-store · scan-session
 server/          Express + TypeScript API
-  routes.ts        /analyze · /portfolio · /valuate · /fx
-  serpapi.ts       multi-region price search
-  fx.ts            live exchange rates
-  telemetry.ts     scan analytics
-shared/          Drizzle schema shared by client & server
+  identify.ts      /api/identify — vision prompt + normalisation
+  pricing.ts       /api/prices — parallel country search, trust, picks, cache
+  ai.ts            OpenRouter / Gemini client
+  routes.ts        routes · saved-item sync · auth · RevenueCat webhook
+shared/          scan contract (scan.ts) + Drizzle schema shared by app and server
 ```
 
 ---
