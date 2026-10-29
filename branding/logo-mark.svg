@@ -1,14 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <!-- SCOPE logo mark — hexagonal aperture. Bold gradient hex ring + center node. -->
-  <defs>
-    <linearGradient id="scopeGrad" x1="12" y1="6" x2="52" y2="58" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5BFFC0"/>
-      <stop offset="0.5" stop-color="#00FF94"/>
-      <stop offset="1" stop-color="#00B36A"/>
-    </linearGradient>
-  </defs>
-  <path fill="url(#scopeGrad)" fill-rule="evenodd"
-        d="M32,6 L54.52,19 L54.52,45 L32,58 L9.48,45 L9.48,19 Z
-           M32,18 L44.39,25.15 L44.39,39.45 L32,46.6 L19.61,39.45 L19.61,25.15 Z"/>
-  <circle cx="32" cy="32" r="4.2" fill="#5BFFC0"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- SCOPE app icon: the scan frame from the camera screen, locked on a lime point. -->
+  
+  <g fill="none" stroke="#F5F5F2" stroke-width="56" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M232 408 V312 a80 80 0 0 1 80 -80 H408"/>
+    <path d="M616 232 H712 a80 80 0 0 1 80 80 V408"/>
+    <path d="M792 616 V712 a80 80 0 0 1 -80 80 H616"/>
+    <path d="M408 792 H312 a80 80 0 0 1 -80 -80 V616"/>
+  </g>
+  <circle cx="512" cy="512" r="92" fill="#D7FF3A"/>
 </svg>

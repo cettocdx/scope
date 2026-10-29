@@ -1,6 +1,12 @@
 import React, { useEffect } from "react";
-import { AppState, AppStateStatus, Platform, StyleSheet, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  AppState,
+  AppStateStatus,
+  Platform,
+  StyleSheet,
+  View,
+} from "react-native";
+import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -18,6 +24,8 @@ import { queryClient } from "@/lib/query-client";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
+import { Colors } from "@/constants/theme";
 
 // Bridge React Native's AppState into React Query's focus manager so queries
 // refresh when the app returns to the foreground (RN has no window focus event).
@@ -26,6 +34,16 @@ function onAppStateChange(status: AppStateStatus) {
     focusManager.setFocused(status === "active");
   }
 }
+
+const navTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: Colors.bg,
+    card: Colors.bg,
+    primary: Colors.accent,
+  },
+};
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -51,16 +69,18 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SafeAreaProvider>
-            <GestureHandlerRootView style={styles.root}>
-              <KeyboardProvider>
-                <NavigationContainer>
-                  <RootStackNavigator />
-                </NavigationContainer>
-                <StatusBar style="light" />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </SafeAreaProvider>
+          <SettingsProvider>
+            <SafeAreaProvider>
+              <GestureHandlerRootView style={styles.root}>
+                <KeyboardProvider>
+                  <NavigationContainer theme={navTheme}>
+                    <RootStackNavigator />
+                  </NavigationContainer>
+                  <StatusBar style="light" />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </SafeAreaProvider>
+          </SettingsProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
@@ -73,6 +93,6 @@ const styles = StyleSheet.create({
   },
   splash: {
     flex: 1,
-    backgroundColor: "#000104",
+    backgroundColor: Colors.bg,
   },
 });

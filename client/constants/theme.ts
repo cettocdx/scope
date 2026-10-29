@@ -1,184 +1,131 @@
-import { Platform } from "react-native";
+import { TextStyle } from "react-native";
 
+/**
+ * SCOPE design tokens.
+ *
+ * Camera-first and dark: the photo is the hero, chrome stays quiet. One signal
+ * colour (lime) marks the action and the recommended buy; trust has its own
+ * three-step scale so "cheap" and "safe" never get confused.
+ */
 export const Colors = {
-  light: {
-    text: "#FFFFFF",
-    textSecondary: "rgba(255, 255, 255, 0.6)",
-    textTertiary: "rgba(255, 255, 255, 0.4)",
-    textDim: "rgba(255, 255, 255, 0.2)",
-    buttonText: "#000000",
-    tabIconDefault: "rgba(255, 255, 255, 0.4)",
-    tabIconSelected: "#00FF94",
-    link: "#00FF94",
-    backgroundRoot: "#000000",
-    backgroundDefault: "#0A0A0A",
-    backgroundSecondary: "#111111",
-    backgroundTertiary: "#141414",
-    successGreen: "#00FF94",
-    alertRed: "#FF3B30",
-    warningYellow: "#FACC15",
-    // Semantic tints derived from successGreen / alertRed, so screens stop
-    // hand-writing the same rgba() literals for status pills and badges.
-    successTint: "rgba(0, 255, 148, 0.1)",
-    successTintStrong: "rgba(0, 255, 148, 0.15)",
-    alertTint: "rgba(255, 59, 48, 0.1)",
-    alertTintStrong: "rgba(255, 59, 48, 0.15)",
-    overlayLight: "rgba(255, 255, 255, 0.1)",
-    glassSurface: "rgba(20, 20, 20, 0.6)",
-    glassBorder: "rgba(255, 255, 255, 0.08)",
-    cardBorder: "#222222",
-    cardBorderLight: "#333333",
-    // --- Scope brand palette (matches the home screen) ---
-    // Blue/violet is the BRAND accent (buttons, highlights, active states);
-    // successGreen / alertRed stay reserved for gain/loss semantics.
-    accent: "#5B7CFF",
-    accentDeep: "#8B5CFF",
-    accentIce: "#B9D4FF",
-    accentTint: "rgba(91, 124, 255, 0.12)",
-    accentTintStrong: "rgba(91, 124, 255, 0.18)",
-    accentBorder: "rgba(91, 124, 255, 0.35)",
-    navyGlow: "#07122A",
-  },
-  dark: {
-    text: "#FFFFFF",
-    textSecondary: "rgba(255, 255, 255, 0.6)",
-    textTertiary: "rgba(255, 255, 255, 0.4)",
-    textDim: "rgba(255, 255, 255, 0.2)",
-    buttonText: "#000000",
-    tabIconDefault: "rgba(255, 255, 255, 0.4)",
-    tabIconSelected: "#00FF94",
-    link: "#00FF94",
-    backgroundRoot: "#000000",
-    backgroundDefault: "#0A0A0A",
-    backgroundSecondary: "#111111",
-    backgroundTertiary: "#141414",
-    successGreen: "#00FF94",
-    alertRed: "#FF3B30",
-    warningYellow: "#FACC15",
-    // Semantic tints derived from successGreen / alertRed, so screens stop
-    // hand-writing the same rgba() literals for status pills and badges.
-    successTint: "rgba(0, 255, 148, 0.1)",
-    successTintStrong: "rgba(0, 255, 148, 0.15)",
-    alertTint: "rgba(255, 59, 48, 0.1)",
-    alertTintStrong: "rgba(255, 59, 48, 0.15)",
-    overlayLight: "rgba(255, 255, 255, 0.1)",
-    glassSurface: "rgba(20, 20, 20, 0.6)",
-    glassBorder: "rgba(255, 255, 255, 0.08)",
-    cardBorder: "#222222",
-    cardBorderLight: "#333333",
-    // --- Scope brand palette (matches the home screen) ---
-    // Blue/violet is the BRAND accent (buttons, highlights, active states);
-    // successGreen / alertRed stay reserved for gain/loss semantics.
-    accent: "#5B7CFF",
-    accentDeep: "#8B5CFF",
-    accentIce: "#B9D4FF",
-    accentTint: "rgba(91, 124, 255, 0.12)",
-    accentTintStrong: "rgba(91, 124, 255, 0.18)",
-    accentBorder: "rgba(91, 124, 255, 0.35)",
-    navyGlow: "#07122A",
-  },
-};
+  bg: "#0A0A0B",
+  surface: "#141416",
+  surfaceRaised: "#1C1C1F",
+  surfacePressed: "#242428",
+  line: "rgba(255,255,255,0.08)",
+  lineStrong: "rgba(255,255,255,0.14)",
+
+  text: "#F5F5F2",
+  textSecondary: "rgba(245,245,242,0.64)",
+  textTertiary: "rgba(245,245,242,0.40)",
+  textInverse: "#0A0A0B",
+
+  accent: "#D7FF3A",
+  accentPressed: "#C2EB24",
+  accentTint: "rgba(215,255,58,0.12)",
+
+  trustHigh: "#8BE3A0",
+  trustHighTint: "rgba(139,227,160,0.12)",
+  trustMid: "#F4C55A",
+  trustMidTint: "rgba(244,197,90,0.12)",
+  trustLow: "#FF7A66",
+  trustLowTint: "rgba(255,122,102,0.12)",
+
+  scrim: "rgba(0,0,0,0.55)",
+  glass: "rgba(20,20,22,0.72)",
+} as const;
 
 export const Spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 20,
-  "2xl": 24,
-  "3xl": 30,
-  "4xl": 40,
-  "5xl": 48,
-  inputHeight: 48,
-  buttonHeight: 56,
-  buttonHeightLarge: 64,
-};
+  xxl: 24,
+  xxxl: 32,
+  huge: 48,
+  gutter: 20,
+} as const;
 
-export const BorderRadius = {
-  xs: 4,
+export const Radius = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 20,
-  "2xl": 24,
-  "3xl": 30,
-  full: 9999,
-};
-
-export const Typography = {
-  hero: {
-    fontSize: 64,
-    fontWeight: "900" as const,
-    letterSpacing: -2,
-  },
-  h1: {
-    fontSize: 32,
-    fontWeight: "700" as const,
-  },
-  h2: {
-    fontSize: 24,
-    fontWeight: "700" as const,
-  },
-  h3: {
-    fontSize: 20,
-    fontWeight: "600" as const,
-  },
-  h4: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-  },
-  body: {
-    fontSize: 16,
-    fontWeight: "400" as const,
-  },
-  small: {
-    fontSize: 14,
-    fontWeight: "400" as const,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "400" as const,
-  },
-  micro: {
-    fontSize: 10,
-    fontWeight: "700" as const,
-    letterSpacing: 1,
-  },
-  metadata: {
-    fontSize: 9,
-    fontWeight: "400" as const,
-  },
-  price: {
-    fontSize: 42,
-    fontWeight: "700" as const,
-  },
-  priceSmall: {
-    fontSize: 20,
-    fontWeight: "700" as const,
-  },
-  link: {
-    fontSize: 16,
-    fontWeight: "400" as const,
-  },
-};
-
-// Inter is the product typeface (loaded in App.tsx). Because @expo-google-fonts
-// ships one file per weight, we reference the exact weight family rather than
-// relying on fontWeight (which native ignores for a specific-weight family).
-//
-// `mono` is kept as a key for backward-compat with existing styles, but now maps
-// to Inter Medium — the app moves from a "tactical monospace" look to a clean,
-// premium AI-native typographic system. Letter-spacing on labels is preserved.
-const isWeb = Platform.OS === "web";
-const interSans = isWeb ? "Inter, system-ui, sans-serif" : "Inter_400Regular";
+  xl: 22,
+  xxl: 28,
+  full: 999,
+} as const;
 
 export const Fonts = {
-  sans: interSans,
-  serif: interSans,
-  rounded: interSans,
-  mono: isWeb ? "Inter, system-ui, sans-serif" : "Inter_500Medium",
-  medium: isWeb ? "Inter, system-ui, sans-serif" : "Inter_500Medium",
-  semibold: isWeb ? "Inter, system-ui, sans-serif" : "Inter_600SemiBold",
-  bold: isWeb ? "Inter, system-ui, sans-serif" : "Inter_700Bold",
-  black: isWeb ? "Inter, system-ui, sans-serif" : "Inter_800ExtraBold",
-};
+  regular: "Inter_400Regular",
+  medium: "Inter_500Medium",
+  semibold: "Inter_600SemiBold",
+  bold: "Inter_700Bold",
+  extrabold: "Inter_800ExtraBold",
+} as const;
+
+const tabular: TextStyle["fontVariant"] = ["tabular-nums"];
+
+export const Type = {
+  display: {
+    fontFamily: Fonts.bold,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.8,
+  },
+  title: {
+    fontFamily: Fonts.semibold,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.4,
+  },
+  headline: {
+    fontFamily: Fonts.semibold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+  },
+  body: { fontFamily: Fonts.regular, fontSize: 15, lineHeight: 21 },
+  bodyStrong: { fontFamily: Fonts.medium, fontSize: 15, lineHeight: 21 },
+  callout: { fontFamily: Fonts.regular, fontSize: 13, lineHeight: 18 },
+  calloutStrong: { fontFamily: Fonts.medium, fontSize: 13, lineHeight: 18 },
+  caption: {
+    fontFamily: Fonts.medium,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.3,
+  },
+  overline: {
+    fontFamily: Fonts.semibold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  priceHero: {
+    fontFamily: Fonts.bold,
+    fontSize: 36,
+    lineHeight: 40,
+    letterSpacing: -1,
+    fontVariant: tabular,
+  },
+  price: {
+    fontFamily: Fonts.semibold,
+    fontSize: 17,
+    lineHeight: 22,
+    fontVariant: tabular,
+  },
+  priceSmall: {
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 17,
+    fontVariant: tabular,
+  },
+} satisfies Record<string, TextStyle>;
+
+export function trustColors(score: number): { fg: string; bg: string } {
+  if (score >= 80) return { fg: Colors.trustHigh, bg: Colors.trustHighTint };
+  if (score >= 50) return { fg: Colors.trustMid, bg: Colors.trustMidTint };
+  return { fg: Colors.trustLow, bg: Colors.trustLowTint };
+}

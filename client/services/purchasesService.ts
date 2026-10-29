@@ -35,7 +35,9 @@ function load(): PurchasesModule | null {
 }
 
 export function isPurchasesAvailable(): boolean {
-  return load() !== null && (Platform.OS === "ios" || Platform.OS === "android");
+  return (
+    load() !== null && (Platform.OS === "ios" || Platform.OS === "android")
+  );
 }
 
 /** Configure the SDK once. `appUserId` links purchases to a SCOPE account. */
@@ -107,7 +109,9 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
   const P = load();
   if (!P || !configured) return false;
   const { customerInfo } = await P.purchasePackage(pkg);
-  return typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined";
+  return (
+    typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined"
+  );
 }
 
 /** Restore prior purchases (App Store requirement); returns Pro status. */
