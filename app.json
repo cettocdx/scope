@@ -11,12 +11,16 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.scope.assetvision",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#000000",
-        "foregroundImage": "./assets/images/icon.png"
+        "backgroundColor": "#0A0A0B",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -31,11 +35,11 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 120,
           "resizeMode": "contain",
-          "backgroundColor": "#000000",
+          "backgroundColor": "#0A0A0B",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#0A0A0B"
           }
         }
       ],
@@ -43,11 +47,18 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "SCOPE needs camera access to scan and identify assets."
+          "cameraPermission": "SCOPE uses the camera to identify products and find where to buy them."
         }
       ],
       "expo-font",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SCOPE lets you pick a product photo to identify it and compare prices."
+        }
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "reactCompiler": true
