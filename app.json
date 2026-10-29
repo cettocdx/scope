@@ -63,7 +63,8 @@
           "photosPermission": "SCOPE lets you pick a product photo to identify it and compare prices."
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-background-task"
     ],
     "experiments": {
       "reactCompiler": true

@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
@@ -14,6 +14,12 @@ import { DISPLAY_CURRENCIES, useSettings } from "@/contexts/SettingsContext";
 import { quotaStatus } from "@/lib/quota";
 import { setOnboarded } from "@/lib/onboarding";
 import { t } from "@/lib/i18n";
+import {
+  alertsEnabled,
+  askForAlertPermission,
+  runPriceCheck,
+  setAlertsEnabled,
+} from "@/lib/price-alerts";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -114,6 +120,33 @@ export default function SettingsScreen({ navigation }: Props) {
   const { currency, setCurrency } = useSettings();
   const { isPro, isSignedIn, user, signOut } = useAuth();
   const [left, setLeft] = useState<number | null>(null);
+  const [alerts, setAlerts] = useState(true);
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    alertsEnabled().then(setAlerts);
+  }, []);
+
+  const toggleAlerts = async (on: boolean) => {
+    select();
+    setAlerts(on);
+    if (on) await askForAlertPermission();
+    await setAlertsEnabled(on);
+  };
+
+  const checkNow = async () => {
+    setChecking(true);
+    try {
+      const n = await runPriceCheck();
+      Alert.alert(
+        n > 0
+          ? t("{n} items got cheaper", { n })
+          : t("No price drops right now"),
+      );
+    } finally {
+      setChecking(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -177,6 +210,37 @@ export default function SettingsScreen({ navigation }: Props) {
               );
             })}
           </View>
+        </Section>
+
+        <Section title={t("Price alerts")}>
+          <View style={styles.row}>
+            <Icon name="bell" size={18} color={Colors.textSecondary} />
+            <View style={styles.flex}>
+              <Txt variant="bodyStrong">{t("Price alerts")}</Txt>
+              <Txt variant="callout" color={Colors.textTertiary}>
+                {t("Tell me when a saved item gets cheaper")}
+              </Txt>
+            </View>
+            <Switch
+              value={alerts}
+              onValueChange={(v) => void toggleAlerts(v)}
+              trackColor={{
+                true: Colors.trustHigh,
+                false: Colors.surfacePressed,
+              }}
+              accessibilityLabel={t("Price alerts")}
+            />
+          </View>
+          {alerts ? (
+            <>
+              <Divider inset={Spacing.lg + 30} />
+              <LinkRow
+                icon="refresh-cw"
+                label={checking ? "…" : t("Check now")}
+                onPress={checking ? undefined : () => void checkNow()}
+              />
+            </>
+          ) : null}
         </Section>
 
         <Section title={t("SCOPE Pro")}>

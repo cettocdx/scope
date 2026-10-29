@@ -15,6 +15,7 @@ const SF: Partial<Record<IconName, SFSymbol>> = {
   "alert-circle": "exclamationmark.circle",
   "alert-triangle": "exclamationmark.triangle.fill",
   award: "rosette",
+  bell: "bell.badge",
   bookmark: "bookmark",
   camera: "camera",
   "camera-off": "video.slash",

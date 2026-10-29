@@ -77,7 +77,7 @@ function deviceMarket(): Market {
   return "US";
 }
 
-const HOME_MARKET: Market = deviceMarket();
+export const HOME_MARKET: Market = deviceMarket();
 
 interface SettingsValue {
   /** Where the user buys; its offers are recommended first. */

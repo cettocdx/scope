@@ -58,6 +58,7 @@ import { recordScan } from "@/lib/quota";
 import { imageSource, persistAssetImage } from "@/lib/image-store";
 import { newSavedId, savedItemFrom } from "@/lib/saved";
 import { historyEntry, recordHistory } from "@/lib/history";
+import { askForAlertPermission } from "@/lib/price-alerts";
 import { categoryName, LOCALE, t } from "@/lib/i18n";
 import {
   fetchPrices,
@@ -328,11 +329,14 @@ export default function ResultScreen({ navigation, route }: Props) {
       );
       setSavedItemId(id);
       notify();
+      // The moment saving makes sense of alerts: ask once for notifications.
+      if (assets.length === 0) void askForAlertPermission();
     } finally {
       setSaving(false);
     }
   }, [
     addAsset,
+    assets.length,
     identity,
     navigation,
     past,

@@ -171,6 +171,15 @@ const tr = {
   "Take a closer photo of the label, logo or tag and I'll pin down the exact model.":
     "Etiketi, logoyu ya da fiyat etiketini yakından çek; tam modeli bulayım.",
   "Take a closer photo": "Yakından çek",
+  "Price dropped": "Fiyat düştü",
+  "{name} is {n}% cheaper than when you saved it.":
+    "{name}, kaydettiğinden bu yana %{n} ucuzladı.",
+  "Price alerts": "Fiyat alarmı",
+  "Tell me when a saved item gets cheaper":
+    "Kaydettiğim ürün ucuzlayınca haber ver",
+  "Check now": "Şimdi kontrol et",
+  "No price drops right now": "Şu an fiyatı düşen ürün yok",
+  "{n} items got cheaper": "{n} ürünün fiyatı düştü",
   "Skip the tour": "Tanıtımı geç",
   "Cheaper by {n}% since saved": "Kaydettiğinden beri %{n} ucuzladı",
   "Pricier by {n}% since saved": "Kaydettiğinden beri %{n} pahalandı",
