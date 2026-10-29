@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { del, put } from "@vercel/blob";
+import { del, issueSignedToken, presignUrl, put } from "@vercel/blob";
 
 /**
  * Google Lens (via SerpAPI) only reads images from a public URL, so a scan photo
@@ -8,7 +8,8 @@ import { del, put } from "@vercel/blob";
  * - PUBLIC_BASE_URL set (the server is reachable from the internet): the server
  *   serves the photo itself at /api/tmp-image/<random id>. No third party.
  * - Otherwise BLOB_READ_WRITE_TOKEN (Vercel Blob): uploaded under a random name
- *   and deleted after the lookup.
+ *   and deleted after the lookup. On a private store (recommended) the photo is
+ *   never public: Lens gets a presigned read link that expires in minutes.
  * - Neither: visual matching is off and the app simply skips it.
  */
 
@@ -71,11 +72,41 @@ export async function publishTempImage(
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (token) {
-    const blob = await put(`scope-scans/${id}.${ext}`, data, {
+    const pathname = `scope-scans/${id}.${ext}`;
+    try {
+      const blob = await put(pathname, data, {
+        access: "private",
+        contentType: mime,
+        token,
+      });
+      const validUntil = Date.now() + TTL_MS;
+      const signed = await issueSignedToken({
+        token,
+        pathname: blob.pathname,
+        operations: ["get"],
+        validUntil,
+      });
+      const { presignedUrl } = await presignUrl(signed, {
+        operation: "get",
+        pathname: blob.pathname,
+        access: "private",
+        validUntil,
+      });
+      return {
+        url: presignedUrl,
+        remove: async () => {
+          await del(blob.url, { token }).catch(() => {});
+        },
+      };
+    } catch (e) {
+      if (!/public store/i.test((e as Error).message)) throw e;
+    }
+    // A public store: the random name is the only protection, and the file is
+    // deleted right after the lookup.
+    const blob = await put(pathname, data, {
       access: "public",
       contentType: mime,
       token,
-      addRandomSuffix: true,
     });
     return {
       url: blob.url,
