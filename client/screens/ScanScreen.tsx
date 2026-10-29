@@ -2,10 +2,15 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
+  Platform,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useIsFocused } from "@react-navigation/native";
@@ -13,10 +18,19 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
-import { Button, Chip, IconButton, Press, Txt, tap } from "@/components/ui";
+import {
+  Button,
+  Chip,
+  Glass,
+  IconButton,
+  Press,
+  Txt,
+  select,
+  tap,
+} from "@/components/ui";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { putPhoto } from "@/lib/scan-session";
 import { quotaStatus, FREE_DAILY_SCANS } from "@/lib/quota";
@@ -53,6 +67,9 @@ export default function ScanScreen({ navigation }: Props) {
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
   const [barcode, setBarcode] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(0);
+  const pinchStart = useRef(0);
+  const [searching, setSearching] = useState(false);
   const { assets } = usePortfolio();
   const { isPro } = useAuth();
 
@@ -120,6 +137,20 @@ export default function ScanScreen({ navigation }: Props) {
 
   const cameraUsable = permission?.granted && !cameraFailed;
 
+  // Pinch to zoom, like the Camera app. expo-camera's zoom runs 0…1.
+  const pinch = Gesture.Pinch()
+    .runOnJS(true)
+    .onStart(() => {
+      pinchStart.current = zoom;
+    })
+    .onUpdate((e) => {
+      const next = Math.min(
+        1,
+        Math.max(0, pinchStart.current + (e.scale - 1) * 0.12),
+      );
+      setZoom(next);
+    });
+
   return (
     <View style={styles.root}>
       {cameraUsable && focused ? (
@@ -127,6 +158,7 @@ export default function ScanScreen({ navigation }: Props) {
           ref={camera}
           style={StyleSheet.absoluteFill}
           facing="back"
+          zoom={zoom}
           enableTorch={torch}
           onCameraReady={() => setReady(true)}
           onMountError={() => setCameraFailed(true)}
@@ -138,6 +170,36 @@ export default function ScanScreen({ navigation }: Props) {
               setBarcode(data);
           }}
         />
+      ) : null}
+
+      {cameraUsable ? (
+        <GestureDetector gesture={pinch}>
+          <View style={styles.center}>
+            <View style={styles.frame} pointerEvents="none">
+              <View style={[styles.corner, styles.tl]} />
+              <View style={[styles.corner, styles.tr]} />
+              <View style={[styles.corner, styles.bl]} />
+              <View style={[styles.corner, styles.br]} />
+            </View>
+            {zoom > 0.005 ? (
+              <Press
+                onPress={() => {
+                  select();
+                  setZoom(0);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t("Reset zoom")}
+                style={styles.zoomPill}
+              >
+                <Glass style={styles.zoomPillInner}>
+                  <Txt variant="caption" color={Colors.accent}>
+                    {`${(1 + zoom * 9).toFixed(1)}×`}
+                  </Txt>
+                </Glass>
+              </Press>
+            ) : null}
+          </View>
+        </GestureDetector>
       ) : null}
 
       <LinearGradient
@@ -158,35 +220,36 @@ export default function ScanScreen({ navigation }: Props) {
           onPress={() => navigation.navigate("Settings")}
         />
         <Txt style={styles.wordmark}>SCOPE</Txt>
-        <View>
-          <IconButton
-            icon="bookmark"
-            label={t("Saved items")}
-            onPress={() => navigation.navigate("Saved")}
-          />
-          {assets.length > 0 ? (
-            <View style={styles.count} pointerEvents="none">
-              <Txt variant="caption" color={Colors.textInverse}>
-                {assets.length > 99 ? "99+" : assets.length}
-              </Txt>
-            </View>
+        <View style={styles.topRight}>
+          {cameraUsable ? (
+            <IconButton
+              icon={torch ? "zap" : "zap-off"}
+              label={t("Flash")}
+              color={torch ? Colors.accent : Colors.text}
+              onPress={() => setTorch((v) => !v)}
+            />
           ) : null}
+          <View>
+            <IconButton
+              icon="bookmark"
+              label={t("Saved items")}
+              onPress={() => navigation.navigate("Saved")}
+            />
+            {assets.length > 0 ? (
+              <View style={styles.count} pointerEvents="none">
+                <Txt variant="caption" color={Colors.textInverse}>
+                  {assets.length > 99 ? "99+" : assets.length}
+                </Txt>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
 
-      {cameraUsable ? (
-        <View style={styles.center} pointerEvents="none">
-          <View style={styles.frame}>
-            <View style={[styles.corner, styles.tl]} />
-            <View style={[styles.corner, styles.tr]} />
-            <View style={[styles.corner, styles.bl]} />
-            <View style={[styles.corner, styles.br]} />
-          </View>
-        </View>
-      ) : permission === null ? null : (
+      {cameraUsable ? null : permission === null ? null : (
         <View style={styles.blocked}>
           <View style={styles.blockedIcon}>
-            <Feather name="camera-off" size={26} color={Colors.textSecondary} />
+            <Icon name="camera-off" size={26} color={Colors.textSecondary} />
           </View>
           <Txt variant="title" style={styles.centerText}>
             {t("Camera access is off")}
@@ -262,15 +325,99 @@ export default function ScanScreen({ navigation }: Props) {
             </View>
           </Press>
           <IconButton
-            icon={torch ? "zap" : "zap-off"}
-            label="Flash"
-            onPress={() => setTorch((v) => !v)}
+            icon="type"
+            label={t("Search by name")}
+            onPress={() => setSearching(true)}
             size={52}
-            style={!cameraUsable ? { opacity: 0 } : undefined}
           />
         </View>
       </View>
+
+      <SearchSheet
+        visible={searching}
+        onClose={() => setSearching(false)}
+        onSearch={(q) => {
+          setSearching(false);
+          navigation.navigate("Result", { query: q });
+        }}
+      />
     </View>
+  );
+}
+
+/** Type-to-search sheet. Holds its own text so typing never re-renders the camera. */
+function SearchSheet({
+  visible,
+  onClose,
+  onSearch,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSearch: (query: string) => void;
+}) {
+  const insets = useSafeAreaInsets();
+  // Uncontrolled: the native field owns the text, so fast typing never races
+  // a re-render. State only flips when the button's enabled state changes.
+  const text = useRef("");
+  const [ready, setReady] = useState(false);
+  const search = () => {
+    const q = text.current.trim();
+    if (q.length < 2) return;
+    text.current = "";
+    setReady(false);
+    onSearch(q);
+  };
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.modalWrap}
+      >
+        <Press
+          style={StyleSheet.absoluteFill}
+          scale={1}
+          onPress={onClose}
+          accessibilityLabel={t("Cancel")}
+        />
+        <View
+          style={[styles.sheet, { paddingBottom: insets.bottom + Spacing.lg }]}
+        >
+          <View style={styles.grabber} />
+          <Txt variant="title">{t("Search by name")}</Txt>
+          <Txt variant="subhead" color={Colors.textSecondary}>
+            {t("No photo needed — type a product to compare its prices.")}
+          </Txt>
+          <View style={styles.searchField}>
+            <Icon name="search" size={17} color={Colors.textTertiary} />
+            <TextInput
+              onChangeText={(v) => {
+                text.current = v;
+                const ok = v.trim().length >= 2;
+                if (ok !== ready) setReady(ok);
+              }}
+              placeholder={t("Type the product name, e.g. iPhone 15 Pro 256GB")}
+              placeholderTextColor={Colors.textTertiary}
+              style={styles.searchInput}
+              autoFocus
+              returnKeyType="search"
+              onSubmitEditing={search}
+              selectionColor={Colors.accent}
+              clearButtonMode="while-editing"
+            />
+          </View>
+          <Button
+            title={t("Search prices")}
+            onPress={search}
+            disabled={!ready}
+          />
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -291,12 +438,55 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   wordmark: {
-    fontFamily: Fonts.extrabold,
+    ...Fonts.extrabold,
     fontSize: 15,
     letterSpacing: 5,
     color: Colors.text,
     paddingLeft: 5,
   },
+  topRight: { flexDirection: "row", gap: Spacing.sm },
+  zoomPill: { position: "absolute", bottom: 230 },
+  zoomPillInner: {
+    height: 30,
+    minWidth: 46,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  modalWrap: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: Colors.scrim,
+  },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.sm,
+    gap: Spacing.md,
+  },
+  grabber: {
+    alignSelf: "center",
+    width: 36,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.lineStrong,
+    marginBottom: Spacing.sm,
+  },
+  searchField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: Colors.surfaceRaised,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 17, height: 48 },
   count: {
     position: "absolute",
     top: -2,

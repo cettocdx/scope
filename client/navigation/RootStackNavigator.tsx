@@ -13,8 +13,16 @@ import { Colors } from "@/constants/theme";
 export type RootStackParamList = {
   Onboarding: undefined;
   Scan: undefined;
-  /** Either a fresh scan (photo held in scan-session) or a saved item. */
-  Result: { scanId?: string; savedId?: string };
+  /**
+   * A fresh scan (photo held in scan-session), a saved item, a past scan from
+   * History, or a typed product name.
+   */
+  Result: {
+    scanId?: string;
+    savedId?: string;
+    historyId?: string;
+    query?: string;
+  };
   Saved: undefined;
   Settings: undefined;
   Auth: undefined;

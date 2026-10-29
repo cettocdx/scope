@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   Share,
   StyleSheet,
   TextInput,
@@ -20,14 +19,26 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  FadeInDown,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import { Icon } from "@/components/Icon";
 
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import {
   Button,
   Chip,
   Divider,
+  Glass,
   IconButton,
+  notify,
   Press,
   Skeleton,
   Txt,
@@ -46,6 +57,7 @@ import { getPhoto } from "@/lib/scan-session";
 import { recordScan } from "@/lib/quota";
 import { imageSource, persistAssetImage } from "@/lib/image-store";
 import { newSavedId, savedItemFrom } from "@/lib/saved";
+import { historyEntry, recordHistory } from "@/lib/history";
 import { categoryName, LOCALE, t } from "@/lib/i18n";
 import {
   fetchPrices,
@@ -98,8 +110,11 @@ function confidenceLabel(c: number): {
 
 export default function ResultScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { scanId, savedId } = route.params;
+  const { scanId, savedId, query, historyId } = route.params;
   const photo = scanId ? getPhoto(scanId) : undefined;
+  const past = historyId ? historyEntry(historyId) : undefined;
+  // A fresh photo scan is remembered in History under its scan id.
+  const historyKey = scanId ?? historyId ?? null;
   const { assets } = usePortfolio();
   const saved = savedId ? assets.find((a) => a.id === savedId) : undefined;
   const addAsset = useAddAsset();
@@ -108,29 +123,68 @@ export default function ResultScreen({ navigation, route }: Props) {
   const { homeMarket } = useSettings();
 
   const [identity, setIdentity] = useState<ProductIdentity | null>(
-    saved ? (saved.identity ?? identityFromName(saved.itemName)) : null,
+    saved
+      ? (saved.identity ?? identityFromName(saved.itemName))
+      : past
+        ? past.identity
+        : query
+          ? identityFromName(query)
+          : null,
   );
   const [idError, setIdError] = useState<string | null>(null);
   const [report, setReport] = useState<PriceReport | null>(
-    saved?.report ?? null,
+    saved?.report ?? past?.report ?? null,
   );
   const [priceState, setPriceState] = useState<
     "idle" | "loading" | "error" | "done"
-  >(saved?.report ? "done" : "idle");
+  >(saved?.report || past?.report ? "done" : "idle");
   const [priceError, setPriceError] = useState<string | null>(null);
   const [savedItemId, setSavedItemId] = useState<string | null>(
     savedId ?? null,
   );
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  // The name field is uncontrolled (fast typing never races a re-render):
+  // `draft` only seeds it, `typed` holds what is in it now.
   const [draft, setDraft] = useState("");
+  const typed = useRef("");
+  const [canApply, setCanApply] = useState(false);
+  const openEditor = (seed: string) => {
+    setDraft(seed);
+    typed.current = seed;
+    setCanApply(seed.trim().length >= 2);
+    setEditing(true);
+  };
   const [market, setMarket] = useState<Market>(homeMarket);
   const [expanded, setExpanded] = useState(false);
   const [matches, setMatches] = useState<VisualMatch[]>([]);
   const runToken = useRef(0);
   const refreshed = useRef(false);
 
-  const imageUri = photo?.uri ?? (saved ? imageSource(saved) : undefined);
+  const imageUri =
+    photo?.uri ??
+    (saved ? imageSource(saved) : (past?.imageUri ?? past?.thumbnailUri));
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const heroStyle = useAnimatedStyle(() => {
+    const y = scrollY.value;
+    return {
+      transform: [
+        { translateY: y < 0 ? y / 2 : y * 0.4 },
+        { scale: y < 0 ? 1 + -y / HERO : 1 },
+      ],
+    };
+  });
+  const barStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [HERO - 120, HERO - 40],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
 
   const runPrices = useCallback(
     async (id: ProductIdentity) => {
@@ -143,6 +197,9 @@ export default function ResultScreen({ navigation, route }: Props) {
         setReport(r);
         setPriceState("done");
         setExpanded(false);
+        if (r.picks.recommended) notify();
+        if (historyKey)
+          void recordHistory({ id: historyKey, identity: id, report: r });
         setMarket((current) => {
           const has = (m: Market) =>
             (r.markets.find((x) => x.market === m)?.offers.length ?? 0) > 0;
@@ -156,7 +213,7 @@ export default function ResultScreen({ navigation, route }: Props) {
         setPriceState("error");
       }
     },
-    [homeMarket],
+    [homeMarket, historyKey],
   );
 
   const runIdentify = useCallback(async () => {
@@ -172,13 +229,21 @@ export default function ResultScreen({ navigation, route }: Props) {
     try {
       const res = await identify(photo.base64, { barcode: photo.barcode });
       setIdentity(res.identity);
+      notify();
+      if (scanId)
+        void recordHistory({
+          id: scanId,
+          identity: res.identity,
+          photoBase64: photo.base64,
+        });
       if (!isPro) void recordScan();
       // Animals, people, places… have nothing to price.
       if (res.identity.kind !== "not_for_sale") void runPrices(res.identity);
     } catch (e) {
+      notify("error");
       setIdError(e instanceof Error ? e.message : String(e));
     }
-  }, [homeMarket, isPro, photo, runPrices]);
+  }, [homeMarket, isPro, photo, runPrices, scanId]);
 
   useEffect(() => {
     if (photo) void runIdentify();
@@ -198,6 +263,7 @@ export default function ResultScreen({ navigation, route }: Props) {
         report,
         dateAdded: saved.dateAdded,
         image: { imageUri: saved.imageUri, thumbnailUri: saved.thumbnailUri },
+        previous: saved,
       }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,11 +305,14 @@ export default function ResultScreen({ navigation, route }: Props) {
       const id = newSavedId();
       const image = photo
         ? await persistAssetImage(`data:image/jpeg;base64,${photo.base64}`, id)
-        : null;
+        : past
+          ? { imageUri: past.imageUri, thumbnailUri: past.thumbnailUri }
+          : null;
       await addAsset.mutateAsync(
         savedItemFrom({ id, identity, report, image: image ?? undefined }),
       );
       setSavedItemId(id);
+      notify();
     } finally {
       setSaving(false);
     }
@@ -251,6 +320,7 @@ export default function ResultScreen({ navigation, route }: Props) {
     addAsset,
     identity,
     navigation,
+    past,
     photo,
     removeAsset,
     report,
@@ -273,6 +343,13 @@ export default function ResultScreen({ navigation, route }: Props) {
   }, [identity, report]);
 
   const linkable = !identity?.regulated;
+  const typedSearch = !imageUri && !!(query || (saved && !saved.identity));
+  const productShot = imageUri
+    ? undefined
+    : (report?.picks.recommended?.thumbnail ??
+      report?.markets.flatMap((m) => m.offers).find((o) => o.thumbnail)
+        ?.thumbnail ??
+      undefined);
   const selected = report?.markets.find((m) => m.market === market);
   const offers = selected?.offers ?? [];
   const shownOffers = expanded ? offers : offers.slice(0, ROWS_COLLAPSED);
@@ -305,35 +382,72 @@ export default function ResultScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.root}>
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.huge }}
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.hero, { height: HERO + insets.top }]}>
           {imageUri ? (
-            <Image
-              source={{ uri: imageUri }}
+            <Animated.View style={[StyleSheet.absoluteFill, heroStyle]}>
+              <Image
+                source={{ uri: imageUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={250}
+              />
+            </Animated.View>
+          ) : productShot ? (
+            // No photo (typed search): show the product as the shops picture it.
+            <Animated.View
+              entering={FadeIn.duration(400)}
+              style={[styles.heroEmpty, { paddingTop: insets.top }]}
+            >
+              <View style={styles.productCard}>
+                <Image
+                  source={{ uri: productShot }}
+                  style={styles.productImage}
+                  contentFit="contain"
+                  transition={250}
+                />
+              </View>
+            </Animated.View>
+          ) : (
+            <View style={[styles.heroEmpty, { paddingTop: insets.top }]}>
+              <Icon name="search" size={40} color={Colors.textTertiary} />
+            </View>
+          )}
+          {imageUri ? (
+            <LinearGradient
+              colors={[
+                "rgba(0,0,0,0.5)",
+                "transparent",
+                "rgba(0,0,0,0.15)",
+                Colors.bg,
+              ]}
+              locations={[0, 0.3, 0.72, 1]}
               style={StyleSheet.absoluteFill}
-              contentFit="cover"
             />
           ) : null}
-          <LinearGradient
-            colors={[
-              "rgba(10,10,11,0.5)",
-              "transparent",
-              "rgba(10,10,11,0.15)",
-              Colors.bg,
-            ]}
-            locations={[0, 0.3, 0.72, 1]}
-            style={StyleSheet.absoluteFill}
-          />
         </View>
 
         <View style={styles.body}>
           {identity && conf ? (
-            <View style={styles.identity}>
+            <Animated.View
+              entering={FadeInDown.duration(420).springify().damping(18)}
+              style={styles.identity}
+            >
               <View style={styles.chips}>
-                <Chip icon={conf.icon} label={conf.label} color={conf.color} />
+                {typedSearch ? (
+                  <Chip icon="search" label={t("Searched by name")} />
+                ) : (
+                  <Chip
+                    icon={conf.icon}
+                    label={conf.label}
+                    color={conf.color}
+                  />
+                )}
                 {identity.kind === "generic" ? (
                   <Chip icon="tag" label={t("Brand not visible")} />
                 ) : null}
@@ -351,15 +465,14 @@ export default function ResultScreen({ navigation, route }: Props) {
               ) : null}
               <Press
                 onPress={() => {
-                  setDraft(identity.name);
-                  setEditing(true);
+                  openEditor(identity.name);
                 }}
                 haptic
                 accessibilityRole="button"
                 accessibilityLabel={t("Not right?")}
                 style={styles.notRight}
               >
-                <Feather name="edit-3" size={14} color={Colors.accent} />
+                <Icon name="edit-3" size={14} color={Colors.accent} />
                 <Txt variant="calloutStrong" color={Colors.accent}>
                   {t("Not right?")}
                 </Txt>
@@ -398,10 +511,10 @@ export default function ResultScreen({ navigation, route }: Props) {
                   </View>
                 </View>
               ) : null}
-            </View>
+            </Animated.View>
           ) : idError ? (
             <View style={styles.errorCard}>
-              <Feather name="alert-circle" size={22} color={Colors.trustLow} />
+              <Icon name="alert-circle" size={22} color={Colors.trustLow} />
               <Txt variant="headline">{t("Couldn't identify this")}</Txt>
               <Txt
                 variant="callout"
@@ -421,8 +534,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                   title={t("What is it?")}
                   tone="secondary"
                   onPress={() => {
-                    setDraft("");
-                    setEditing(true);
+                    openEditor("");
                   }}
                   style={styles.flex}
                 />
@@ -443,12 +555,17 @@ export default function ResultScreen({ navigation, route }: Props) {
           )}
 
           {matches.length > 0 ? (
-            <VisualMatches matches={matches} linkable={!identity?.regulated} />
+            <Animated.View entering={FadeInDown.duration(420).delay(80)}>
+              <VisualMatches
+                matches={matches}
+                linkable={!identity?.regulated}
+              />
+            </Animated.View>
           ) : null}
 
           {identity?.kind === "not_for_sale" && priceState === "idle" ? (
             <View style={styles.notice}>
-              <Feather name="info" size={16} color={Colors.textSecondary} />
+              <Icon name="info" size={16} color={Colors.textSecondary} />
               <View style={styles.flex}>
                 <Txt variant="calloutStrong">
                   {t("Not something you buy in a shop")}
@@ -465,7 +582,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                     accessibilityRole="button"
                     style={styles.notRight}
                   >
-                    <Feather name="search" size={14} color={Colors.accent} />
+                    <Icon name="search" size={14} color={Colors.accent} />
                     <Txt variant="calloutStrong" color={Colors.accent}>
                       {identity.searchQuery}
                     </Txt>
@@ -477,7 +594,7 @@ export default function ResultScreen({ navigation, route }: Props) {
 
           {identity?.regulated ? (
             <View style={styles.notice}>
-              <Feather name="slash" size={16} color={Colors.trustMid} />
+              <Icon name="slash" size={16} color={Colors.trustMid} />
               <View style={styles.flex}>
                 <Txt variant="calloutStrong">{t("Age-restricted product")}</Txt>
                 <Txt variant="callout" color={Colors.textSecondary}>
@@ -508,7 +625,7 @@ export default function ResultScreen({ navigation, route }: Props) {
 
           {priceState === "error" ? (
             <View style={styles.errorCard}>
-              <Feather name="wifi-off" size={20} color={Colors.trustLow} />
+              <Icon name="wifi-off" size={20} color={Colors.trustLow} />
               <Txt variant="headline">{t("Couldn't load prices")}</Txt>
               <Txt
                 variant="callout"
@@ -529,7 +646,10 @@ export default function ResultScreen({ navigation, route }: Props) {
           {report && priceState === "done" ? (
             <>
               {picks?.recommended ? (
-                <View style={styles.section}>
+                <Animated.View
+                  entering={FadeInDown.duration(460).springify().damping(18)}
+                  style={styles.section}
+                >
                   <RecommendedCard
                     offer={picks.recommended}
                     linkable={linkable}
@@ -558,10 +678,10 @@ export default function ResultScreen({ navigation, route }: Props) {
                   {report.range ? (
                     <RangeBar range={report.range} count={report.sourceCount} />
                   ) : null}
-                </View>
+                </Animated.View>
               ) : (
                 <View style={styles.notice}>
-                  <Feather
+                  <Icon
                     name={report.live ? "search" : "power"}
                     size={16}
                     color={Colors.textSecondary}
@@ -606,7 +726,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                             <Txt variant="callout" color={Colors.textTertiary}>
                               Google Shopping
                             </Txt>
-                            <Feather
+                            <Icon
                               name="arrow-up-right"
                               size={16}
                               color={Colors.textTertiary}
@@ -618,7 +738,10 @@ export default function ResultScreen({ navigation, route }: Props) {
                   </View>
                 ) : null
               ) : (
-                <View style={styles.section}>
+                <Animated.View
+                  entering={FadeIn.duration(500).delay(120)}
+                  style={styles.section}
+                >
                   <Txt variant="title">{t("Where it's sold")}</Txt>
                   <MarketTabs
                     markets={report.markets}
@@ -651,7 +774,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                           style={styles.listFoot}
                           haptic
                         >
-                          <Feather
+                          <Icon
                             name={expanded ? "chevron-up" : "chevron-down"}
                             size={15}
                             color={Colors.textSecondary}
@@ -674,7 +797,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                           accessibilityRole="link"
                           style={styles.listFoot}
                         >
-                          <Feather
+                          <Icon
                             name="external-link"
                             size={14}
                             color={Colors.textSecondary}
@@ -689,7 +812,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                       </>
                     ) : null}
                   </View>
-                </View>
+                </Animated.View>
               )}
 
               {report.live && report.sourceCount > 0 ? (
@@ -707,7 +830,7 @@ export default function ResultScreen({ navigation, route }: Props) {
           ) : null}
 
           {identity && priceState !== "loading" ? (
-            saved ? (
+            saved || past ? (
               <Button
                 title={t("Refresh prices")}
                 icon="refresh-cw"
@@ -727,14 +850,30 @@ export default function ResultScreen({ navigation, route }: Props) {
             )
           ) : null}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <LinearGradient
-        colors={["rgba(10,10,11,0.92)", "rgba(10,10,11,0.6)", "transparent"]}
+        colors={["rgba(0,0,0,0.92)", "rgba(0,0,0,0.6)", "transparent"]}
         locations={[0, 0.6, 1]}
         style={[styles.topScrim, { height: insets.top + 84 }]}
         pointerEvents="none"
       />
+      <Animated.View
+        style={[styles.compactBar, { height: insets.top + 60 }, barStyle]}
+        pointerEvents="none"
+      >
+        <BlurView
+          intensity={60}
+          tint="systemChromeMaterialDark"
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.compactTitle, { paddingTop: insets.top }]}>
+          <Txt variant="headline" numberOfLines={1}>
+            {title}
+          </Txt>
+        </View>
+        <View style={styles.compactLine} />
+      </Animated.View>
       <View
         style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}
         pointerEvents="box-none"
@@ -752,22 +891,28 @@ export default function ResultScreen({ navigation, route }: Props) {
             <Press
               onPress={onSave}
               haptic
+              scale={0.94}
               disabled={saving}
               accessibilityRole="button"
               accessibilityLabel={savedItemId ? t("Saved") : t("Save")}
-              style={[styles.savePill, savedItemId ? styles.savePillOn : null]}
             >
-              <Feather
-                name={savedItemId ? "check" : "bookmark"}
-                size={16}
-                color={savedItemId ? Colors.textInverse : Colors.text}
-              />
-              <Txt
-                variant="calloutStrong"
-                color={savedItemId ? Colors.textInverse : Colors.text}
+              <Glass
+                interactive
+                tint={savedItemId ? Colors.accent : undefined}
+                style={styles.savePill}
               >
-                {savedItemId ? t("Saved") : t("Save")}
-              </Txt>
+                <Icon
+                  name={savedItemId ? "check" : "bookmark"}
+                  size={16}
+                  color={savedItemId ? Colors.textInverse : Colors.text}
+                />
+                <Txt
+                  variant="calloutStrong"
+                  color={savedItemId ? Colors.textInverse : Colors.text}
+                >
+                  {savedItemId ? t("Saved") : t("Save")}
+                </Txt>
+              </Glass>
             </Press>
           ) : null}
         </View>
@@ -797,21 +942,25 @@ export default function ResultScreen({ navigation, route }: Props) {
           >
             <Txt variant="title">{t("What is it?")}</Txt>
             <TextInput
-              value={draft}
-              onChangeText={setDraft}
+              defaultValue={draft}
+              onChangeText={(v) => {
+                typed.current = v;
+                const ok = v.trim().length >= 2;
+                if (ok !== canApply) setCanApply(ok);
+              }}
               placeholder={t("Type the product name, e.g. iPhone 15 Pro 256GB")}
               placeholderTextColor={Colors.textTertiary}
               style={styles.input}
               autoFocus
               returnKeyType="search"
-              onSubmitEditing={() => applyName(draft)}
+              onSubmitEditing={() => applyName(typed.current)}
               selectionColor={Colors.accent}
             />
             <Button
               title={t("Search prices")}
               icon="search"
-              onPress={() => applyName(draft)}
-              disabled={draft.trim().length < 2}
+              onPress={() => applyName(typed.current)}
+              disabled={!canApply}
             />
             <Button
               title={t("Cancel")}
@@ -830,7 +979,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   stretch: { alignSelf: "stretch" },
   centerText: { textAlign: "center" },
-  hero: { width: "100%", backgroundColor: Colors.surface },
+  hero: {
+    width: "100%",
+    backgroundColor: Colors.bg,
+    overflow: "hidden",
+  },
   body: {
     paddingHorizontal: Spacing.gutter,
     marginTop: -Spacing.xxxl,
@@ -912,9 +1065,46 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: Spacing.lg,
     borderRadius: 22,
-    backgroundColor: Colors.glass,
+    overflow: "hidden",
   },
-  savePillOn: { backgroundColor: Colors.accent },
+  productCard: {
+    width: 190,
+    height: 190,
+    borderRadius: 36,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+    marginTop: Spacing.xl,
+  },
+  productImage: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 20,
+  },
+  heroEmpty: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  compactBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    overflow: "hidden",
+  },
+  // Sits between the close button and the share/save cluster.
+  compactTitle: {
+    flex: 1,
+    justifyContent: "center",
+    paddingLeft: 72,
+    paddingRight: 196,
+  },
+  compactLine: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.line,
+  },
   modalWrap: {
     flex: 1,
     justifyContent: "flex-end",
@@ -933,7 +1123,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceRaised,
     paddingHorizontal: Spacing.lg,
     color: Colors.text,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
     fontSize: 16,
   },
 });

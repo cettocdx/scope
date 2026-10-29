@@ -8,8 +8,10 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { Colors, Radius, Spacing } from "@/constants/theme";
 import { Button, IconButton, Press, Txt, type IconName } from "@/components/ui";
@@ -26,6 +28,8 @@ import {
 
 type Props = NativeStackScreenProps<RootStackParamList, "Paywall">;
 type Pkg = import("react-native-purchases").PurchasesPackage;
+
+const HERO = require("../../assets/images/pro-hero.jpg");
 
 const FEATURES: { icon: IconName; title: StringKey; body: StringKey }[] = [
   {
@@ -123,6 +127,19 @@ export default function PaywallScreen({ navigation }: Props) {
           { paddingBottom: insets.bottom + Spacing.xxl },
         ]}
       >
+        <View style={styles.hero}>
+          <Image
+            source={HERO}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            contentPosition="top"
+          />
+          <LinearGradient
+            colors={["transparent", Colors.bg]}
+            locations={[0.55, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
         <Txt variant="overline" color={Colors.accent}>
           {t("SCOPE Pro")}
         </Txt>
@@ -137,7 +154,7 @@ export default function PaywallScreen({ navigation }: Props) {
           {FEATURES.map((f) => (
             <View key={f.title} style={styles.feature}>
               <View style={styles.featureIcon}>
-                <Feather name={f.icon} size={16} color={Colors.accent} />
+                <Icon name={f.icon} size={16} color={Colors.accent} />
               </View>
               <View style={styles.flex}>
                 <Txt variant="bodyStrong">{t(f.title)}</Txt>
@@ -151,7 +168,7 @@ export default function PaywallScreen({ navigation }: Props) {
 
         {isPro ? (
           <View style={styles.notice}>
-            <Feather name="check-circle" size={18} color={Colors.trustHigh} />
+            <Icon name="check-circle" size={18} color={Colors.trustHigh} />
             <Txt variant="bodyStrong">{t("You're on Pro")}</Txt>
           </View>
         ) : loading ? (
@@ -161,7 +178,7 @@ export default function PaywallScreen({ navigation }: Props) {
           />
         ) : !available || packages.length === 0 ? (
           <View style={styles.notice}>
-            <Feather name="info" size={16} color={Colors.trustMid} />
+            <Icon name="info" size={16} color={Colors.trustMid} />
             <Txt
               variant="callout"
               color={Colors.textSecondary}
@@ -222,8 +239,12 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: Spacing.lg, flexDirection: "row" },
   scroll: {
     paddingHorizontal: Spacing.gutter,
-    paddingTop: Spacing.xl,
     gap: Spacing.md,
+  },
+  hero: {
+    height: 260,
+    marginHorizontal: -Spacing.gutter,
+    marginTop: -Spacing.md,
   },
   features: { gap: Spacing.lg, marginVertical: Spacing.xl },
   feature: { flexDirection: "row", gap: Spacing.md, alignItems: "flex-start" },

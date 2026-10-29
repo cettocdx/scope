@@ -12,10 +12,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCameraPermissions } from "expo-camera";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import { Button, Press, Txt, tap } from "@/components/ui";
+import { Welcome } from "@/components/Welcome";
+import Reanimated, { FadeIn } from "react-native-reanimated";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { setOnboarded } from "@/lib/onboarding";
 import { t, type StringKey } from "@/lib/i18n";
@@ -183,7 +185,7 @@ function RecogniseArt({ active }: { active: boolean }) {
         ]}
       >
         <View style={art.matchChip}>
-          <Feather name="check-circle" size={12} color={Colors.trustHigh} />
+          <Icon name="check-circle" size={12} color={Colors.trustHigh} />
           <Txt variant="caption" color={Colors.trustHigh}>
             {t("Exact match")}
           </Txt>
@@ -271,7 +273,7 @@ function CompareArt({ active }: { active: boolean }) {
                 />
               </View>
             </View>
-            <Feather name="shield" size={15} color={Colors.trustHigh} />
+            <Icon name="shield" size={15} color={Colors.trustHigh} />
             {row.pick ? (
               <Animated.View
                 style={[
@@ -279,7 +281,7 @@ function CompareArt({ active }: { active: boolean }) {
                   { opacity: badge, transform: [{ scale: badge }] },
                 ]}
               >
-                <Feather name="award" size={10} color={Colors.textInverse} />
+                <Icon name="award" size={10} color={Colors.textInverse} />
                 <Txt
                   variant="caption"
                   color={Colors.textInverse}
@@ -355,11 +357,7 @@ function SameItemArt({ active }: { active: boolean }) {
             ]}
           >
             <View style={art.shopThumb}>
-              <Feather
-                name="shopping-bag"
-                size={26}
-                color="rgba(10,10,11,0.28)"
-              />
+              <Icon name="shopping-bag" size={26} color="rgba(0,0,0,0.28)" />
             </View>
             <View style={art.shopBody}>
               <View style={[art.bar, { width: 74, height: 8 }]} />
@@ -370,14 +368,14 @@ function SameItemArt({ active }: { active: boolean }) {
               <Animated.View
                 style={[art.checkBadge, { transform: [{ scale: check }] }]}
               >
-                <Feather name="check" size={14} color={Colors.textInverse} />
+                <Icon name="check" size={14} color={Colors.textInverse} />
               </Animated.View>
             ) : null}
           </Animated.View>
         ))}
       </View>
       <Animated.View style={[art.sameChip, { opacity: check }]}>
-        <Feather name="external-link" size={12} color={Colors.textSecondary} />
+        <Icon name="external-link" size={12} color={Colors.textSecondary} />
         <Txt variant="caption" color={Colors.textSecondary}>
           {t("Opens the seller's page")}
         </Txt>
@@ -396,6 +394,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   const scrollX = useRef(new Animated.Value(0)).current;
   const pager = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
+  const [stage, setStage] = useState<"welcome" | "tour">("welcome");
   const [, requestCamera] = useCameraPermissions();
   const last = page === PAGES.length - 1;
 
@@ -421,8 +420,20 @@ export default function OnboardingScreen({ navigation }: Props) {
     setPage(Math.round(e.nativeEvent.contentOffset.x / width));
   };
 
+  if (stage === "welcome") {
+    return (
+      <Welcome
+        onStart={() => {
+          tap();
+          setStage("tour");
+        }}
+        onSkip={() => void finish(true)}
+      />
+    );
+  }
+
   return (
-    <View style={styles.root}>
+    <Reanimated.View entering={FadeIn.duration(450)} style={styles.root}>
       <View style={[styles.top, { paddingTop: insets.top + Spacing.sm }]}>
         <Txt style={styles.wordmark}>SCOPE</Txt>
         {!last ? (
@@ -548,7 +559,7 @@ export default function OnboardingScreen({ navigation }: Props) {
             : " "}
         </Txt>
       </View>
-    </View>
+    </Reanimated.View>
   );
 }
 
@@ -661,7 +672,7 @@ const art = StyleSheet.create({
     height: 20,
     borderRadius: 10,
   },
-  pickText: { fontFamily: Fonts.semibold },
+  pickText: { ...Fonts.semibold },
   fanStage: {
     width: 300,
     height: 210,
@@ -725,7 +736,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   wordmark: {
-    fontFamily: Fonts.extrabold,
+    ...Fonts.extrabold,
     fontSize: 15,
     letterSpacing: 5,
     color: Colors.text,
@@ -740,7 +751,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   title: {
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
     fontSize: 34,
     lineHeight: 39,
     letterSpacing: -1,

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { reloadAppAsync } from "expo";
 import { Modal, ScrollView, StyleSheet, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 
 import { Colors, Radius, Spacing } from "@/constants/theme";
 import { Button, IconButton, Txt } from "@/components/ui";
@@ -35,7 +35,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
         />
       ) : null}
       <View style={styles.icon}>
-        <Feather name="alert-triangle" size={24} color={Colors.trustMid} />
+        <Icon name="alert-triangle" size={24} color={Colors.trustMid} />
       </View>
       <Txt variant="title" style={styles.center}>
         Something went wrong

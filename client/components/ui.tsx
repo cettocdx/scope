@@ -12,12 +12,14 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Icon, type IconName } from "@/components/Icon";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 
 import { Colors, Radius, Spacing, Type } from "@/constants/theme";
 
-export type IconName = React.ComponentProps<typeof Feather>["name"];
+export type { IconName };
 
 export function tap(style: "light" | "medium" = "light"): void {
   if (Platform.OS === "web") return;
@@ -26,6 +28,78 @@ export function tap(style: "light" | "medium" = "light"): void {
       ? Haptics.ImpactFeedbackStyle.Light
       : Haptics.ImpactFeedbackStyle.Medium,
   ).catch(() => {});
+}
+
+/** Success / warning taps for moments that land (identified, saved…). */
+export function notify(
+  kind: "success" | "warning" | "error" = "success",
+): void {
+  if (Platform.OS === "web") return;
+  Haptics.notificationAsync(
+    kind === "success"
+      ? Haptics.NotificationFeedbackType.Success
+      : kind === "warning"
+        ? Haptics.NotificationFeedbackType.Warning
+        : Haptics.NotificationFeedbackType.Error,
+  ).catch(() => {});
+}
+
+/** The light tick a picker makes when the selection changes. */
+export function select(): void {
+  if (Platform.OS === "web") return;
+  Haptics.selectionAsync().catch(() => {});
+}
+
+const LIQUID_GLASS = Platform.OS === "ios" && isLiquidGlassAvailable();
+
+/**
+ * Floating chrome material. iOS 26+ gets real Liquid Glass (it refracts the
+ * camera / photo behind it and reacts to touch); older systems a dark blur.
+ */
+export function Glass({
+  style,
+  children,
+  interactive,
+  tint,
+}: {
+  style?: StyleProp<ViewStyle>;
+  children?: React.ReactNode;
+  interactive?: boolean;
+  tint?: string;
+}) {
+  if (LIQUID_GLASS) {
+    return (
+      <GlassView
+        style={style}
+        glassEffectStyle="regular"
+        colorScheme="dark"
+        isInteractive={interactive}
+        tintColor={tint}
+      >
+        {children}
+      </GlassView>
+    );
+  }
+  if (Platform.OS === "ios") {
+    return (
+      <BlurView
+        intensity={40}
+        tint="systemChromeMaterialDark"
+        style={[
+          style,
+          { overflow: "hidden" },
+          tint ? { backgroundColor: tint } : null,
+        ]}
+      >
+        {children}
+      </BlurView>
+    );
+  }
+  return (
+    <View style={[style, { backgroundColor: tint ?? Colors.glass }]}>
+      {children}
+    </View>
+  );
 }
 
 type TypeName = keyof typeof Type;
@@ -76,6 +150,7 @@ export function IconButton({
   size = 44,
   tone = "glass",
   style,
+  color = Colors.text,
 }: {
   icon: IconName;
   onPress: () => void;
@@ -83,7 +158,12 @@ export function IconButton({
   size?: number;
   tone?: "glass" | "plain" | "surface";
   style?: StyleProp<ViewStyle>;
+  color?: string;
 }) {
+  const shape = { width: size, height: size, borderRadius: size / 2 };
+  const glyph = (
+    <Icon name={icon} size={Math.round(size * 0.42)} color={color} />
+  );
   return (
     <Press
       onPress={onPress}
@@ -91,15 +171,24 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={8}
-      style={[
-        styles.iconButton,
-        { width: size, height: size, borderRadius: size / 2 },
-        tone === "glass" && { backgroundColor: Colors.glass },
-        tone === "surface" && { backgroundColor: Colors.surfaceRaised },
-        style,
-      ]}
+      scale={0.92}
+      style={[shape, style]}
     >
-      <Feather name={icon} size={Math.round(size * 0.45)} color={Colors.text} />
+      {tone === "glass" ? (
+        <Glass interactive style={[styles.iconButton, shape]}>
+          {glyph}
+        </Glass>
+      ) : (
+        <View
+          style={[
+            styles.iconButton,
+            shape,
+            tone === "surface" && { backgroundColor: Colors.surfaceRaised },
+          ]}
+        >
+          {glyph}
+        </View>
+      )}
     </Press>
   );
 }
@@ -143,7 +232,7 @@ export function Button({
         <ActivityIndicator color={fg} />
       ) : (
         <>
-          {icon ? <Feather name={icon} size={18} color={fg} /> : null}
+          {icon ? <Icon name={icon} size={18} color={fg} /> : null}
           <Txt variant="headline" color={fg} numberOfLines={1}>
             {title}
           </Txt>
@@ -168,7 +257,7 @@ export function Chip({
 }) {
   const body = (
     <View style={[styles.chip, { backgroundColor: bg }]}>
-      {icon ? <Feather name={icon} size={12} color={color} /> : null}
+      {icon ? <Icon name={icon} size={12} color={color} /> : null}
       <Txt variant="caption" color={color} numberOfLines={1}>
         {label}
       </Txt>
@@ -253,8 +342,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   button: {
-    height: 54,
-    borderRadius: Radius.lg,
+    height: 52,
+    borderRadius: Radius.full,
     paddingHorizontal: Spacing.xl,
     flexDirection: "row",
     alignItems: "center",
@@ -266,7 +355,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.xs,
     paddingHorizontal: Spacing.sm + 2,
-    height: 24,
+    height: 26,
     borderRadius: Radius.full,
     alignSelf: "flex-start",
   },

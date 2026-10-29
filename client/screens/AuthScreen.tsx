@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 
 import { Colors, Radius, Spacing } from "@/constants/theme";
 import { Button, IconButton, Txt } from "@/components/ui";
@@ -102,7 +102,7 @@ export default function AuthScreen({ navigation }: Props) {
 
       <View style={styles.hero}>
         <View style={styles.icon}>
-          <Feather name="cloud" size={24} color={Colors.accent} />
+          <Icon name="cloud" size={24} color={Colors.accent} />
         </View>
         <Txt variant="display" style={styles.center} accessibilityRole="header">
           {t("Your saved items, on every device.")}
@@ -137,7 +137,7 @@ export default function AuthScreen({ navigation }: Props) {
         ) : null}
         {nothingAvailable ? (
           <View style={styles.notice}>
-            <Feather name="info" size={16} color={Colors.trustMid} />
+            <Icon name="info" size={16} color={Colors.trustMid} />
             <Txt
               variant="callout"
               color={Colors.textSecondary}

@@ -8,31 +8,33 @@ import { TextStyle } from "react-native";
  * three-step scale so "cheap" and "safe" never get confused.
  */
 export const Colors = {
-  bg: "#0A0A0B",
-  surface: "#141416",
-  surfaceRaised: "#1C1C1F",
-  surfacePressed: "#242428",
-  line: "rgba(255,255,255,0.08)",
-  lineStrong: "rgba(255,255,255,0.14)",
+  // iOS system dark: true black canvas, grouped surfaces on top.
+  bg: "#000000",
+  surface: "#1C1C1E",
+  surfaceRaised: "#2C2C2E",
+  surfacePressed: "#3A3A3C",
+  line: "rgba(84,84,88,0.45)",
+  lineStrong: "rgba(255,255,255,0.16)",
 
-  text: "#F5F5F2",
-  textSecondary: "rgba(245,245,242,0.64)",
-  textTertiary: "rgba(245,245,242,0.40)",
-  textInverse: "#0A0A0B",
+  text: "#FFFFFF",
+  textSecondary: "rgba(235,235,245,0.62)",
+  textTertiary: "rgba(235,235,245,0.32)",
+  textInverse: "#000000",
 
   accent: "#D7FF3A",
   accentPressed: "#C2EB24",
-  accentTint: "rgba(215,255,58,0.12)",
+  accentTint: "rgba(215,255,58,0.14)",
 
-  trustHigh: "#8BE3A0",
-  trustHighTint: "rgba(139,227,160,0.12)",
-  trustMid: "#F4C55A",
-  trustMidTint: "rgba(244,197,90,0.12)",
-  trustLow: "#FF7A66",
-  trustLowTint: "rgba(255,122,102,0.12)",
+  // iOS system green / yellow / red (dark variants).
+  trustHigh: "#30D158",
+  trustHighTint: "rgba(48,209,88,0.16)",
+  trustMid: "#FFD60A",
+  trustMidTint: "rgba(255,214,10,0.14)",
+  trustLow: "#FF453A",
+  trustLowTint: "rgba(255,69,58,0.16)",
 
-  scrim: "rgba(0,0,0,0.55)",
-  glass: "rgba(20,20,22,0.72)",
+  scrim: "rgba(0,0,0,0.5)",
+  glass: "rgba(44,44,46,0.62)",
 } as const;
 
 export const Spacing = {
@@ -57,69 +59,57 @@ export const Radius = {
   full: 999,
 } as const;
 
+/**
+ * SF Pro, the system font: iOS switches between Text and Display optical sizes
+ * and applies Apple's tracking on its own, so only weights are set here.
+ */
 export const Fonts = {
-  regular: "Inter_400Regular",
-  medium: "Inter_500Medium",
-  semibold: "Inter_600SemiBold",
-  bold: "Inter_700Bold",
-  extrabold: "Inter_800ExtraBold",
-} as const;
+  regular: { fontWeight: "400" },
+  medium: { fontWeight: "500" },
+  semibold: { fontWeight: "600" },
+  bold: { fontWeight: "700" },
+  extrabold: { fontWeight: "800" },
+} satisfies Record<string, TextStyle>;
 
 const tabular: TextStyle["fontVariant"] = ["tabular-nums"];
 
+/** Apple's Dynamic Type scale (Large) under the names the screens use. */
 export const Type = {
-  display: {
-    fontFamily: Fonts.bold,
-    fontSize: 30,
-    lineHeight: 34,
-    letterSpacing: -0.8,
-  },
-  title: {
-    fontFamily: Fonts.semibold,
-    fontSize: 22,
-    lineHeight: 27,
-    letterSpacing: -0.4,
-  },
-  headline: {
-    fontFamily: Fonts.semibold,
-    fontSize: 17,
-    lineHeight: 22,
-    letterSpacing: -0.2,
-  },
-  body: { fontFamily: Fonts.regular, fontSize: 15, lineHeight: 21 },
-  bodyStrong: { fontFamily: Fonts.medium, fontSize: 15, lineHeight: 21 },
-  callout: { fontFamily: Fonts.regular, fontSize: 13, lineHeight: 18 },
-  calloutStrong: { fontFamily: Fonts.medium, fontSize: 13, lineHeight: 18 },
-  caption: {
-    fontFamily: Fonts.medium,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 0.3,
-  },
+  largeTitle: { ...Fonts.bold, fontSize: 34, lineHeight: 41 },
+  display: { ...Fonts.bold, fontSize: 28, lineHeight: 34 },
+  title: { ...Fonts.bold, fontSize: 22, lineHeight: 28 },
+  title3: { ...Fonts.semibold, fontSize: 20, lineHeight: 25 },
+  headline: { ...Fonts.semibold, fontSize: 17, lineHeight: 22 },
+  body: { ...Fonts.regular, fontSize: 17, lineHeight: 22 },
+  bodyStrong: { ...Fonts.semibold, fontSize: 17, lineHeight: 22 },
+  subhead: { ...Fonts.regular, fontSize: 15, lineHeight: 20 },
+  subheadStrong: { ...Fonts.semibold, fontSize: 15, lineHeight: 20 },
+  callout: { ...Fonts.regular, fontSize: 15, lineHeight: 20 },
+  calloutStrong: { ...Fonts.semibold, fontSize: 15, lineHeight: 20 },
+  footnote: { ...Fonts.regular, fontSize: 13, lineHeight: 18 },
+  caption: { ...Fonts.medium, fontSize: 12, lineHeight: 16 },
   overline: {
-    fontFamily: Fonts.semibold,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 1.2,
+    ...Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
     textTransform: "uppercase",
   },
   priceHero: {
-    fontFamily: Fonts.bold,
-    fontSize: 36,
-    lineHeight: 40,
-    letterSpacing: -1,
+    ...Fonts.bold,
+    fontSize: 40,
+    lineHeight: 46,
     fontVariant: tabular,
   },
   price: {
-    fontFamily: Fonts.semibold,
+    ...Fonts.semibold,
     fontSize: 17,
     lineHeight: 22,
     fontVariant: tabular,
   },
   priceSmall: {
-    fontFamily: Fonts.medium,
-    fontSize: 13,
-    lineHeight: 17,
+    ...Fonts.medium,
+    fontSize: 15,
+    lineHeight: 20,
     fontVariant: tabular,
   },
 } satisfies Record<string, TextStyle>;

@@ -1,11 +1,21 @@
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActionSheetIOS,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  Share,
+  StyleSheet,
+  View,
+} from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
-import { Feather } from "@expo/vector-icons";
+import { Icon, type IconName } from "@/components/Icon";
 import * as WebBrowser from "expo-web-browser";
 
 import { Colors, Radius, Spacing, trustColors } from "@/constants/theme";
-import { Press, Txt } from "@/components/ui";
+import { notify, Press, select, tap, Txt } from "@/components/ui";
 import { StoreAvatar } from "@/components/StoreAvatar";
 import { formatMoney, useSettings } from "@/contexts/SettingsContext";
 import { countryFlag, countryName, t, type StringKey } from "@/lib/i18n";
@@ -19,20 +29,62 @@ import type {
 } from "@shared/scan";
 
 /** Opens an offer at the seller's own page when we can resolve it, else Google Shopping. */
-function useOfferOpener(offer: Offer): { open: () => void; opening: boolean } {
+function useOfferOpener(offer: Offer): {
+  open: () => void;
+  more: () => void;
+  opening: boolean;
+} {
   const [opening, setOpening] = useState(false);
-  const open = useCallback(async () => {
-    if (opening) return;
-    let url = offer.url;
-    if (offer.resolveToken) {
-      setOpening(true);
-      url =
-        (await resolveOfferLink(offer.resolveToken, offer.store)) ?? offer.url;
+  const link = useCallback(async () => {
+    if (!offer.resolveToken) return offer.url;
+    setOpening(true);
+    try {
+      return (
+        (await resolveOfferLink(offer.resolveToken, offer.store)) ?? offer.url
+      );
+    } finally {
       setOpening(false);
     }
-    openStore(url);
-  }, [offer, opening]);
-  return { open, opening };
+  }, [offer]);
+  const open = useCallback(async () => {
+    if (opening) return;
+    openStore(await link());
+  }, [link, opening]);
+  // Long press: the same choices Safari gives a link.
+  const more = useCallback(() => {
+    tap("medium");
+    const options = [t("Open"), t("Copy link"), t("Share"), t("Cancel")];
+    const run = async (i: number) => {
+      if (i === 0) return open();
+      if (i === 1) {
+        await Clipboard.setStringAsync(await link());
+        notify();
+        return;
+      }
+      if (i === 2) {
+        const url = await link();
+        Share.share(
+          Platform.OS === "ios"
+            ? { url, message: offer.title ?? undefined }
+            : { message: `${offer.title}\n${url}` },
+        ).catch(() => {});
+      }
+    };
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: 3, title: offer.store },
+        (i) => void run(i),
+      );
+    } else {
+      Alert.alert(offer.store, undefined, [
+        { text: options[0], onPress: () => void run(0) },
+        { text: options[1], onPress: () => void run(1) },
+        { text: options[2], onPress: () => void run(2) },
+        { text: options[3], style: "cancel" },
+      ]);
+    }
+  }, [link, offer, open]);
+  return { open, more, opening };
 }
 
 export function openStore(url: string): void {
@@ -69,7 +121,7 @@ export function TrustLabel({ offer }: { offer: Offer }) {
       : "info";
   return (
     <View style={styles.trust}>
-      <Feather name={icon} size={11} color={fg} />
+      <Icon name={icon} size={11} color={fg} />
       <Txt variant="caption" color={fg} numberOfLines={1}>
         {label}
       </Txt>
@@ -124,12 +176,13 @@ export function OfferRow({
   offer: Offer;
   linkable: boolean;
 }) {
-  const { open, opening } = useOfferOpener(offer);
+  const { open, more, opening } = useOfferOpener(offer);
   const meta = [`${countryFlag(offer.country)} ${countryName(offer.country)}`];
   if (offer.delivery) meta.push(offer.delivery);
   return (
     <Press
       onPress={open}
+      onLongPress={more}
       disabled={!linkable}
       scale={0.985}
       haptic
@@ -152,7 +205,7 @@ export function OfferRow({
         opening ? (
           <ActivityIndicator size="small" color={Colors.textTertiary} />
         ) : (
-          <Feather name="chevron-right" size={18} color={Colors.textTertiary} />
+          <Icon name="chevron-right" size={18} color={Colors.textTertiary} />
         )
       ) : null}
     </Press>
@@ -170,12 +223,12 @@ export function RecommendedCard({
   /** Picked from the user's own market. */
   local?: boolean;
 }) {
-  const { open, opening } = useOfferOpener(offer);
+  const { open, more, opening } = useOfferOpener(offer);
   return (
     <View style={styles.recommended}>
       <View style={styles.recommendedTop}>
         <View style={styles.badge}>
-          <Feather name="award" size={12} color={Colors.textInverse} />
+          <Icon name="award" size={12} color={Colors.textInverse} />
           <Txt variant="overline" color={Colors.textInverse}>
             {t("Recommended")}
           </Txt>
@@ -206,6 +259,7 @@ export function RecommendedCard({
         {linkable ? (
           <Press
             onPress={open}
+            onLongPress={more}
             haptic
             accessibilityRole="link"
             accessibilityLabel={`${t("Buy")} · ${offer.store}`}
@@ -217,7 +271,7 @@ export function RecommendedCard({
             {opening ? (
               <ActivityIndicator size="small" color={Colors.textInverse} />
             ) : (
-              <Feather
+              <Icon
                 name="arrow-up-right"
                 size={18}
                 color={Colors.textInverse}
@@ -238,14 +292,15 @@ export function PickTile({
   linkable,
 }: {
   label: string;
-  icon: React.ComponentProps<typeof Feather>["name"];
+  icon: IconName;
   offer: Offer;
   linkable: boolean;
 }) {
-  const { open } = useOfferOpener(offer);
+  const { open, more } = useOfferOpener(offer);
   return (
     <Press
       onPress={open}
+      onLongPress={linkable ? more : undefined}
       disabled={!linkable}
       haptic
       accessibilityRole="link"
@@ -253,7 +308,7 @@ export function PickTile({
       style={styles.tile}
     >
       <View style={styles.tileHead}>
-        <Feather name={icon} size={13} color={Colors.textSecondary} />
+        <Icon name={icon} size={13} color={Colors.textSecondary} />
         <Txt variant="overline" color={Colors.textSecondary}>
           {label}
         </Txt>
@@ -329,23 +384,22 @@ export function MarketTabs({
         return (
           <Press
             key={m.market}
-            onPress={() => onSelect(m.market)}
-            haptic
+            onPress={() => {
+              if (!active) select();
+              onSelect(m.market);
+            }}
             scale={0.98}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             accessibilityLabel={t(m.market)}
             style={[styles.tab, active && styles.tabActive]}
           >
-            <Txt
-              variant="calloutStrong"
-              color={active ? Colors.textInverse : Colors.text}
-            >
+            <Txt variant="calloutStrong" color={Colors.text}>
               {t(m.market)}
             </Txt>
             <Txt
               variant="priceSmall"
-              color={active ? "rgba(10,10,11,0.6)" : Colors.textTertiary}
+              color={active ? Colors.textSecondary : Colors.textTertiary}
               numberOfLines={1}
             >
               {lowestOf(m) ? primary(lowestOf(m) as Offer) : "—"}
@@ -398,7 +452,7 @@ export function VisualMatches({
                   contentFit="contain"
                 />
               ) : (
-                <Feather name="image" size={22} color={Colors.textInverse} />
+                <Icon name="image" size={22} color={Colors.textInverse} />
               )}
             </View>
             <View style={styles.vmBody}>
@@ -473,8 +527,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     backgroundColor: Colors.accent,
-    paddingHorizontal: Spacing.sm,
-    height: 22,
+    paddingHorizontal: Spacing.sm + 2,
+    height: 24,
     borderRadius: Radius.full,
   },
   recommendedBody: {
@@ -494,8 +548,8 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: Colors.accent,
     height: 48,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.full,
     flexShrink: 1,
   },
   tile: {
@@ -550,5 +604,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     gap: 1,
   },
-  tabActive: { backgroundColor: Colors.text },
+  tabActive: {
+    backgroundColor: Colors.surfacePressed,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
 });

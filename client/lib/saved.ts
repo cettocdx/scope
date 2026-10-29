@@ -23,16 +23,30 @@ export function newSavedId(): string {
     : `saved-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-/** Build the saved record for a scan. Prices are the recommended buy at save time. */
+/**
+ * Build the saved record for a scan. `purchasePrice` stays the recommended buy
+ * at save time; each refresh appends to `history`, so the list can show how
+ * the price moved since then.
+ */
 export function savedItemFrom(args: {
   id: string;
   identity: ProductIdentity;
   report: PriceReport | null;
   dateAdded?: string;
   image?: { imageUri?: string; thumbnailUri?: string };
+  previous?: SavedItem;
 }): SavedItem {
   const best = args.report?.picks.recommended ?? null;
   const price = best ? best.priceUSD : 0;
+  const prev = args.previous;
+  const firstPrice =
+    prev && prev.purchasePrice > 0 ? prev.purchasePrice : price;
+  const history =
+    price > 0
+      ? [...(prev?.history ?? []), price].slice(-30)
+      : (prev?.history ?? []);
+  const trend =
+    firstPrice > 0 && price > 0 ? ((price - firstPrice) / firstPrice) * 100 : 0;
   const offers = args.report
     ? args.report.markets.flatMap((m) => m.offers)
     : [];
@@ -42,12 +56,12 @@ export function savedItemFrom(args: {
     category: args.identity.category,
     estimatedPrice: price,
     currency: "USD",
-    purchasePrice: price,
-    trendPercentage: 0,
+    purchasePrice: firstPrice,
+    trendPercentage: Math.round(trend * 10) / 10,
     confidenceScore: args.identity.confidence,
     investmentRating: "HOLD",
     isAuthentic: true,
-    history: price > 0 ? [price] : [],
+    history,
     deals: offers
       .filter((o) => !o.suspicious)
       .slice(0, 20)

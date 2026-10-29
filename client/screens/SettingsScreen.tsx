@@ -4,10 +4,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import Constants from "expo-constants";
-import { Feather } from "@expo/vector-icons";
+import { Icon, type IconName } from "@/components/Icon";
 
 import { Colors, Radius, Spacing } from "@/constants/theme";
-import { Divider, IconButton, Press, Txt } from "@/components/ui";
+import { Divider, IconButton, Press, select, Txt } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useAuth } from "@/contexts/AuthContext";
 import { DISPLAY_CURRENCIES, useSettings } from "@/contexts/SettingsContext";
@@ -53,7 +53,7 @@ function LinkRow({
   onPress,
   tone,
 }: {
-  icon: React.ComponentProps<typeof Feather>["name"];
+  icon: IconName;
   label: string;
   /** Secondary line under the label. */
   detail?: string;
@@ -64,7 +64,7 @@ function LinkRow({
 }) {
   const content = (
     <>
-      <Feather
+      <Icon
         name={icon}
         size={18}
         color={tone === "accent" ? Colors.accent : Colors.textSecondary}
@@ -88,7 +88,7 @@ function LinkRow({
         </Txt>
       ) : null}
       {onPress ? (
-        <Feather name="chevron-right" size={18} color={Colors.textTertiary} />
+        <Icon name="chevron-right" size={18} color={Colors.textTertiary} />
       ) : null}
     </>
   );
@@ -141,7 +141,7 @@ export default function SettingsScreen({ navigation }: Props) {
           { paddingBottom: insets.bottom + Spacing.xxl },
         ]}
       >
-        <Txt variant="display" accessibilityRole="header">
+        <Txt variant="largeTitle" accessibilityRole="header">
           {t("Settings")}
         </Txt>
 
@@ -152,8 +152,10 @@ export default function SettingsScreen({ navigation }: Props) {
               return (
                 <Press
                   key={c}
-                  onPress={() => setCurrency(c)}
-                  haptic
+                  onPress={() => {
+                    if (!active) select();
+                    setCurrency(c);
+                  }}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: active }}
                   accessibilityLabel={c}
@@ -161,13 +163,13 @@ export default function SettingsScreen({ navigation }: Props) {
                 >
                   <Txt
                     variant="headline"
-                    color={active ? Colors.textInverse : Colors.text}
+                    color={active ? Colors.accent : Colors.text}
                   >
                     {CURRENCY_SYMBOL[c]}
                   </Txt>
                   <Txt
                     variant="caption"
-                    color={active ? "rgba(10,10,11,0.6)" : Colors.textTertiary}
+                    color={active ? Colors.textSecondary : Colors.textTertiary}
                   >
                     {c}
                   </Txt>
@@ -278,6 +280,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.md,
   },
-  segmentActive: { backgroundColor: Colors.text },
+  segmentActive: {
+    backgroundColor: Colors.surfacePressed,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
   about: { padding: Spacing.lg, gap: Spacing.sm },
 });

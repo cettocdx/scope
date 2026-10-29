@@ -154,6 +154,31 @@ const tr = {
   "Your saved items, on every device.": "Kaydettiklerin her cihazında.",
   "Continue with Google": "Google ile devam et",
   "Sign-in failed": "Giriş başarısız",
+  // — v2: Apple-grade polish —
+  Open: "Aç",
+  "Copy link": "Linki kopyala",
+  Flash: "Flaş",
+  "Reset zoom": "Yakınlaştırmayı sıfırla",
+  "Search by name": "Adıyla ara",
+  History: "Geçmiş",
+  "Snap anything.\nPay the best price.": "Her şeyi çek.\nEn iyi fiyata al.",
+  "SCOPE knows what it is in seconds and shows the cheapest and most trusted shops in the US, Europe and Türkiye.":
+    "SCOPE ne olduğunu saniyeler içinde anlar; ABD, Avrupa ve Türkiye'deki en ucuz ve en güvenilir mağazaları gösterir.",
+  "Get started": "Başla",
+  "Searched by name": "Adıyla arandı",
+  "Skip the tour": "Tanıtımı geç",
+  "Cheaper by {n}% since saved": "Kaydettiğinden beri %{n} ucuzladı",
+  "Pricier by {n}% since saved": "Kaydettiğinden beri %{n} pahalandı",
+  "Pull down to refresh every price.":
+    "Tüm fiyatları yenilemek için aşağı çek.",
+  "Clear history?": "Geçmiş temizlensin mi?",
+  Clear: "Temizle",
+  "Clear history": "Geçmişi temizle",
+  "No scans yet": "Henüz tarama yok",
+  "Every scan shows up here, even if you don't save it.":
+    "Kaydetmesen de her tarama burada görünür.",
+  "No photo needed — type a product to compare its prices.":
+    "Fotoğraf gerekmez — fiyatlarını karşılaştırmak için ürünü yaz.",
   "Signed in as {name}": "{name} olarak giriş yapıldı",
   "Sign-in needs a development build.": "Giriş için geliştirme sürümü gerekir.",
   "Version {v}": "Sürüm {v}",
