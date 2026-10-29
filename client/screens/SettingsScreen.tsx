@@ -12,6 +12,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useAuth } from "@/contexts/AuthContext";
 import { DISPLAY_CURRENCIES, useSettings } from "@/contexts/SettingsContext";
 import { quotaStatus } from "@/lib/quota";
+import { setOnboarded } from "@/lib/onboarding";
 import { t } from "@/lib/i18n";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
@@ -222,6 +223,15 @@ export default function SettingsScreen({ navigation }: Props) {
         </Section>
 
         <Section title={t("About")}>
+          <LinkRow
+            icon="play-circle"
+            label={t("Show the intro again")}
+            onPress={async () => {
+              await setOnboarded(false);
+              navigation.reset({ index: 0, routes: [{ name: "Onboarding" }] });
+            }}
+          />
+          <Divider inset={48} />
           <View style={styles.about}>
             <Txt variant="callout" color={Colors.textSecondary}>
               {t("Live prices from Google Shopping")}.{" "}

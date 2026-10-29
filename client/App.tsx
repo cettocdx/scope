@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AppState,
   AppStateStatus,
@@ -26,6 +26,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { Colors } from "@/constants/theme";
+import { hasOnboarded } from "@/lib/onboarding";
 
 // Bridge React Native's AppState into React Query's focus manager so queries
 // refresh when the app returns to the foreground (RN has no window focus event).
@@ -54,14 +55,20 @@ export default function App() {
     Inter_800ExtraBold,
   });
 
+  // First launch opens on the intro; afterwards straight on the camera.
+  const [firstRoute, setFirstRoute] = useState<"Onboarding" | "Scan" | null>(
+    null,
+  );
+
   useEffect(() => {
     const subscription = AppState.addEventListener("change", onAppStateChange);
+    hasOnboarded().then((done) => setFirstRoute(done ? "Scan" : "Onboarding"));
     return () => subscription.remove();
   }, []);
 
   // Hold on the dark canvas until Inter is ready so the first paint is on-brand
   // (no system-font flash).
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !firstRoute) {
     return <View style={styles.splash} />;
   }
 
@@ -74,7 +81,7 @@ export default function App() {
               <GestureHandlerRootView style={styles.root}>
                 <KeyboardProvider>
                   <NavigationContainer theme={navTheme}>
-                    <RootStackNavigator />
+                    <RootStackNavigator initialRouteName={firstRoute} />
                   </NavigationContainer>
                   <StatusBar style="light" />
                 </KeyboardProvider>

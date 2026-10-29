@@ -103,6 +103,22 @@ const tr = {
   "AI isn't set up on the server yet.":
     "Sunucuda yapay zekâ henüz ayarlı değil.",
   Close: "Kapat",
+  "Knows what anything is.": "Her şeyi tanır.",
+  "Point at any product — brand, model and variant in seconds.":
+    "Bir ürüne doğrult — markasını, modelini ve varyantını saniyeler içinde söyler.",
+  "Finds the cheapest and the safest.": "En ucuzu ve en güvenilirini bulur.",
+  "Searches shops in the US, Europe and Türkiye at once and scores every seller.":
+    "ABD, Avrupa ve Türkiye'deki mağazaları aynı anda tarar, her satıcıya güven puanı verir.",
+  "The exact item, one tap away.": "Tam olarak aynısı, tek dokunuşla.",
+  "Finds the same item in shops and opens the seller's own page.":
+    "Fotoğraftaki ürünün aynısını mağazalarda bulur, satıcının kendi sayfasını açar.",
+  "Opens the seller's page": "Satıcının sayfasını açar",
+  Skip: "Atla",
+  Continue: "Devam",
+  "Start scanning": "Taramaya başla",
+  "Your photos are only used to find the product. We don't keep them.":
+    "Fotoğrafların yalnızca ürünü bulmak için kullanılır. Saklamıyoruz.",
+  "Show the intro again": "Tanıtımı yeniden göster",
   "Same item in shops": "Mağazalarda aynısı",
   "Matched by photo — check the model before buying.":
     "Fotoğrafla eşleşti — almadan önce modeli kontrol et.",
