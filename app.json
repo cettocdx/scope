@@ -64,7 +64,8 @@
         }
       ],
       "expo-localization",
-      "expo-background-task"
+      "expo-background-task",
+      "./plugins/with-ios-build-fixes"
     ],
     "experiments": {
       "reactCompiler": true
