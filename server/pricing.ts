@@ -301,6 +301,10 @@ const RESALE_STORES = [
   "offerup",
 ];
 
+/** Seller names that say "second-hand" (Secondipity, SecondBest, 2nd Hand…). */
+const RESALE_NAME_RE =
+  /\bsecond|\b2nd[\s-]?hand|\brefurb|\brenewed|\bpre-?owned|\bikinci ?el/i;
+
 const USED_RE =
   /\b(used|pre-?owned|second[\s-]?hand|segunda mano|refurb(ished)?|renewed|open[\s-]?box|gebraucht|generalüberholt|occasion|reconditionn[ée]e?|usag[ée]e?|usato|usata|ricondizionat[oa]|usado|usada|seminuevo|reacondicionad[oa]|ikinci el|2\.? ?el|yenilenmi[sş]|teşhir)\b/i;
 
@@ -486,7 +490,8 @@ function toOffer(
 ): Offer | null {
   const store = (r.source || r.seller || "").trim();
   if (!store) return null;
-  if (includesAny(store, RESALE_STORES)) return null;
+  if (includesAny(store, RESALE_STORES) || RESALE_NAME_RE.test(store))
+    return null;
   // Google only sets this for second-hand listings ("usado", "gebraucht"…).
   if (r.second_hand_condition?.trim()) return null;
   const condition = `${r.condition ?? ""} ${r.second_hand_condition ?? ""} ${r.tag ?? ""} ${(r.extensions ?? []).join(" ")}`;
@@ -562,6 +567,7 @@ export function buildReport(
   offers: Offer[],
   query: string,
   live: boolean,
+  homeMarket?: Market | null,
 ): PriceReport {
   const all = dedupe(offers);
 
@@ -614,10 +620,15 @@ export function buildReport(
     [...clean].sort(
       (a, b) => b.trust.score - a.trust.score || byPrice(a, b),
     )[0] ?? null;
-  const recommended =
-    [...clean].filter((o) => o.trust.score >= 80).sort(byPrice)[0] ??
-    [...clean].filter((o) => o.trust.score >= 55).sort(byPrice)[0] ??
-    cheapest;
+  // Buying at home avoids cross-border shipping, customs and returns, so a
+  // trustworthy offer in the user's own market wins over a cheaper one abroad.
+  const bestBalance = (pool: Offer[]) =>
+    [...pool].filter((o) => o.trust.score >= 80).sort(byPrice)[0] ??
+    [...pool].filter((o) => o.trust.score >= 55).sort(byPrice)[0];
+  const local = homeMarket
+    ? bestBalance(clean.filter((o) => o.market === homeMarket))
+    : undefined;
+  const recommended = local ?? bestBalance(clean) ?? cheapest;
 
   const cleanPrices = clean.map((o) => o.priceUSD).sort((a, b) => a - b);
   const range =
@@ -632,7 +643,12 @@ export function buildReport(
   return {
     query,
     markets,
-    picks: { cheapest, safest, recommended },
+    picks: {
+      cheapest,
+      safest,
+      recommended,
+      recommendedIsLocal: Boolean(local),
+    },
     range,
     sourceCount: clean.length,
     pricedAt: new Date().toISOString(),
@@ -689,7 +705,7 @@ export async function findPrices(
     if (more.length > offers.length) offers = more;
   }
 
-  return buildReport(offers, query, true);
+  return buildReport(offers, query, true, req.homeMarket);
 }
 
 // ---------------------------------------------------------------------------

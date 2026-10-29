@@ -17,13 +17,25 @@ import { scheduleFxRefresh } from "./fx";
 import { activeProvider, AiNotConfiguredError } from "./ai";
 import { identifyProduct } from "./identify";
 import { findPrices, resolveOfferLink } from "./pricing";
-import type { IdentifyResponse } from "@shared/scan";
+import type { IdentifyResponse, VisualMatchesResponse } from "@shared/scan";
+import { findVisualMatches } from "./lens";
+import {
+  heldImage,
+  imageHostAvailable,
+  publishTempImage,
+  type PublishedImage,
+} from "./image-host";
 
 const identifyRequestSchema = z.object({
   image: z.string().min(1, "image is required"),
   barcode: z.string().max(64).optional(),
   // A user correction ("it's the 256GB one") re-runs identification with a hint.
   hint: z.string().max(140).optional(),
+});
+
+const visualMatchesSchema = z.object({
+  image: z.string().min(1, "image is required"),
+  homeMarket: z.enum(["US", "EU", "TR"]).nullable().optional(),
 });
 
 const offerLinkSchema = z.object({
@@ -38,6 +50,7 @@ const pricesRequestSchema = z.object({
   brand: z.string().max(60).nullable().optional(),
   barcode: z.string().max(64).nullable().optional(),
   estimateUSD: z.number().positive().nullable().optional(),
+  homeMarket: z.enum(["US", "EU", "TR"]).nullable().optional(),
 });
 
 const offerSchema = z
@@ -280,6 +293,25 @@ export function calculateValuation(
   };
 }
 
+/** Validate a scan photo (data URI or bare base64) by its real bytes. */
+function decodeScanImage(
+  image: string,
+):
+  | { base64: string; buffer: Buffer; type: "jpeg" | "png" | "webp" }
+  | { error: string; status: number } {
+  const base64 = image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+  if (base64.length < 100) return { error: "Invalid image data", status: 400 };
+  const MAX_DECODED_BYTES = 12 * 1024 * 1024;
+  if (Math.floor((base64.length * 3) / 4) > MAX_DECODED_BYTES) {
+    return { error: "Image too large", status: 413 };
+  }
+  const buffer = Buffer.from(base64, "base64");
+  const type = detectImageType(buffer);
+  if (!type)
+    return { error: "Invalid or unsupported image format", status: 400 };
+  return { base64, buffer, type };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Keep currency conversion honest: refresh live FX into both rate tables
   // (this module's FX_RATES and serpapi's EXCHANGE_RATES) on boot + every 6h.
@@ -320,30 +352,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    const base64Data = image.replace(
-      /^data:image\/(png|jpeg|jpg|webp);base64,/,
-      "",
-    );
-    if (base64Data.length < 100) {
-      return res.status(400).json({ error: "Invalid image data" });
+    const img = decodeScanImage(image);
+    if ("error" in img) {
+      return res.status(img.status).json({ error: img.error });
     }
-    const MAX_DECODED_BYTES = 12 * 1024 * 1024;
-    if (Math.floor((base64Data.length * 3) / 4) > MAX_DECODED_BYTES) {
-      return res.status(413).json({ error: "Image too large" });
-    }
-    const detectedType = detectImageType(Buffer.from(base64Data, "base64"));
-    if (!detectedType) {
-      return res
-        .status(400)
-        .json({ error: "Invalid or unsupported image format" });
-    }
+    const { base64: base64Data, type: detectedType } = img;
 
     // Only numeric product codes (UPC/EAN) identify a product; QR URLs do not.
     const productCode =
       barcode && /^\d{8,14}$/.test(barcode.trim()) ? barcode.trim() : null;
 
     try {
-      const { identity, model, provider } = await identifyProduct(
+      const { identity, model, provider, secondLook } = await identifyProduct(
         `image/${detectedType}`,
         base64Data,
         { barcode: productCode, hint: hint ?? null },
@@ -355,8 +375,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         regulated: identity.regulated,
         barcode: Boolean(productCode),
         hinted: Boolean(hint),
+        kind: identity.kind,
         model,
         provider,
+        secondLook,
         durationMs: tookMs,
       });
       const body: IdentifyResponse = { identity, tookMs };
@@ -383,6 +405,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .status(502)
         .json({ error: "Could not identify the item. Please try again." });
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // Scan, in parallel with identify: the same-looking item in shops (Google
+  // Lens). Finds the exact T-shirt when the brand shows but the model doesn't.
+  // -------------------------------------------------------------------------
+  app.post("/api/visual-matches", async (req, res) => {
+    const started = Date.now();
+    const parsed = visualMatchesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: fromZodError(parsed.error).toString() });
+    }
+    if (!process.env.SERPAPI_KEY || !imageHostAvailable()) {
+      const off: VisualMatchesResponse = {
+        available: false,
+        matches: [],
+        tookMs: 0,
+      };
+      return res.json(off);
+    }
+    const img = decodeScanImage(parsed.data.image);
+    if ("error" in img) {
+      return res.status(img.status).json({ error: img.error });
+    }
+    let published: PublishedImage | null = null;
+    try {
+      published = await publishTempImage(img.buffer, `image/${img.type}`);
+      const matches = published
+        ? await findVisualMatches(published.url, parsed.data.homeMarket ?? "US")
+        : [];
+      const body: VisualMatchesResponse = {
+        available: Boolean(published),
+        matches,
+        tookMs: Date.now() - started,
+      };
+      track("scan_visual_matches", {
+        count: matches.length,
+        withPrice: matches.filter((m) => m.price !== null).length,
+        durationMs: body.tookMs,
+      });
+      res.json(body);
+    } catch (error: unknown) {
+      captureError(error, { route: "/api/visual-matches" });
+      res.json({ available: true, matches: [], tookMs: Date.now() - started });
+    } finally {
+      await published?.remove();
+    }
+  });
+
+  // A scan photo held for a few minutes so Google Lens can fetch it (only when
+  // PUBLIC_BASE_URL is set). The id is 144 random bits and expires quickly.
+  app.get("/api/tmp-image/:file", (req, res) => {
+    const id = req.params.file.replace(/\.[a-z]+$/i, "");
+    const img = heldImage(id);
+    if (!img) return res.status(404).end();
+    res.setHeader("Content-Type", img.mime);
+    res.setHeader("Cache-Control", "no-store");
+    res.end(img.data);
   });
 
   // -------------------------------------------------------------------------

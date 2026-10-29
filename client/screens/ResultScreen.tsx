@@ -38,6 +38,7 @@ import {
   PickTile,
   RangeBar,
   RecommendedCard,
+  VisualMatches,
   openStore,
 } from "@/components/offers";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -52,6 +53,7 @@ import {
   identityFromName,
   pricesRequestFor,
   titleFor,
+  visualMatches,
 } from "@/services/scanService";
 import {
   useAddAsset,
@@ -60,7 +62,12 @@ import {
 } from "@/hooks/usePortfolio";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import type { Market, PriceReport, ProductIdentity } from "@shared/scan";
+import type {
+  Market,
+  PriceReport,
+  ProductIdentity,
+  VisualMatch,
+} from "@shared/scan";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 
@@ -98,7 +105,7 @@ export default function ResultScreen({ navigation, route }: Props) {
   const addAsset = useAddAsset();
   const removeAsset = useRemoveAsset();
   const { isPro } = useAuth();
-  const { currency } = useSettings();
+  const { homeMarket } = useSettings();
 
   const [identity, setIdentity] = useState<ProductIdentity | null>(
     saved ? (saved.identity ?? identityFromName(saved.itemName)) : null,
@@ -117,45 +124,47 @@ export default function ResultScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [market, setMarket] = useState<Market>(
-    currency === "TRY"
-      ? "TR"
-      : currency === "EUR" || currency === "GBP"
-        ? "EU"
-        : "US",
-  );
+  const [market, setMarket] = useState<Market>(homeMarket);
   const [expanded, setExpanded] = useState(false);
+  const [matches, setMatches] = useState<VisualMatch[]>([]);
   const runToken = useRef(0);
   const refreshed = useRef(false);
 
   const imageUri = photo?.uri ?? (saved ? imageSource(saved) : undefined);
 
-  const runPrices = useCallback(async (id: ProductIdentity) => {
-    const token = ++runToken.current;
-    setPriceState("loading");
-    setPriceError(null);
-    try {
-      const r = await fetchPrices(pricesRequestFor(id));
-      if (token !== runToken.current) return;
-      setReport(r);
-      setPriceState("done");
-      setExpanded(false);
-      setMarket((current) => {
-        const has = (m: Market) =>
-          (r.markets.find((x) => x.market === m)?.offers.length ?? 0) > 0;
-        return has(current)
-          ? current
-          : (r.markets.find((m) => m.offers.length > 0)?.market ?? current);
-      });
-    } catch (e) {
-      if (token !== runToken.current) return;
-      setPriceError(e instanceof Error ? e.message : String(e));
-      setPriceState("error");
-    }
-  }, []);
+  const runPrices = useCallback(
+    async (id: ProductIdentity) => {
+      const token = ++runToken.current;
+      setPriceState("loading");
+      setPriceError(null);
+      try {
+        const r = await fetchPrices(pricesRequestFor(id, homeMarket));
+        if (token !== runToken.current) return;
+        setReport(r);
+        setPriceState("done");
+        setExpanded(false);
+        setMarket((current) => {
+          const has = (m: Market) =>
+            (r.markets.find((x) => x.market === m)?.offers.length ?? 0) > 0;
+          return has(current)
+            ? current
+            : (r.markets.find((m) => m.offers.length > 0)?.market ?? current);
+        });
+      } catch (e) {
+        if (token !== runToken.current) return;
+        setPriceError(e instanceof Error ? e.message : String(e));
+        setPriceState("error");
+      }
+    },
+    [homeMarket],
+  );
 
   const runIdentify = useCallback(async () => {
     if (!photo) return;
+    // Lens runs alongside identification; it shows up whenever it lands.
+    void visualMatches(photo.base64, homeMarket).then((r) =>
+      setMatches(r.matches),
+    );
     setIdError(null);
     setIdentity(null);
     setReport(null);
@@ -164,11 +173,12 @@ export default function ResultScreen({ navigation, route }: Props) {
       const res = await identify(photo.base64, { barcode: photo.barcode });
       setIdentity(res.identity);
       if (!isPro) void recordScan();
-      void runPrices(res.identity);
+      // Animals, people, places… have nothing to price.
+      if (res.identity.kind !== "not_for_sale") void runPrices(res.identity);
     } catch (e) {
       setIdError(e instanceof Error ? e.message : String(e));
     }
-  }, [isPro, photo, runPrices]);
+  }, [homeMarket, isPro, photo, runPrices]);
 
   useEffect(() => {
     if (photo) void runIdentify();
@@ -324,6 +334,9 @@ export default function ResultScreen({ navigation, route }: Props) {
             <View style={styles.identity}>
               <View style={styles.chips}>
                 <Chip icon={conf.icon} label={conf.label} color={conf.color} />
+                {identity.kind === "generic" ? (
+                  <Chip icon="tag" label={t("Brand not visible")} />
+                ) : null}
                 {identity.barcode ? (
                   <Chip icon="maximize" label={identity.barcode} />
                 ) : null}
@@ -351,6 +364,23 @@ export default function ResultScreen({ navigation, route }: Props) {
                   {t("Not right?")}
                 </Txt>
               </Press>
+              {(identity.others ?? []).length > 0 ? (
+                <View style={styles.alts}>
+                  <Txt variant="caption" color={Colors.textTertiary}>
+                    {t("Also in this photo")}
+                  </Txt>
+                  <View style={styles.chips}>
+                    {identity.others.map((o) => (
+                      <Chip
+                        key={o}
+                        label={o}
+                        icon="plus"
+                        onPress={() => applyName(o)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
               {identity.alternatives.length > 0 ? (
                 <View style={styles.alts}>
                   <Txt variant="caption" color={Colors.textTertiary}>
@@ -412,6 +442,39 @@ export default function ResultScreen({ navigation, route }: Props) {
             </View>
           )}
 
+          {matches.length > 0 ? (
+            <VisualMatches matches={matches} linkable={!identity?.regulated} />
+          ) : null}
+
+          {identity?.kind === "not_for_sale" && priceState === "idle" ? (
+            <View style={styles.notice}>
+              <Feather name="info" size={16} color={Colors.textSecondary} />
+              <View style={styles.flex}>
+                <Txt variant="calloutStrong">
+                  {t("Not something you buy in a shop")}
+                </Txt>
+                <Txt variant="callout" color={Colors.textSecondary}>
+                  {t(
+                    "Tap something else in the photo, or type what you're looking for.",
+                  )}
+                </Txt>
+                {identity.searchQuery ? (
+                  <Press
+                    onPress={() => applyName(identity.searchQuery)}
+                    haptic
+                    accessibilityRole="button"
+                    style={styles.notRight}
+                  >
+                    <Feather name="search" size={14} color={Colors.accent} />
+                    <Txt variant="calloutStrong" color={Colors.accent}>
+                      {identity.searchQuery}
+                    </Txt>
+                  </Press>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
           {identity?.regulated ? (
             <View style={styles.notice}>
               <Feather name="slash" size={16} color={Colors.trustMid} />
@@ -470,6 +533,7 @@ export default function ResultScreen({ navigation, route }: Props) {
                   <RecommendedCard
                     offer={picks.recommended}
                     linkable={linkable}
+                    local={picks.recommendedIsLocal}
                   />
                   {showSideTiles ? (
                     <View style={styles.tiles}>

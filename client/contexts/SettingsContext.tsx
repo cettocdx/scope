@@ -12,6 +12,7 @@ import { getLocales } from "expo-localization";
 import { getApiUrl } from "@/lib/query-client";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { LOCALE } from "@/lib/i18n";
+import type { Market } from "@shared/scan";
 
 export const DISPLAY_CURRENCIES = ["USD", "EUR", "TRY", "GBP"] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
@@ -62,7 +63,25 @@ function defaultCurrency(): DisplayCurrency {
   return "USD";
 }
 
+/** The market a user buys in: Türkiye, Europe (EU + UK) or the US. */
+function deviceMarket(): Market {
+  try {
+    const locale = getLocales()[0];
+    const region = locale?.regionCode?.toUpperCase() ?? "";
+    if (region === "TR" || (!region && locale?.languageCode === "tr"))
+      return "TR";
+    if (region === "GB" || EU_REGIONS.has(region)) return "EU";
+  } catch {
+    // fall through
+  }
+  return "US";
+}
+
+const HOME_MARKET: Market = deviceMarket();
+
 interface SettingsValue {
+  /** Where the user buys; its offers are recommended first. */
+  homeMarket: Market;
   currency: DisplayCurrency;
   setCurrency: (c: DisplayCurrency) => void;
   /** Convert a USD amount to the display currency. */
@@ -119,6 +138,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const perUnit = rates[currency] || 1;
     const fromUSD = (usd: number) => usd / perUnit;
     return {
+      homeMarket: HOME_MARKET,
       currency,
       setCurrency,
       fromUSD,

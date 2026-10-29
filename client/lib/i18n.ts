@@ -103,6 +103,17 @@ const tr = {
   "AI isn't set up on the server yet.":
     "Sunucuda yapay zekâ henüz ayarlı değil.",
   Close: "Kapat",
+  "Same item in shops": "Mağazalarda aynısı",
+  "Matched by photo — check the model before buying.":
+    "Fotoğrafla eşleşti — almadan önce modeli kontrol et.",
+  "Also in this photo": "Fotoğrafta ayrıca",
+  "Not something you buy in a shop": "Mağazada satılan bir ürün değil",
+  "Tap something else in the photo, or type what you're looking for.":
+    "Fotoğraftaki başka bir şeye dokun ya da aradığını yaz.",
+  "Brand not visible": "Marka görünmüyor",
+  "Best price you can trust in the US": "ABD'de güvenilir en iyi fiyat",
+  "Best price you can trust in Europe": "Avrupa'da güvenilir en iyi fiyat",
+  "Best price you can trust in Türkiye": "Türkiye'de güvenilir en iyi fiyat",
   Buy: "Satın al",
   "Search the stores": "Mağazalarda ara",
   "Free includes {n} scans a day.": "Ücretsiz sürümde günde {n} tarama var.",

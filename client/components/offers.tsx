@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 
@@ -9,7 +10,13 @@ import { StoreAvatar } from "@/components/StoreAvatar";
 import { formatMoney, useSettings } from "@/contexts/SettingsContext";
 import { countryFlag, countryName, t, type StringKey } from "@/lib/i18n";
 import { resolveOfferLink } from "@/services/scanService";
-import type { Market, MarketSummary, Offer, TrustTier } from "@shared/scan";
+import type {
+  Market,
+  MarketSummary,
+  Offer,
+  TrustTier,
+  VisualMatch,
+} from "@shared/scan";
 
 /** Opens an offer at the seller's own page when we can resolve it, else Google Shopping. */
 function useOfferOpener(offer: Offer): { open: () => void; opening: boolean } {
@@ -36,6 +43,12 @@ export function openStore(url: string): void {
     dismissButtonStyle: "close",
   }).catch(() => {});
 }
+
+const LOCAL_PICK: Record<Market, StringKey> = {
+  US: "Best price you can trust in the US",
+  EU: "Best price you can trust in Europe",
+  TR: "Best price you can trust in Türkiye",
+};
 
 const TIER_LABEL: Record<TrustTier, StringKey> = {
   official: "Official store",
@@ -150,9 +163,12 @@ export function OfferRow({
 export function RecommendedCard({
   offer,
   linkable,
+  local,
 }: {
   offer: Offer;
   linkable: boolean;
+  /** Picked from the user's own market. */
+  local?: boolean;
 }) {
   const { open, opening } = useOfferOpener(offer);
   return (
@@ -165,7 +181,9 @@ export function RecommendedCard({
           </Txt>
         </View>
         <Txt variant="caption" color={Colors.textTertiary}>
-          {t("Best balance of price and trust")}
+          {local
+            ? t(LOCAL_PICK[offer.market])
+            : t("Best balance of price and trust")}
         </Txt>
       </View>
 
@@ -339,7 +357,94 @@ export function MarketTabs({
   );
 }
 
+/** Shops showing the same-looking item, straight from the photo (Google Lens). */
+export function VisualMatches({
+  matches,
+  linkable,
+}: {
+  matches: VisualMatch[];
+  linkable: boolean;
+}) {
+  const { currency, formatUSD } = useSettings();
+  return (
+    <View style={styles.vmSection}>
+      <View style={styles.vmHead}>
+        <Txt variant="title">{t("Same item in shops")}</Txt>
+        <Txt variant="caption" color={Colors.textTertiary}>
+          {t("Matched by photo — check the model before buying.")}
+        </Txt>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.vmRow}
+      >
+        {matches.map((m) => (
+          <Press
+            key={m.url}
+            onPress={() => openStore(m.url)}
+            disabled={!linkable}
+            haptic
+            scale={0.97}
+            accessibilityRole="link"
+            accessibilityLabel={`${m.store}: ${m.title}`}
+            style={styles.vmCard}
+          >
+            <View style={styles.vmThumb}>
+              {m.thumbnail ? (
+                <Image
+                  source={{ uri: m.thumbnail }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="contain"
+                />
+              ) : (
+                <Feather name="image" size={22} color={Colors.textInverse} />
+              )}
+            </View>
+            <View style={styles.vmBody}>
+              <Txt
+                variant="caption"
+                color={Colors.textSecondary}
+                numberOfLines={1}
+              >
+                {m.store}
+              </Txt>
+              <Txt variant="calloutStrong" numberOfLines={2}>
+                {m.title}
+              </Txt>
+              {m.price !== null && m.currency ? (
+                <Txt variant="price" numberOfLines={1}>
+                  {m.currency === currency || m.priceUSD === null
+                    ? formatMoney(m.price, m.currency)
+                    : formatUSD(m.priceUSD)}
+                </Txt>
+              ) : null}
+            </View>
+          </Press>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  vmSection: { gap: Spacing.md },
+  vmHead: { gap: 2 },
+  vmRow: { gap: Spacing.md, paddingRight: Spacing.gutter },
+  vmCard: {
+    width: 156,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    overflow: "hidden",
+  },
+  vmThumb: {
+    width: 156,
+    height: 140,
+    backgroundColor: "#F5F5F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  vmBody: { padding: Spacing.md, gap: 3 },
   trust: { flexDirection: "row", alignItems: "center", gap: 4 },
   row: {
     flexDirection: "row",

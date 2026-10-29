@@ -233,6 +233,7 @@ function setupSecurity(app: express.Application) {
   app.use("/api/identify", aiLimiter);
   app.use("/api/prices", aiLimiter);
   app.use("/api/offer-link", aiLimiter);
+  app.use("/api/visual-matches", aiLimiter);
   app.use("/api/valuate", aiLimiter);
 
   // Looser limiter for the rest of the API surface.

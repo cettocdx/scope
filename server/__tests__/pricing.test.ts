@@ -130,6 +130,33 @@ describe("buildReport", () => {
     expect(report.sourceCount).toBe(6);
   });
 
+  it("recommends a trustworthy offer from the user's own market first", () => {
+    const offers = [
+      offer({ store: "Amazon.it", priceUSD: 221, market: "EU", country: "IT" }),
+      offer({ store: "Best Buy", priceUSD: 255 }),
+      offer({ store: "Amazon", priceUSD: 306, market: "TR", country: "TR" }),
+      offer({
+        store: "gadgetzone24",
+        priceUSD: 280,
+        market: "TR",
+        country: "TR",
+      }),
+    ];
+    const home = buildReport(offers, "x", true, "TR");
+    expect(home.picks.recommended?.store).toBe("Amazon");
+    expect(home.picks.recommendedIsLocal).toBe(true);
+    expect(home.picks.cheapest?.store).toBe("Amazon.it");
+
+    const world = buildReport(offers, "x", true);
+    expect(world.picks.recommended?.store).toBe("Amazon.it");
+    expect(world.picks.recommendedIsLocal).toBe(false);
+
+    // No trustworthy offer at home: fall back to the best one anywhere.
+    const none = buildReport(offers.slice(0, 2), "x", true, "TR");
+    expect(none.picks.recommended?.store).toBe("Amazon.it");
+    expect(none.picks.recommendedIsLocal).toBe(false);
+  });
+
   it("keeps one entry per store per country (its lowest price)", () => {
     const report = buildReport(
       [
@@ -191,6 +218,12 @@ describe("findPrices", () => {
         extracted_price: 120,
         second_hand_condition: "usado",
         link: "https://shop.example/a",
+      },
+      {
+        title: "Apple AirPods Pro 2 USB-C",
+        source: "Walmart - Secondipity",
+        extracted_price: 160,
+        link: "https://walmart.com/s",
       },
       {
         title: "Apple AirPods Pro 2 USB-C",

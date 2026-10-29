@@ -44,7 +44,9 @@ SCOPE never invents a price: without live offers it says so and links to the sto
 | | |
 |---|---|
 | ⚡ **Two-step scan** | Identity first (≈2 s), prices stream in after — you never stare at a spinner. |
-| 🎯 **Exact match** | Reads logos, labels and barcodes; shows how sure it is and lets you correct it in one tap. |
+| 🎯 **Exact match** | Reads logos, labels and barcodes; shows how sure it is and lets you correct it in one tap. A stronger model takes a second look when the fast one is unsure. |
+| 👕 **Same item in shops** | Google Lens finds the exact item from the photo — e.g. a branded T-shirt's SKU — with shop links and prices. |
+| 🧭 **Any object** | Branded products, unbranded things ("white ceramic mug") and things you can't buy (a dog) are each handled honestly; other items in the photo are one tap away. |
 | 🌍 **US · Europe · Türkiye** | All countries queried in parallel; prices shown in your currency with live FX, plus the store's own price. |
 | 🛡️ **Seller trust** | Official brand stores › major retailers › marketplaces › unknown shops. Suspiciously cheap offers are flagged. |
 | 🏷️ **Recommended / Cheapest / Most trusted** | Three clear answers, then the full list per market. |
@@ -112,6 +114,8 @@ npx expo start              # scan the QR with Expo Go, or press i for the simul
 | `OPENROUTER_MODELS` | – | Comma-separated vision models to try in order |
 | `SERPAPI_KEY` | – | Live store prices and links (search links without it) |
 | `PRICE_COUNTRIES` | – | Countries to query, default `US,DE,FR,IT,ES,UK,TR` |
+| `PUBLIC_BASE_URL` or `BLOB_READ_WRITE_TOKEN` | – | Google Lens "same item in shops" (Lens needs the photo at a public URL for a few minutes) |
+| `OPENROUTER_PRECISE_MODELS` | – | Stronger models for a second look at hard photos |
 | `DATABASE_URL` | – | Sync saved items across devices (device-only without it) |
 | `POSTHOG_KEY`, `AMAZON_AFFILIATE_TAG`, … | – | Telemetry / affiliate links |
 

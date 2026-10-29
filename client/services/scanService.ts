@@ -3,6 +3,8 @@ import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { t } from "@/lib/i18n";
 import type {
   IdentifyResponse,
+  Market,
+  VisualMatchesResponse,
   PriceReport,
   PricesRequest,
   ProductIdentity,
@@ -76,8 +78,12 @@ export function identify(
   );
 }
 
-export function pricesRequestFor(identity: ProductIdentity): PricesRequest {
+export function pricesRequestFor(
+  identity: ProductIdentity,
+  homeMarket: Market,
+): PricesRequest {
   return {
+    homeMarket,
     query: identity.searchQuery,
     altQueries: identity.altQueries,
     mustHave: identity.mustHave,
@@ -98,6 +104,7 @@ export function identityFromName(
 ): ProductIdentity {
   const clean = name.replace(/\s+/g, " ").trim();
   return {
+    kind: "product",
     name: clean,
     brand: null,
     model: null,
@@ -108,6 +115,7 @@ export function identityFromName(
     altQueries: [],
     mustHave: [],
     alternatives: [],
+    others: [],
     regulated: base?.regulated ?? false,
     barcode: null,
     estimateUSD: null,
@@ -138,5 +146,21 @@ export async function resolveOfferLink(
     return r.url;
   } catch {
     return null;
+  }
+}
+
+/** Shops showing the same-looking item (Google Lens). Empty when not set up. */
+export async function visualMatches(
+  imageBase64: string,
+  homeMarket: Market,
+): Promise<VisualMatchesResponse> {
+  try {
+    return await post<VisualMatchesResponse>(
+      "/api/visual-matches",
+      { image: imageBase64, homeMarket },
+      30_000,
+    );
+  } catch {
+    return { available: false, matches: [], tookMs: 0 };
   }
 }

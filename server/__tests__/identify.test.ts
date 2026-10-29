@@ -56,4 +56,55 @@ describe("normalizeIdentity", () => {
     );
     expect(id.regulated).toBe(true);
   });
+
+  it("reads what kind of thing it is and what else is in the photo", () => {
+    const shirt = normalizeIdentity(
+      {
+        kind: "product",
+        name: "Nike Sportswear Club T-Shirt, Black",
+        brand: "Nike",
+        others: ["Apple Watch Series 9", "Ray-Ban Wayfarer"],
+      },
+      null,
+    );
+    expect(shirt.kind).toBe("product");
+    expect(shirt.others).toEqual(["Apple Watch Series 9", "Ray-Ban Wayfarer"]);
+
+    expect(
+      normalizeIdentity(
+        { kind: "not_for_sale", name: "Golden retriever" },
+        null,
+      ).kind,
+    ).toBe("not_for_sale");
+    expect(normalizeIdentity({ kind: "something else" }, null).kind).toBe(
+      "product",
+    );
+  });
+
+  it("unwraps a nested answer and never suggests buying a not-for-sale thing", () => {
+    const mug = normalizeIdentity(
+      {
+        main: {
+          kind: "generic",
+          name: "White ceramic coffee mug",
+          confidence: 80,
+        },
+        others: [{ name: "Black electric kettle" }, "Granite countertop"],
+      },
+      null,
+    );
+    expect(mug.name).toBe("White ceramic coffee mug");
+    expect(mug.kind).toBe("generic");
+    expect(mug.others).toEqual(["Black electric kettle", "Granite countertop"]);
+
+    const dog = normalizeIdentity(
+      {
+        kind: "not_for_sale",
+        name: "Golden retriever",
+        searchQuery: "golden retriever puppy for sale",
+      },
+      null,
+    );
+    expect(dog.searchQuery).toBe("");
+  });
 });

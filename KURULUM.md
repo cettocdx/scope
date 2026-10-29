@@ -19,6 +19,7 @@ Bu rehber, uygulamayı kendi bilgisayarında ve telefonunda (ya da iOS simülat�
 | Ürünü fotoğraftan tanımak | `OPENROUTER_API_KEY` **veya** `GEMINI_API_KEY` | Evet (biri) |
 | ABD / Avrupa / Türkiye mağaza fiyatları + linkleri | `SERPAPI_KEY` | Hayır — yoksa mağaza arama linkleri gösterilir |
 | Kaydedilenleri cihazlar arası eşitlemek | `DATABASE_URL` (PostgreSQL) | Hayır — yoksa kayıtlar telefonda kalır |
+| "Mağazalarda aynısı" (Google Lens ile birebir ürün) | `SERPAPI_KEY` + `PUBLIC_BASE_URL` **veya** `BLOB_READ_WRITE_TOKEN` | Hayır — yoksa bu bölüm gizlenir |
 
 - OpenRouter anahtarı: https://openrouter.ai/keys (tek anahtarla birçok model; varsayılan `google/gemini-2.5-flash`)
 - Gemini anahtarı (ücretsiz): https://aistudio.google.com/apikey

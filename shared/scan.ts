@@ -26,7 +26,14 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
+/**
+ * product: a specific brand/model; generic: buyable but unbranded;
+ * not_for_sale: animals, people, places, served food… (no price search).
+ */
+export type IdentityKind = "product" | "generic" | "not_for_sale";
+
 export interface ProductIdentity {
+  kind: IdentityKind;
   /** Full, shop-ready product name, e.g. "Apple AirPods Pro 2 (USB-C)". */
   name: string;
   brand: string | null;
@@ -44,6 +51,8 @@ export interface ProductIdentity {
   mustHave: string[];
   /** Other products it could be, when unsure. */
   alternatives: string[];
+  /** Other buyable things seen in the same photo. */
+  others: string[];
   /** Age-restricted goods (vape, alcohol, weapons…): links are hidden. */
   regulated: boolean;
   /** A UPC/EAN read from the item, when present. */
@@ -114,8 +123,10 @@ export interface PriceReport {
   picks: {
     cheapest: Offer | null;
     safest: Offer | null;
-    /** Best balance of price and trust. */
+    /** Best balance of price and trust — from the user's own market when it has a trustworthy offer. */
     recommended: Offer | null;
+    /** True when `recommended` comes from the user's own market. */
+    recommendedIsLocal: boolean;
   };
   /** Typical new price across all trustworthy offers, USD. */
   range: { min: number; median: number; max: number } | null;
@@ -133,4 +144,26 @@ export interface PricesRequest {
   brand?: string | null;
   barcode?: string | null;
   estimateUSD?: number | null;
+  /** The user's own market: its trustworthy offers are recommended first. */
+  homeMarket?: Market | null;
+}
+
+/** A page Google Lens found showing the same-looking item, usually a shop. */
+export interface VisualMatch {
+  title: string;
+  store: string;
+  url: string;
+  thumbnail: string | null;
+  /** In the shop's currency, when Lens shows a price. */
+  price: number | null;
+  currency: string | null;
+  priceUSD: number | null;
+  inStock: boolean | null;
+}
+
+export interface VisualMatchesResponse {
+  /** False when visual matching is not configured on the server. */
+  available: boolean;
+  matches: VisualMatch[];
+  tookMs: number;
 }

@@ -39,7 +39,20 @@ const GEMINI_MODELS = [
   "gemini-2.0-flash",
 ];
 
+/** Stronger models for a second look at hard photos. Override with OPENROUTER_PRECISE_MODELS. */
+const DEFAULT_OPENROUTER_PRECISE_MODELS = [
+  "google/gemini-2.5-pro",
+  "openai/gpt-4.1",
+];
+const GEMINI_PRECISE_MODELS = ["gemini-2.5-pro"];
+
 const ATTEMPT_TIMEOUT_MS = 15_000;
+const PRECISE_TIMEOUT_MS = 30_000;
+
+export interface VisionOptions {
+  /** Use a stronger, slower model that may reason before answering. */
+  precise?: boolean;
+}
 
 export function activeProvider(): AiProvider | null {
   if (process.env.OPENROUTER_API_KEY) return "openrouter";
@@ -47,15 +60,23 @@ export function activeProvider(): AiProvider | null {
   return null;
 }
 
-function openRouterModels(): string[] {
-  const raw = process.env.OPENROUTER_MODELS;
+function modelList(raw: string | undefined, fallback: string[]): string[] {
   const list = raw
     ? raw
         .split(",")
         .map((m) => m.trim())
         .filter(Boolean)
-    : DEFAULT_OPENROUTER_MODELS;
-  return list.length ? list : DEFAULT_OPENROUTER_MODELS;
+    : fallback;
+  return list.length ? list : fallback;
+}
+
+function openRouterModels(precise: boolean): string[] {
+  return precise
+    ? modelList(
+        process.env.OPENROUTER_PRECISE_MODELS,
+        DEFAULT_OPENROUTER_PRECISE_MODELS,
+      )
+    : modelList(process.env.OPENROUTER_MODELS, DEFAULT_OPENROUTER_MODELS);
 }
 
 function isTransient(status: number | undefined, message: string): boolean {
@@ -92,13 +113,17 @@ async function callOpenRouter(
   mimeType: string,
   base64: string,
   prompt: string,
+  precise: boolean,
 ): Promise<VisionResult> {
   const key = process.env.OPENROUTER_API_KEY as string;
   let lastErr: unknown;
 
-  for (const model of openRouterModels()) {
+  for (const model of openRouterModels(precise)) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => controller.abort(),
+      precise ? PRECISE_TIMEOUT_MS : ATTEMPT_TIMEOUT_MS,
+    );
     try {
       const res = await fetch(OPENROUTER_URL, {
         method: "POST",
@@ -112,11 +137,13 @@ async function callOpenRouter(
         body: JSON.stringify({
           model,
           temperature: 0.1,
-          max_tokens: 900,
+          max_tokens: precise ? 4000 : 1500,
           response_format: { type: "json_object" },
-          // Identification needs sharp eyes, not long deliberation: skipping
-          // reasoning is the single biggest latency win on thinking models.
-          reasoning: { enabled: false },
+          // The fast pass skips reasoning (the biggest latency win on thinking
+          // models); the second look may think briefly about hard photos.
+          reasoning: precise
+            ? { effort: "low", exclude: true }
+            : { enabled: false },
           messages: [
             {
               role: "user",
@@ -179,6 +206,7 @@ async function callGemini(
   mimeType: string,
   base64: string,
   prompt: string,
+  precise: boolean,
 ): Promise<VisionResult> {
   const baseUrl = process.env.GEMINI_BASE_URL;
   const ai = new GoogleGenAI({
@@ -187,7 +215,7 @@ async function callGemini(
   });
   let lastErr: unknown;
 
-  for (const model of GEMINI_MODELS) {
+  for (const model of precise ? GEMINI_PRECISE_MODELS : GEMINI_MODELS) {
     try {
       const response = await withTimeout(
         ai.models.generateContent({
@@ -204,12 +232,12 @@ async function callGemini(
           config: {
             temperature: 0.1,
             responseMimeType: "application/json",
-            ...(model.startsWith("gemini-2.5")
+            ...(model.startsWith("gemini-2.5") && !precise
               ? { thinkingConfig: { thinkingBudget: 0 } }
               : {}),
           },
         }),
-        ATTEMPT_TIMEOUT_MS,
+        precise ? PRECISE_TIMEOUT_MS : ATTEMPT_TIMEOUT_MS,
         `Gemini ${model}`,
       );
       const text = response.text ?? "";
@@ -233,12 +261,14 @@ export async function askVision(
   mimeType: string,
   base64: string,
   prompt: string,
+  opts: VisionOptions = {},
 ): Promise<VisionResult> {
   const provider = activeProvider();
   if (!provider) throw new AiNotConfiguredError();
+  const precise = opts.precise === true;
   return provider === "openrouter"
-    ? callOpenRouter(mimeType, base64, prompt)
-    : callGemini(mimeType, base64, prompt);
+    ? callOpenRouter(mimeType, base64, prompt, precise)
+    : callGemini(mimeType, base64, prompt, precise);
 }
 
 /** Parse a model's JSON answer, tolerating code fences and leading prose. */
