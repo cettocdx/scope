@@ -151,6 +151,7 @@ const MAJOR_RETAILERS: Record<Market, string[]> = {
     "amazon",
     "mediamarkt",
     "media markt",
+    "mediaworld",
     "saturn",
     "otto",
     "cyberport",
@@ -257,6 +258,7 @@ const OPEN_MARKETPLACES = [
   "lightinthebox",
   "fruugo",
   "ubuy",
+  "onbuy",
   "desertcart",
   "kaufland marketplace",
 ];
@@ -300,7 +302,11 @@ const RESALE_STORES = [
 ];
 
 const USED_RE =
-  /\b(used|pre-?owned|second[\s-]?hand|refurb(ished)?|renewed|open[\s-]?box|gebraucht|occasion|usato|reacondicionado|ikinci el|2\.? ?el|yenilenmi[sş])\b/i;
+  /\b(used|pre-?owned|second[\s-]?hand|segunda mano|refurb(ished)?|renewed|open[\s-]?box|gebraucht|generalüberholt|occasion|reconditionn[ée]e?|usag[ée]e?|usato|usata|ricondizionat[oa]|usado|usada|seminuevo|reacondicionad[oa]|ikinci el|2\.? ?el|yenilenmi[sş]|teşhir)\b/i;
+
+/** "Platform - Seller" or "… Marketplace": a third-party seller on a big platform. */
+const THIRD_PARTY_RE =
+  /marketplace|marktplatz|place de march|pazar ?yeri|\s[-–]\s/i;
 
 function norm(s: string): string {
   return s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
@@ -337,6 +343,13 @@ export function trustFor(
       score: 50,
       tier: "marketplace",
       reasons: ["Open marketplace · seller varies"],
+    };
+  }
+  if (THIRD_PARTY_RE.test(store) && includesAny(s, MAJOR_RETAILERS[market])) {
+    return {
+      score: 66,
+      tier: "marketplace",
+      reasons: ["Third-party seller · platform protection"],
     };
   }
   if (includesAny(s, MAJOR_RETAILERS[market])) {
@@ -401,6 +414,7 @@ interface SerpShoppingResult {
   second_hand_condition?: string;
   tag?: string;
   extensions?: string[];
+  immersive_product_page_token?: string;
 }
 
 export type Fetcher = (
@@ -433,7 +447,6 @@ async function searchCountry(
     gl: country.gl,
     hl: country.hl,
     google_domain: country.domain,
-    direct_link: "true",
   });
   try {
     const res = await fetcher(`https://serpapi.com/search.json?${params}`);
@@ -474,6 +487,8 @@ function toOffer(
   const store = (r.source || r.seller || "").trim();
   if (!store) return null;
   if (includesAny(store, RESALE_STORES)) return null;
+  // Google only sets this for second-hand listings ("usado", "gebraucht"…).
+  if (r.second_hand_condition?.trim()) return null;
   const condition = `${r.condition ?? ""} ${r.second_hand_condition ?? ""} ${r.tag ?? ""} ${(r.extensions ?? []).join(" ")}`;
   if (USED_RE.test(condition) || USED_RE.test(r.title ?? "")) return null;
 
@@ -512,6 +527,7 @@ function toOffer(
     delivery: r.delivery?.trim() || null,
     thumbnail: r.thumbnail || null,
     suspicious: false,
+    resolveToken: r.immersive_product_page_token || null,
   };
 }
 
@@ -674,4 +690,68 @@ export async function findPrices(
   }
 
   return buildReport(offers, query, true);
+}
+
+// ---------------------------------------------------------------------------
+// Direct store links
+// ---------------------------------------------------------------------------
+
+interface ImmersiveStore {
+  name?: string;
+  link?: string;
+  details_and_offers?: string[];
+}
+
+const linkCache = new Map<string, { at: number; stores: ImmersiveStore[] }>();
+
+/**
+ * Google Shopping lists offers with a link to its own product page. When the
+ * user taps an offer we look up that product's store list once and return the
+ * seller's real page (falls back to null, and the caller keeps the Google link).
+ */
+export async function resolveOfferLink(
+  token: string,
+  store: string,
+  fetcher: Fetcher = defaultFetcher,
+): Promise<{ url: string; details: string[] } | null> {
+  if (!process.env.SERPAPI_KEY) return null;
+  let stores: ImmersiveStore[];
+  const hit = linkCache.get(token);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    stores = hit.stores;
+  } else {
+    const params = new URLSearchParams({
+      api_key: process.env.SERPAPI_KEY,
+      engine: "google_immersive_product",
+      page_token: token,
+    });
+    try {
+      const res = await fetcher(`https://serpapi.com/search.json?${params}`);
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        product_results?: { stores?: ImmersiveStore[] };
+      };
+      stores = data.product_results?.stores ?? [];
+    } catch {
+      return null;
+    }
+    if (linkCache.size >= CACHE_MAX) {
+      const oldest = linkCache.keys().next().value;
+      if (oldest !== undefined) linkCache.delete(oldest);
+    }
+    linkCache.set(token, { at: Date.now(), stores });
+  }
+
+  const want = compact(store.split(/\s[-–]\s/)[0]);
+  const match =
+    stores.find((s) => s.link && compact(s.name ?? "") === want) ??
+    stores.find((s) => {
+      const n = compact(s.name ?? "");
+      return s.link && n && (n.includes(want) || want.includes(n));
+    });
+  if (!match?.link) return null;
+  return {
+    url: affiliateUrl(match.link),
+    details: match.details_and_offers ?? [],
+  };
 }

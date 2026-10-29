@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 
@@ -8,7 +8,25 @@ import { Press, Txt } from "@/components/ui";
 import { StoreAvatar } from "@/components/StoreAvatar";
 import { formatMoney, useSettings } from "@/contexts/SettingsContext";
 import { countryFlag, countryName, t, type StringKey } from "@/lib/i18n";
+import { resolveOfferLink } from "@/services/scanService";
 import type { Market, MarketSummary, Offer, TrustTier } from "@shared/scan";
+
+/** Opens an offer at the seller's own page when we can resolve it, else Google Shopping. */
+function useOfferOpener(offer: Offer): { open: () => void; opening: boolean } {
+  const [opening, setOpening] = useState(false);
+  const open = useCallback(async () => {
+    if (opening) return;
+    let url = offer.url;
+    if (offer.resolveToken) {
+      setOpening(true);
+      url =
+        (await resolveOfferLink(offer.resolveToken, offer.store)) ?? offer.url;
+      setOpening(false);
+    }
+    openStore(url);
+  }, [offer, opening]);
+  return { open, opening };
+}
 
 export function openStore(url: string): void {
   WebBrowser.openBrowserAsync(url, {
@@ -93,11 +111,12 @@ export function OfferRow({
   offer: Offer;
   linkable: boolean;
 }) {
+  const { open, opening } = useOfferOpener(offer);
   const meta = [`${countryFlag(offer.country)} ${countryName(offer.country)}`];
   if (offer.delivery) meta.push(offer.delivery);
   return (
     <Press
-      onPress={() => openStore(offer.url)}
+      onPress={open}
       disabled={!linkable}
       scale={0.985}
       haptic
@@ -117,7 +136,11 @@ export function OfferRow({
       </View>
       <PriceStack offer={offer} />
       {linkable ? (
-        <Feather name="chevron-right" size={18} color={Colors.textTertiary} />
+        opening ? (
+          <ActivityIndicator size="small" color={Colors.textTertiary} />
+        ) : (
+          <Feather name="chevron-right" size={18} color={Colors.textTertiary} />
+        )
       ) : null}
     </Press>
   );
@@ -131,6 +154,7 @@ export function RecommendedCard({
   offer: Offer;
   linkable: boolean;
 }) {
+  const { open, opening } = useOfferOpener(offer);
   return (
     <View style={styles.recommended}>
       <View style={styles.recommendedTop}>
@@ -163,7 +187,7 @@ export function RecommendedCard({
         <PriceStack offer={offer} big align="left" />
         {linkable ? (
           <Press
-            onPress={() => openStore(offer.url)}
+            onPress={open}
             haptic
             accessibilityRole="link"
             accessibilityLabel={`${t("Buy")} · ${offer.store}`}
@@ -172,11 +196,15 @@ export function RecommendedCard({
             <Txt variant="headline" color={Colors.textInverse}>
               {t("Buy")}
             </Txt>
-            <Feather
-              name="arrow-up-right"
-              size={18}
-              color={Colors.textInverse}
-            />
+            {opening ? (
+              <ActivityIndicator size="small" color={Colors.textInverse} />
+            ) : (
+              <Feather
+                name="arrow-up-right"
+                size={18}
+                color={Colors.textInverse}
+              />
+            )}
           </Press>
         ) : null}
       </View>
@@ -196,9 +224,10 @@ export function PickTile({
   offer: Offer;
   linkable: boolean;
 }) {
+  const { open } = useOfferOpener(offer);
   return (
     <Press
-      onPress={() => openStore(offer.url)}
+      onPress={open}
       disabled={!linkable}
       haptic
       accessibilityRole="link"

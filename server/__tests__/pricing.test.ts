@@ -4,6 +4,7 @@ import {
   clearPriceCache,
   findPrices,
   isSameProduct,
+  resolveOfferLink,
   trustFor,
   type Fetcher,
 } from "../pricing";
@@ -25,6 +26,7 @@ function offer(p: Partial<Offer> & { store: string; priceUSD: number }): Offer {
     delivery: null,
     thumbnail: null,
     suspicious: false,
+    resolveToken: null,
     ...p,
   };
 }
@@ -47,6 +49,19 @@ describe("trustFor", () => {
     expect(market.tier).toBe("marketplace");
     expect(unknown.tier).toBe("unknown");
     expect(market.score).toBeLessThan(trustFor("Best Buy", "US", "Sony").score);
+  });
+
+  it("treats third-party sellers on big platforms as marketplace sellers", () => {
+    expect(trustFor("Mediamarkt Marketplace DE", "EU", "Sony").tier).toBe(
+      "marketplace",
+    );
+    expect(trustFor("Walmart - Focus Camera", "US", "Sony").tier).toBe(
+      "marketplace",
+    );
+    expect(trustFor("Amazon.com.tr – pazaryeri", "TR", "Sony").tier).toBe(
+      "marketplace",
+    );
+    expect(trustFor("MediaMarkt ES", "EU", "Sony").tier).toBe("major");
   });
 
   it("does not call a store official because a short brand is a substring", () => {
@@ -171,6 +186,13 @@ describe("findPrices", () => {
         link: "https://amazon.com/c",
       },
       {
+        title: "AirPods Pro 2 USB-C",
+        source: "Tienda de segunda mano",
+        extracted_price: 120,
+        second_hand_condition: "usado",
+        link: "https://shop.example/a",
+      },
+      {
         title: "Apple AirPods Pro 2 USB-C",
         source: "eBay",
         extracted_price: 160,
@@ -245,5 +267,41 @@ describe("findPrices", () => {
       counting,
     );
     expect(calls).toBe(3);
+  });
+});
+
+describe("resolveOfferLink", () => {
+  const saved = { ...process.env };
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  it("finds the tapped seller's own page in the product's store list", async () => {
+    process.env.SERPAPI_KEY = "test";
+    const fetcher: Fetcher = async () => ({
+      ok: true,
+      json: async () => ({
+        product_results: {
+          stores: [
+            { name: "Amazon.es", link: "https://www.amazon.es/dp/X" },
+            {
+              name: "MediaMarkt ES",
+              link: "https://www.mediamarkt.es/p/Y",
+              details_and_offers: ["Envío gratuito"],
+            },
+          ],
+        },
+      }),
+    });
+    const link = await resolveOfferLink(
+      "token-mediamarkt-1",
+      "MediaMarkt ES",
+      fetcher,
+    );
+    expect(link?.url).toBe("https://www.mediamarkt.es/p/Y");
+    expect(link?.details).toEqual(["Envío gratuito"]);
+    expect(
+      await resolveOfferLink("token-other-0001", "Unknown shop", fetcher),
+    ).toBeNull();
   });
 });

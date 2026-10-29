@@ -16,7 +16,7 @@ import { track, captureError } from "./telemetry";
 import { scheduleFxRefresh } from "./fx";
 import { activeProvider, AiNotConfiguredError } from "./ai";
 import { identifyProduct } from "./identify";
-import { findPrices } from "./pricing";
+import { findPrices, resolveOfferLink } from "./pricing";
 import type { IdentifyResponse } from "@shared/scan";
 
 const identifyRequestSchema = z.object({
@@ -24,6 +24,11 @@ const identifyRequestSchema = z.object({
   barcode: z.string().max(64).optional(),
   // A user correction ("it's the 256GB one") re-runs identification with a hint.
   hint: z.string().max(140).optional(),
+});
+
+const offerLinkSchema = z.object({
+  token: z.string().min(10).max(4000),
+  store: z.string().min(1).max(160),
 });
 
 const pricesRequestSchema = z.object({
@@ -407,6 +412,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(502).json({ error: "Price search failed. Please try again." });
     }
   });
+  // Turns a tapped offer into the seller's own page (one lookup per product,
+  // cached), so "Buy" lands on the store instead of a Google results page.
+  app.post("/api/offer-link", async (req, res) => {
+    const parsed = offerLinkSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: fromZodError(parsed.error).toString() });
+    }
+    try {
+      const link = await resolveOfferLink(parsed.data.token, parsed.data.store);
+      res.json(link ?? { url: null, details: [] });
+    } catch (error: unknown) {
+      captureError(error, { route: "/api/offer-link" });
+      res.json({ url: null, details: [] });
+    }
+  });
+
   // USD value of one unit of each currency, so the app can show prices in the
   // user's currency with the same live rates the server compared them with.
   app.get("/api/rates", (_req, res) => {

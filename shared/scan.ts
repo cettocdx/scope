@@ -95,6 +95,8 @@ export interface Offer {
   thumbnail: string | null;
   /** Far below the going price: possible scam, counterfeit or wrong item. */
   suspicious: boolean;
+  /** Lets the server look up the seller's own page (POST /api/offer-link). */
+  resolveToken: string | null;
 }
 
 export interface MarketSummary {

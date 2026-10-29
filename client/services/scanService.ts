@@ -123,3 +123,20 @@ export function titleFor(identity: ProductIdentity): string {
     ? model
     : `${brand} ${model}`;
 }
+
+/** The seller's own page for an offer, or null to keep the Google Shopping link. */
+export async function resolveOfferLink(
+  token: string,
+  store: string,
+): Promise<string | null> {
+  try {
+    const r = await post<{ url: string | null }>(
+      "/api/offer-link",
+      { token, store },
+      8_000,
+    );
+    return r.url;
+  } catch {
+    return null;
+  }
+}
