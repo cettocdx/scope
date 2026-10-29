@@ -39,7 +39,12 @@ export function getApiUrl(): string {
     throw new Error("EXPO_PUBLIC_DOMAIN is not set");
   }
 
-  const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  // Home-network servers (a Mac's .local name or a private IP) speak plain http.
+  const hostname = host.split(":")[0];
+  const isLocal =
+    hostname === "localhost" ||
+    hostname.endsWith(".local") ||
+    /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
   const scheme = isLocal ? "http" : "https";
 
   return new URL(`${scheme}://${host}`).href;

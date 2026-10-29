@@ -13,8 +13,13 @@
       "bundleIdentifier": "com.scope.assetvision",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "SCOPE connects to your development server on this network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      },
+      "appleTeamId": "KWYUUGT7D9"
     },
     "android": {
       "adaptiveIcon": {
