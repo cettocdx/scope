@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { Colors, Fonts, Spacing } from "@/constants/theme";
+import { Colors, Fonts, READABLE, Spacing } from "@/constants/theme";
 import { Button, Press, Txt } from "@/components/ui";
 import { t } from "@/lib/i18n";
 
@@ -162,9 +162,8 @@ const styles = StyleSheet.create({
   },
   bottom: {
     position: "absolute",
-    left: 0,
-    right: 0,
     bottom: 0,
+    ...READABLE,
     paddingHorizontal: Spacing.xxl,
     gap: Spacing.md,
   },

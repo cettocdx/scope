@@ -14,7 +14,7 @@ import { Image } from "expo-image";
 import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 import { Icon } from "@/components/Icon";
 
-import { Colors, Radius, Spacing } from "@/constants/theme";
+import { Colors, Radius, Spacing, READABLE } from "@/constants/theme";
 import {
   Button,
   Divider,
@@ -489,7 +489,7 @@ export default function SavedScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   nav: { paddingHorizontal: Spacing.lg, flexDirection: "row" },
-  list: { paddingHorizontal: Spacing.lg, flexGrow: 1 },
+  list: { ...READABLE, paddingHorizontal: Spacing.lg, flexGrow: 1 },
   headerBlock: {
     gap: Spacing.md,
     marginTop: Spacing.md,

@@ -20,6 +20,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { captureRef } from "react-native-view-shot";
 import Animated, {
   Extrapolation,
   FadeIn,
@@ -31,7 +32,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Icon } from "@/components/Icon";
 
-import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
+import { Colors, Fonts, Radius, Spacing, READABLE } from "@/constants/theme";
 import {
   Button,
   Chip,
@@ -43,12 +44,15 @@ import {
   Skeleton,
   Txt,
 } from "@/components/ui";
+import { ShareCard } from "@/components/ShareCard";
 import {
   MarketTabs,
   OfferRow,
   PickTile,
+  PriceHistory,
   RangeBar,
   RecommendedCard,
+  usePrimaryPrice,
   VisualMatches,
   openStore,
 } from "@/components/offers";
@@ -123,6 +127,7 @@ export default function ResultScreen({ navigation, route }: Props) {
   const removeAsset = useRemoveAsset();
   const { isPro } = useAuth();
   const { homeMarket } = useSettings();
+  const primaryPrice = usePrimaryPrice();
 
   const [identity, setIdentity] = useState<ProductIdentity | null>(
     saved
@@ -347,7 +352,8 @@ export default function ResultScreen({ navigation, route }: Props) {
     savedItemId,
   ]);
 
-  const onShare = useCallback(() => {
+  const shareCard = useRef<View>(null);
+  const onShare = useCallback(async () => {
     if (!identity) return;
     const best = report?.picks.recommended;
     const lines = [identity.name];
@@ -358,7 +364,16 @@ export default function ResultScreen({ navigation, route }: Props) {
       );
     }
     lines.push("— SCOPE");
-    Share.share({ message: lines.join("\n") }).catch(() => {});
+    const message = lines.join("\n");
+    // Share a picture card when we can draw one; plain text otherwise.
+    let url: string | undefined;
+    try {
+      if (shareCard.current)
+        url = await captureRef(shareCard, { format: "jpg", quality: 0.92 });
+    } catch {
+      url = undefined;
+    }
+    Share.share(url ? { url, message } : { message }).catch(() => {});
   }, [identity, report]);
 
   const linkable = !identity?.regulated;
@@ -729,6 +744,9 @@ export default function ResultScreen({ navigation, route }: Props) {
                   {report.range ? (
                     <RangeBar range={report.range} count={report.sourceCount} />
                   ) : null}
+                  {saved && saved.history.length >= 2 ? (
+                    <PriceHistory history={saved.history} />
+                  ) : null}
                 </Animated.View>
               ) : (
                 <View style={styles.notice}>
@@ -903,6 +921,23 @@ export default function ResultScreen({ navigation, route }: Props) {
         </View>
       </Animated.ScrollView>
 
+      {identity ? (
+        <View style={styles.offscreen} pointerEvents="none">
+          <ShareCard
+            ref={shareCard}
+            title={title}
+            subtitle={subtitle}
+            imageUri={imageUri ?? productShot}
+            best={identity.regulated ? null : report?.picks.recommended}
+            price={
+              report?.picks.recommended
+                ? primaryPrice(report.picks.recommended)
+                : undefined
+            }
+          />
+        </View>
+      ) : null}
+
       <LinearGradient
         colors={["rgba(0,0,0,0.92)", "rgba(0,0,0,0.6)", "transparent"]}
         locations={[0, 0.6, 1]}
@@ -1036,6 +1071,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   body: {
+    ...READABLE,
     paddingHorizontal: Spacing.gutter,
     marginTop: -Spacing.xxxl,
     gap: Spacing.xxl,
@@ -1118,6 +1154,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: "hidden",
   },
+  offscreen: { position: "absolute", left: -10000, top: 0 },
   productCard: {
     width: 190,
     height: 190,

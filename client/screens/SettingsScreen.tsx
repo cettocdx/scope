@@ -6,7 +6,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import Constants from "expo-constants";
 import { Icon, type IconName } from "@/components/Icon";
 
-import { Colors, Radius, Spacing } from "@/constants/theme";
+import { Colors, Radius, Spacing, READABLE } from "@/constants/theme";
 import { Divider, IconButton, Press, select, Txt } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,13 @@ import {
   runPriceCheck,
   setAlertsEnabled,
 } from "@/lib/price-alerts";
+
+/**
+ * Sign-in only exists to sync saved items, which needs the server database.
+ * Until the backend has one (EXPO_PUBLIC_SYNC=on), the row stays hidden rather
+ * than promising something that fails.
+ */
+const SYNC_ENABLED = process.env.EXPO_PUBLIC_SYNC === "on";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -262,31 +269,33 @@ export default function SettingsScreen({ navigation }: Props) {
           )}
         </Section>
 
-        <Section title={t("Account")}>
-          {isSignedIn ? (
-            <>
+        {SYNC_ENABLED || isSignedIn ? (
+          <Section title={t("Account")}>
+            {isSignedIn ? (
+              <>
+                <LinkRow
+                  icon="user"
+                  label={t("Signed in as {name}", {
+                    name: user?.displayName || user?.email || "SCOPE",
+                  })}
+                />
+                <Divider inset={48} />
+                <LinkRow
+                  icon="log-out"
+                  label={t("Sign out")}
+                  onPress={() => void signOut()}
+                />
+              </>
+            ) : (
               <LinkRow
-                icon="user"
-                label={t("Signed in as {name}", {
-                  name: user?.displayName || user?.email || "SCOPE",
-                })}
+                icon="log-in"
+                label={t("Sign in")}
+                detail={t("Sync saved items across devices.")}
+                onPress={() => navigation.navigate("Auth")}
               />
-              <Divider inset={48} />
-              <LinkRow
-                icon="log-out"
-                label={t("Sign out")}
-                onPress={() => void signOut()}
-              />
-            </>
-          ) : (
-            <LinkRow
-              icon="log-in"
-              label={t("Sign in")}
-              detail={t("Sync saved items across devices.")}
-              onPress={() => navigation.navigate("Auth")}
-            />
-          )}
-        </Section>
+            )}
+          </Section>
+        ) : null}
 
         <Section title={t("About")}>
           <LinkRow
@@ -318,6 +327,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: { paddingHorizontal: Spacing.lg, flexDirection: "row" },
   scroll: {
+    ...READABLE,
     paddingHorizontal: Spacing.gutter,
     paddingTop: Spacing.lg,
     gap: Spacing.xxl,

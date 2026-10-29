@@ -172,6 +172,19 @@ const tr = {
     "Etiketi, logoyu ya da fiyat etiketini yakından çek; tam modeli bulayım.",
   "Take a closer photo": "Yakından çek",
   "Price dropped": "Fiyat düştü",
+  "The brand's own store": "Markanın kendi mağazası",
+  "Big retailer with buyer protection": "Alıcı korumalı büyük mağaza",
+  "Marketplace: the seller varies": "Pazar yeri: satıcı değişebilir",
+  "Smaller shop: check its reviews": "Küçük mağaza: yorumlarına bak",
+  "{n} reviews": "{n} yorum",
+  "From abroad: shipping and customs duty may be added":
+    "Yurt dışından: kargo ve gümrük vergisi eklenebilir",
+  "From abroad: shipping and import fees may be added":
+    "Yurt dışından: kargo ve ithalat ücreti eklenebilir",
+  "Price history": "Fiyat geçmişi",
+  "Snap anything. Pay the best price.": "Her şeyi çek. En iyi fiyata al.",
+  "since you saved it": "kaydettiğinden beri",
+  "{n} checks": "{n} kontrol",
   "{name} is {n}% cheaper than when you saved it.":
     "{name}, kaydettiğinden bu yana %{n} ucuzladı.",
   "Price alerts": "Fiyat alarmı",

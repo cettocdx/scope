@@ -51,6 +51,13 @@ export const Spacing = {
   gutter: 20,
 } as const;
 
+/** Content never gets wider than a comfortable reading column (iPad). */
+export const READABLE = {
+  width: "100%",
+  maxWidth: 640,
+  alignSelf: "center",
+} as const;
+
 export const Radius = {
   sm: 8,
   md: 12,

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
+import Svg, { Circle, Polyline } from "react-native-svg";
 import { Icon, type IconName } from "@/components/Icon";
 import * as WebBrowser from "expo-web-browser";
 
@@ -102,6 +103,37 @@ const LOCAL_PICK: Record<Market, StringKey> = {
   TR: "Best price you can trust in Türkiye",
 };
 
+/** Why we trust (or doubt) a seller, in the user's language. */
+const TIER_REASON: Record<TrustTier, StringKey> = {
+  official: "The brand's own store",
+  major: "Big retailer with buyer protection",
+  marketplace: "Marketplace: the seller varies",
+  unknown: "Smaller shop: check its reviews",
+};
+
+export function trustReason(offer: Offer): string {
+  const parts: string[] = [t(TIER_REASON[offer.trust.tier])];
+  if (offer.rating && offer.reviews)
+    parts.push(
+      `${offer.rating.toFixed(1)}★ · ${t("{n} reviews", {
+        n:
+          offer.reviews >= 1000
+            ? `${(offer.reviews / 1000).toFixed(1)}k`
+            : offer.reviews,
+      })}`,
+    );
+  return parts.join(" · ");
+}
+
+/** Buying from another market means shipping and, for Türkiye, customs. */
+function useImportNote(offer: Offer): string | null {
+  const { homeMarket } = useSettings();
+  if (offer.market === homeMarket) return null;
+  return homeMarket === "TR"
+    ? t("From abroad: shipping and customs duty may be added")
+    : t("From abroad: shipping and import fees may be added");
+}
+
 const TIER_LABEL: Record<TrustTier, StringKey> = {
   official: "Official store",
   major: "Major retailer",
@@ -178,6 +210,7 @@ export function OfferRow({
 }) {
   const { open, more, opening } = useOfferOpener(offer);
   const meta = [`${countryFlag(offer.country)} ${countryName(offer.country)}`];
+  if (offer.rating) meta.push(`${offer.rating.toFixed(1)}★`);
   if (offer.delivery) meta.push(offer.delivery);
   return (
     <Press
@@ -224,6 +257,7 @@ export function RecommendedCard({
   local?: boolean;
 }) {
   const { open, more, opening } = useOfferOpener(offer);
+  const importNote = useImportNote(offer);
   return (
     <View style={styles.recommended}>
       <View style={styles.recommendedTop}>
@@ -253,6 +287,17 @@ export function RecommendedCard({
           </Txt>
         </View>
       </View>
+      <Txt variant="footnote" color={Colors.textSecondary}>
+        {trustReason(offer)}
+      </Txt>
+      {importNote ? (
+        <View style={styles.importNote}>
+          <Icon name="globe" size={13} color={Colors.trustMid} />
+          <Txt variant="footnote" color={Colors.trustMid} style={{ flex: 1 }}>
+            {importNote}
+          </Txt>
+        </View>
+      ) : null}
 
       <View style={styles.recommendedFoot}>
         <PriceStack offer={offer} big align="left" />
@@ -590,6 +635,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.surface,
   },
   rangeEnds: { flexDirection: "row", justifyContent: "space-between" },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: Spacing.sm,
+    flexWrap: "wrap",
+  },
+  importNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.trustMidTint,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
   tabs: {
     flexDirection: "row",
     backgroundColor: Colors.surface,
@@ -612,3 +672,62 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
 });
+
+/** The recommended price at each check since the item was saved. */
+export function PriceHistory({ history }: { history: number[] }) {
+  const { formatUSD } = useSettings();
+  if (history.length < 2) return null;
+  const W = 300;
+  const H = 64;
+  const min = Math.min(...history);
+  const max = Math.max(...history);
+  const span = Math.max(1, max - min);
+  const points = history.map((v, i) => ({
+    x: (i / (history.length - 1)) * W,
+    y: 6 + (1 - (v - min) / span) * (H - 12),
+  }));
+  const first = history[0];
+  const last = history[history.length - 1];
+  const pct = ((last - first) / first) * 100;
+  const down = pct < 0;
+  const color =
+    Math.abs(pct) < 0.5
+      ? Colors.textSecondary
+      : down
+        ? Colors.trustHigh
+        : Colors.trustLow;
+  return (
+    <View style={styles.range}>
+      <View style={styles.rangeHead}>
+        <Txt variant="overline" color={Colors.textSecondary}>
+          {t("Price history")}
+        </Txt>
+        <Txt variant="caption" color={Colors.textTertiary}>
+          {t("{n} checks", { n: history.length })}
+        </Txt>
+      </View>
+      <View style={styles.historyRow}>
+        <Txt variant="title">{formatUSD(last)}</Txt>
+        <Txt variant="subheadStrong" color={color}>
+          {`${pct > 0 ? "+" : ""}${pct.toFixed(1)}% ${t("since you saved it")}`}
+        </Txt>
+      </View>
+      <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
+        <Polyline
+          points={points.map((p) => `${p.x},${p.y}`).join(" ")}
+          fill="none"
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <Circle
+          cx={points[points.length - 1].x}
+          cy={points[points.length - 1].y}
+          r={4}
+          fill={color}
+        />
+      </Svg>
+    </View>
+  );
+}

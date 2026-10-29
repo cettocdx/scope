@@ -17,17 +17,29 @@ WebBrowser.maybeCompleteAuthSession();
 
 type Props = NativeStackScreenProps<RootStackParamList, "Auth">;
 
+// Google needs a client id for the platform it runs on.
 const GOOGLE_CONFIGURED = Boolean(
-  process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
-    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
-    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  Platform.select({
+    ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  }),
 );
 
-export default function AuthScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
-  const { appleAvailable, signInWithApple, completeGoogleSignIn } = useAuth();
-  const [busy, setBusy] = useState<null | "apple" | "google">(null);
-
+/**
+ * Google's auth hook throws when no client id exists for this platform, so it
+ * lives in its own component that only renders when Google is configured.
+ */
+function GoogleButton({
+  busy,
+  setBusy,
+  onDone,
+}: {
+  busy: null | "apple" | "google";
+  setBusy: (b: null | "apple" | "google") => void;
+  onDone: () => void;
+}) {
+  const { completeGoogleSignIn } = useAuth();
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
@@ -40,7 +52,7 @@ export default function AuthScreen({ navigation }: Props) {
         response.params?.id_token ?? response.authentication?.idToken;
       if (idToken) {
         completeGoogleSignIn(idToken)
-          .then(() => navigation.goBack())
+          .then(onDone)
           .catch((e) =>
             Alert.alert(t("Sign-in failed"), String(e?.message ?? e)),
           )
@@ -51,7 +63,30 @@ export default function AuthScreen({ navigation }: Props) {
     } else if (response) {
       setBusy(null);
     }
-  }, [completeGoogleSignIn, navigation, response]);
+  }, [completeGoogleSignIn, onDone, response, setBusy]);
+
+  return (
+    <Button
+      title={t("Continue with Google")}
+      tone="secondary"
+      onPress={async () => {
+        setBusy("google");
+        try {
+          await promptAsync();
+        } catch {
+          setBusy(null);
+        }
+      }}
+      loading={busy === "google"}
+      disabled={!request || busy !== null}
+    />
+  );
+}
+
+export default function AuthScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const { appleAvailable, signInWithApple } = useAuth();
+  const [busy, setBusy] = useState<null | "apple" | "google">(null);
 
   const handleApple = async () => {
     setBusy("apple");
@@ -64,15 +99,6 @@ export default function AuthScreen({ navigation }: Props) {
         Alert.alert(t("Sign-in failed"), err?.message ?? "");
       }
     } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setBusy("google");
-    try {
-      await promptAsync();
-    } catch {
       setBusy(null);
     }
   };
@@ -127,12 +153,10 @@ export default function AuthScreen({ navigation }: Props) {
           />
         ) : null}
         {GOOGLE_CONFIGURED ? (
-          <Button
-            title={t("Continue with Google")}
-            tone="secondary"
-            onPress={handleGoogle}
-            loading={busy === "google"}
-            disabled={!request || busy !== null}
+          <GoogleButton
+            busy={busy}
+            setBusy={setBusy}
+            onDone={() => navigation.goBack()}
           />
         ) : null}
         {nothingAvailable ? (

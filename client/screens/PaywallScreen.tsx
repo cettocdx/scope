@@ -13,7 +13,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { Colors, Radius, Spacing } from "@/constants/theme";
+import { Colors, Radius, Spacing, READABLE } from "@/constants/theme";
 import { Button, IconButton, Press, Txt, type IconName } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useAuth } from "@/contexts/AuthContext";
@@ -238,6 +238,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: { paddingHorizontal: Spacing.lg, flexDirection: "row" },
   scroll: {
+    ...READABLE,
     paddingHorizontal: Spacing.gutter,
     gap: Spacing.md,
   },
