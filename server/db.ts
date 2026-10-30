@@ -22,7 +22,14 @@ function init() {
         "scanning and AI analysis work without it.",
     );
   }
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  // Serverless (Vercel) runs many short-lived instances: keep each one's pool
+  // small and let idle connections go quickly so Neon's limit is never hit.
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 3,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 8_000,
+  });
   _db = drizzle(pool, { schema });
 }
 

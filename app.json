@@ -11,12 +11,21 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.scope.assetvision",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "SCOPE connects to your development server on this network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      },
+      "appleTeamId": "KWYUUGT7D9"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#000000",
-        "foregroundImage": "./assets/images/icon.png"
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -31,7 +40,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 140,
           "resizeMode": "contain",
           "backgroundColor": "#000000",
           "dark": {
@@ -43,11 +52,28 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "SCOPE needs camera access to scan and identify assets."
+          "cameraPermission": "SCOPE uses the camera to identify products and find where to buy them."
         }
       ],
       "expo-font",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SCOPE lets you pick a product photo to identify it and compare prices."
+        }
+      ],
+      "expo-localization",
+      "expo-background-task",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "SCOPE reads your latest screenshot when you ask it to, to find the product in it.",
+          "savePhotosPermission": false,
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      "./plugins/with-ios-build-fixes"
     ],
     "experiments": {
       "reactCompiler": true

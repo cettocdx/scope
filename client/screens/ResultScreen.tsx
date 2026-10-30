@@ -1,1117 +1,1232 @@
-import React, { useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  Linking,
   Alert,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Share,
-  Modal,
+  StyleSheet,
+  TextInput,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import * as Haptics from "expo-haptics";
-
-import { Colors, Spacing, Fonts, Typography, BorderRadius } from "@/constants/theme";
-import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { PortfolioAsset, ProductDeal } from "@/types";
-import { useAddAsset } from "@/hooks/usePortfolio";
-import { persistAssetImage } from "@/lib/image-store";
-import { ScopeBackground } from "@/components/ScopeBackground";
-import { ratingLabel, RATING_DISCLAIMER } from "@/lib/rating";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { captureRef } from "react-native-view-shot";
-import {
-  ValueCard,
-  VALUE_CARD_HEIGHT,
-  VALUE_CARD_WIDTH,
-} from "@/components/ValueCard";
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  FadeInDown,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import { Icon } from "@/components/Icon";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { Colors, Fonts, Radius, Spacing, READABLE } from "@/constants/theme";
+import {
+  Button,
+  Chip,
+  Divider,
+  Glass,
+  IconButton,
+  notify,
+  Press,
+  Skeleton,
+  Txt,
+} from "@/components/ui";
+import { ShareCard } from "@/components/ShareCard";
+import { Alternatives, SaleTiming } from "@/components/extras";
+import {
+  MarketTabs,
+  OfferRow,
+  PickTile,
+  PriceHistory,
+  RangeBar,
+  RecommendedCard,
+  usePrimaryPrice,
+  VisualMatches,
+  openStore,
+} from "@/components/offers";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { getPhoto } from "@/lib/scan-session";
+import { recordScan } from "@/lib/quota";
+import { imageSource, persistAssetImage } from "@/lib/image-store";
+import { newSavedId, savedItemFrom } from "@/lib/saved";
+import { historyEntry, recordHistory } from "@/lib/history";
+import { askForAlertPermission } from "@/lib/price-alerts";
+import { categoryName, LOCALE, t } from "@/lib/i18n";
+import {
+  fetchPrices,
+  identify,
+  identityFromName,
+  pricesRequestFor,
+  sendFeedback,
+  titleFor,
+  visualMatches,
+} from "@/services/scanService";
+import {
+  useAddAsset,
+  usePortfolio,
+  useRemoveAsset,
+} from "@/hooks/usePortfolio";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
+import type {
+  Market,
+  PriceReport,
+  ProductIdentity,
+  VisualMatch,
+} from "@shared/scan";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 
+const HERO = 300;
+const ROWS_COLLAPSED = 6;
+
+type ConfIcon = "check-circle" | "circle" | "help-circle";
+
+function confidenceLabel(c: number): {
+  label: string;
+  color: string;
+  icon: ConfIcon;
+} {
+  if (c >= 85)
+    return {
+      label: t("Exact match"),
+      color: Colors.trustHigh,
+      icon: "check-circle",
+    };
+  if (c >= 60)
+    return { label: t("Likely match"), color: Colors.trustMid, icon: "circle" };
+  return {
+    label: t("Best guess"),
+    color: Colors.trustLow,
+    icon: "help-circle",
+  };
+}
+
 export default function ResultScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { imageBase64, assetData } = route.params;
-  const [isSaving, setIsSaving] = useState(false);
+  const { scanId, savedId, query, historyId } = route.params;
+  const photo = scanId ? getPhoto(scanId) : undefined;
+  const past = historyId ? historyEntry(historyId) : undefined;
+  // A fresh photo scan is remembered in History under its scan id.
+  const historyKey = scanId ?? historyId ?? null;
+  const { assets } = usePortfolio();
+  const saved = savedId ? assets.find((a) => a.id === savedId) : undefined;
   const addAsset = useAddAsset();
+  const removeAsset = useRemoveAsset();
+  const { isPro } = useAuth();
+  const { homeMarket } = useSettings();
+  const primaryPrice = usePrimaryPrice();
 
-  const safeAssetData = {
-    itemName: assetData?.itemName || "Unknown Item",
-    estimatedPrice: assetData?.estimatedPrice || 0,
-    currency: assetData?.currency || "USD",
-    trendPercentage: assetData?.trendPercentage || 0,
-    confidenceScore: assetData?.confidenceScore || 0,
-    category: assetData?.category || "General",
-    regulatedCategory: assetData?.regulatedCategory ?? false,
-    investmentRating: assetData?.investmentRating || "HOLD",
-    ratingReason: assetData?.ratingReason || "",
-    deals: assetData?.deals || [],
-    priceRange: assetData?.priceRange || { min: 0, median: 0, max: 0, currency: "USD" },
-    outlierCount: assetData?.outlierCount || 0,
-    sourceCount: assetData?.sourceCount ?? 0,
-    pricedAt: assetData?.pricedAt ?? null,
+  const [identity, setIdentity] = useState<ProductIdentity | null>(
+    saved
+      ? (saved.identity ?? identityFromName(saved.itemName))
+      : past
+        ? past.identity
+        : query
+          ? identityFromName(query)
+          : null,
+  );
+  const [idError, setIdError] = useState<string | null>(null);
+  const [report, setReport] = useState<PriceReport | null>(
+    saved?.report ?? past?.report ?? null,
+  );
+  const [priceState, setPriceState] = useState<
+    "idle" | "loading" | "error" | "done"
+  >(saved?.report || past?.report ? "done" : "idle");
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [savedItemId, setSavedItemId] = useState<string | null>(
+    savedId ?? null,
+  );
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  // The name field is uncontrolled (fast typing never races a re-render):
+  // `draft` only seeds it, `typed` holds what is in it now.
+  const [draft, setDraft] = useState("");
+  const typed = useRef("");
+  const [canApply, setCanApply] = useState(false);
+  const openEditor = (seed: string) => {
+    setDraft(seed);
+    typed.current = seed;
+    setCanApply(seed.trim().length >= 2);
+    setEditing(true);
   };
+  const [market, setMarket] = useState<Market>(homeMarket);
+  const [expanded, setExpanded] = useState(false);
+  const [matches, setMatches] = useState<VisualMatch[]>([]);
+  const runToken = useRef(0);
+  const refreshed = useRef(false);
 
-  // We only show real marketplace prices. When none were found the server sends
-  // priceFound=false (and a 0 price), so the UI says "no price" instead of "$0".
-  const priceFound =
-    assetData?.priceFound ?? safeAssetData.estimatedPrice > 0;
+  const imageUri =
+    photo?.uri ??
+    (saved ? imageSource(saved) : (past?.imageUri ?? past?.thumbnailUri));
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const heroStyle = useAnimatedStyle(() => {
+    const y = scrollY.value;
+    return {
+      transform: [
+        { translateY: y < 0 ? y / 2 : y * 0.4 },
+        { scale: y < 0 ? 1 + -y / HERO : 1 },
+      ],
+    };
+  });
+  const barStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [HERO - 120, HERO - 40],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
 
-  const [showRatingSheet, setShowRatingSheet] = useState(false);
-  const [listingPrice, setListingPrice] = useState("");
-
-  // Decision-moment: compare a listing/asking price to the real retail median.
-  const median = safeAssetData.estimatedPrice;
-  const listingValue = parseFloat(listingPrice.replace(/[^0-9.]/g, ""));
-  const dealDiffPct =
-    priceFound && median > 0 && listingValue > 0
-      ? Math.round(((listingValue - median) / median) * 100)
-      : null;
-
-  const handleClose = () => {
-    navigation.popToTop();
-  };
-
-  const handleAddToVault = async () => {
-    setIsSaving(true);
-    try {
-      const id = `asset-${Date.now()}`;
-
-      // Persist the captured image to the filesystem and keep only the file
-      // uris on the asset — the base64 never reaches storage or the cloud.
-      const stored = await persistAssetImage(imageBase64, id);
-
-      const newAsset: PortfolioAsset = {
-        ...safeAssetData,
-        id,
-        dateAdded: new Date().toISOString(),
-        purchasePrice: safeAssetData.estimatedPrice,
-        isAuthentic: safeAssetData.confidenceScore > 80,
-        history: safeAssetData.estimatedPrice > 0 ? [safeAssetData.estimatedPrice] : [],
-        imageUri: stored?.imageUri,
-        thumbnailUri: stored?.thumbnailUri,
-        // Fall back to the inline image only if persistence failed.
-        imageBase64: stored ? undefined : imageBase64,
-      };
-
-      await addAsset.mutateAsync(newAsset);
-
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  const runPrices = useCallback(
+    async (id: ProductIdentity) => {
+      const token = ++runToken.current;
+      setPriceState("loading");
+      setPriceError(null);
+      try {
+        const r = await fetchPrices(pricesRequestFor(id, homeMarket));
+        if (token !== runToken.current) return;
+        setReport(r);
+        setPriceState("done");
+        setExpanded(false);
+        if (r.picks.recommended) notify();
+        if (historyKey)
+          void recordHistory({ id: historyKey, identity: id, report: r });
+        setMarket((current) => {
+          const has = (m: Market) =>
+            (r.markets.find((x) => x.market === m)?.offers.length ?? 0) > 0;
+          return has(current)
+            ? current
+            : (r.markets.find((m) => m.offers.length > 0)?.market ?? current);
+        });
+      } catch (e) {
+        if (token !== runToken.current) return;
+        setPriceError(e instanceof Error ? e.message : String(e));
+        setPriceState("error");
       }
+    },
+    [homeMarket, historyKey],
+  );
 
-      navigation.popToTop();
-    } catch (e) {
-      Alert.alert("Error", "Failed to save asset");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const openLink = (url: string) => {
-    Linking.openURL(url).catch(() => {});
-  };
-
-  const cardRef = useRef<View>(null);
-
-  // Capture the off-screen Value Card to an image and share it — the viral,
-  // zero-CAC moment. Only meaningful when we have a real price.
-  const handleShareValueCard = async () => {
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    }
+  const runIdentify = useCallback(async () => {
+    if (!photo) return;
+    // Lens runs alongside identification; it shows up whenever it lands.
+    void visualMatches(photo.base64, homeMarket).then((r) =>
+      setMatches(r.matches),
+    );
+    setIdError(null);
+    setIdentity(null);
+    setReport(null);
+    setPriceState("idle");
     try {
-      const uri = await captureRef(cardRef, { format: "png", quality: 1 });
-      await Share.share(
-        Platform.OS === "ios"
-          ? { url: uri }
-          : { url: uri, message: "Priced with SCOPE" },
+      const res = await identify(photo.base64, { barcode: photo.barcode });
+      setIdentity(res.identity);
+      notify();
+      if (scanId)
+        void recordHistory({
+          id: scanId,
+          identity: res.identity,
+          photoBase64: photo.base64,
+        });
+      if (!isPro) void recordScan();
+      // Animals, people, places… have nothing to price.
+      if (res.identity.kind !== "not_for_sale") void runPrices(res.identity);
+    } catch (e) {
+      notify("error");
+      setIdError(e instanceof Error ? e.message : String(e));
+    }
+  }, [homeMarket, isPro, photo, runPrices, scanId]);
+
+  useEffect(() => {
+    if (photo) void runIdentify();
+    else if (identity && !report) void runPrices(identity);
+    // Runs once per opened screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A saved item keeps its latest prices after a refresh.
+  useEffect(() => {
+    if (!saved || !identity || !report || !refreshed.current) return;
+    refreshed.current = false;
+    addAsset.mutate(
+      savedItemFrom({
+        id: saved.id,
+        identity,
+        report,
+        dateAdded: saved.dateAdded,
+        image: { imageUri: saved.imageUri, thumbnailUri: saved.thumbnailUri },
+        previous: saved,
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report]);
+
+  const applyName = useCallback(
+    (name: string) => {
+      const clean = name.trim();
+      if (clean.length < 2) return;
+      if (identity && clean.toLowerCase() !== identity.name.toLowerCase())
+        sendFeedback({
+          wrong: identity.name,
+          right: clean,
+          category: identity.category,
+          confidence: identity.confidence,
+          source: photo
+            ? "photo"
+            : saved
+              ? "saved"
+              : past
+                ? "history"
+                : "typed",
+        });
+      const next = identityFromName(clean, identity);
+      setIdentity(next);
+      setIdError(null);
+      setEditing(false);
+      if (saved) refreshed.current = true;
+      void runPrices(next);
+    },
+    [identity, past, photo, runPrices, saved],
+  );
+
+  const onSave = useCallback(async () => {
+    if (!identity) return;
+    if (savedItemId) {
+      Alert.alert(t("Remove this item?"), identity.name, [
+        { text: t("Cancel"), style: "cancel" },
+        {
+          text: t("Remove"),
+          style: "destructive",
+          onPress: () => {
+            removeAsset.mutate(savedItemId);
+            setSavedItemId(null);
+            if (saved) navigation.goBack();
+          },
+        },
+      ]);
+      return;
+    }
+    setSaving(true);
+    try {
+      const id = newSavedId();
+      const image = photo
+        ? await persistAssetImage(`data:image/jpeg;base64,${photo.base64}`, id)
+        : past
+          ? { imageUri: past.imageUri, thumbnailUri: past.thumbnailUri }
+          : null;
+      await addAsset.mutateAsync(
+        savedItemFrom({ id, identity, report, image: image ?? undefined }),
       );
-    } catch (e) {
-      // captureRef needs a native module (unavailable in Expo Go); degrade to a
-      // text share so the action still works everywhere.
-      console.error("Value card capture failed, sharing text:", e);
-      await Share.share({
-        message: `${safeAssetData.itemName} — real price $${safeAssetData.estimatedPrice.toLocaleString(
-          "en-US",
-        )} (median of ${safeAssetData.sourceCount} live retail prices). Scanned with SCOPE.`,
-      }).catch(() => {});
+      setSavedItemId(id);
+      notify();
+      // The moment saving makes sense of alerts: ask once for notifications.
+      if (assets.length === 0) void askForAlertPermission();
+    } finally {
+      setSaving(false);
     }
-  };
+  }, [
+    addAsset,
+    assets.length,
+    identity,
+    navigation,
+    past,
+    photo,
+    removeAsset,
+    report,
+    saved,
+    savedItemId,
+  ]);
 
-  const handleShareReport = async () => {
+  const shareCard = useRef<View>(null);
+  const onShare = useCallback(async () => {
+    if (!identity) return;
+    const best = report?.picks.recommended;
+    const lines = [identity.name];
+    if (best && !identity.regulated) {
+      lines.push(
+        `${t("Recommended")}: ${best.store} · ${best.price} ${best.currency}`,
+        best.url,
+      );
+    }
+    lines.push("— SCOPE");
+    const message = lines.join("\n");
+    // Share a picture card when we can draw one; plain text otherwise.
+    let url: string | undefined;
     try {
-      const bestDeal = safeAssetData.deals?.find(d => d.isBestDeal);
-      const dealsSummary = safeAssetData.deals
-        ?.map(d => `${d.storeName}: $${d.price}${d.isBestDeal ? ' (Best Price)' : ''}`)
-        .join('\n') || '';
-
-      const reportText = `
-SCOPE Asset Analysis Report
-
-${safeAssetData.itemName}
-Category: ${safeAssetData.category}
-
-PRICE CHECK
-Estimated Value: $${safeAssetData.estimatedPrice.toLocaleString("en-US")}
-Trend: ${safeAssetData.trendPercentage > 0 ? '+' : ''}${safeAssetData.trendPercentage}% (24H)
-AI Confidence: ${safeAssetData.confidenceScore}%
-Price check: ${ratingLabel(safeAssetData.investmentRating)}
-
-GLOBAL MARKET PRICES
-${dealsSummary}
-
-${bestDeal ? `Best Deal: ${bestDeal.storeName} at $${bestDeal.price}` : ''}
-
-Analyzed by SCOPE - AI Asset Scanner
-`.trim();
-
-      if (Platform.OS !== "web") {
-        Haptics.selectionAsync().catch(() => {});
-      }
-
-      await Share.share({
-        message: reportText,
-        title: `SCOPE Analysis: ${safeAssetData.itemName}`,
-      });
-    } catch (e) {
-      console.error('Share error:', e);
+      if (shareCard.current)
+        url = await captureRef(shareCard, { format: "jpg", quality: 0.92 });
+    } catch {
+      url = undefined;
     }
-  };
+    Share.share(url ? { url, message } : { message }).catch(() => {});
+  }, [identity, report]);
+
+  const linkable = !identity?.regulated;
+  const typedSearch = !imageUri && !!(query || (saved && !saved.identity));
+  const productShot = imageUri
+    ? undefined
+    : (report?.picks.recommended?.thumbnail ??
+      report?.markets.flatMap((m) => m.offers).find((o) => o.thumbnail)
+        ?.thumbnail ??
+      undefined);
+  const selected = report?.markets.find((m) => m.market === market);
+  const offers = selected?.offers ?? [];
+  const shownOffers = expanded ? offers : offers.slice(0, ROWS_COLLAPSED);
+  const picks = report?.picks;
+  const conf = identity ? confidenceLabel(identity.confidence) : null;
+  const title = identity ? titleFor(identity) : "";
+  const subtitle = identity
+    ? [
+        title !== identity.name ? identity.name : identity.brand,
+        identity.variant,
+        identity.category !== "Other" ? categoryName(identity.category) : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+  const pricedAt = useMemo(
+    () =>
+      report
+        ? new Date(report.pricedAt).toLocaleTimeString(LOCALE, {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "",
+    [report],
+  );
+  const showSideTiles =
+    !!picks?.recommended &&
+    ((picks.cheapest && picks.cheapest.id !== picks.recommended.id) ||
+      (picks.safest && picks.safest.id !== picks.recommended.id));
 
   return (
-    <ScopeBackground glowY={0.3}>
-    {priceFound && (
-      <View ref={cardRef} collapsable={false} style={styles.offscreenCard}>
-        <ValueCard
-          itemName={safeAssetData.itemName}
-          price={safeAssetData.estimatedPrice}
-          category={safeAssetData.category}
-          sourceCount={safeAssetData.sourceCount}
-        />
-      </View>
-    )}
-    <View style={styles.modalOverlay}>
-      <View style={[styles.cardContainer, { paddingBottom: insets.bottom + Spacing.xl }]}>
-        <View style={styles.handleContainer}>
-          <View style={styles.handle} />
-        </View>
-
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.tagRow}>
-              <View style={styles.categoryTag}>
-                <Text style={styles.categoryText}>{safeAssetData.category}</Text>
-              </View>
-              {safeAssetData.confidenceScore > 85 && (
-                <View style={styles.matchTag}>
-                  <Text style={styles.matchText}>{safeAssetData.confidenceScore}% MATCH</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.title} numberOfLines={2}>
-              {safeAssetData.itemName}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleClose}
-            style={styles.closeButton}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="x" size={20} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {priceFound ? (
-            <>
-            <View style={styles.priceRow}>
-              <Text style={styles.price}>
-                ${safeAssetData.estimatedPrice.toLocaleString("en-US")}
-              </Text>
-              <View
-                style={[
-                  styles.trendBadge,
-                  {
-                    backgroundColor:
-                      safeAssetData.trendPercentage >= 0
-                        ? "rgba(0, 255, 148, 0.2)"
-                        : "rgba(255, 59, 48, 0.2)",
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.trendText,
-                    {
-                      color:
-                        safeAssetData.trendPercentage >= 0
-                          ? Colors.dark.successGreen
-                          : Colors.dark.alertRed,
-                    },
-                  ]}
-                >
-                  {safeAssetData.trendPercentage > 0 ? "+" : ""}
-                  {safeAssetData.trendPercentage}% (24H)
-                </Text>
-              </View>
-            </View>
-            {safeAssetData.sourceCount > 0 && (
-              <View style={styles.trustRow}>
-                <Feather name="check-circle" size={12} color={Colors.dark.accentIce} />
-                <Text style={styles.trustText}>
-                  Median of {safeAssetData.sourceCount} live retail price
-                  {safeAssetData.sourceCount === 1 ? "" : "s"}
-                  {safeAssetData.pricedAt
-                    ? ` · ${new Date(safeAssetData.pricedAt).toLocaleDateString()}`
-                    : ""}
-                </Text>
-              </View>
-            )}
-            </>
-          ) : (
-            <View style={styles.noPriceBox}>
-              <Feather name="search" size={18} color={Colors.dark.warningYellow} />
-              <View style={styles.noPriceTextWrap}>
-                <Text style={styles.noPriceTitle}>Gerçek fiyat bulunamadı</Text>
-                <Text style={styles.noPriceSub}>
-                  Bu ürün için canlı mağaza fiyatı yok. Aşağıdaki linklerden arayabilirsin.
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {safeAssetData.priceRange.min > 0 && (
-            <View style={styles.priceRangeContainer}>
-              <Text style={styles.priceRangeTitle}>MARKET PRICE RANGE</Text>
-              <View style={styles.priceRangeRow}>
-                <View style={styles.priceRangeItem}>
-                  <Text style={styles.priceRangeLabel}>MIN</Text>
-                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.min.toLocaleString("en-US")}</Text>
-                </View>
-                <View style={[styles.priceRangeItem, styles.priceRangeMedian]}>
-                  <Text style={styles.priceRangeLabel}>MEDIAN</Text>
-                  <Text style={[styles.priceRangeValue, styles.priceRangeMedianValue]}>
-                    ${safeAssetData.priceRange.median.toLocaleString("en-US")}
-                  </Text>
-                </View>
-                <View style={styles.priceRangeItem}>
-                  <Text style={styles.priceRangeLabel}>MAX</Text>
-                  <Text style={styles.priceRangeValue}>${safeAssetData.priceRange.max.toLocaleString("en-US")}</Text>
-                </View>
-              </View>
-              {safeAssetData.outlierCount > 0 && (
-                <Text style={styles.outlierInfo}>
-                  {safeAssetData.outlierCount} outlier{safeAssetData.outlierCount > 1 ? 's' : ''} excluded from calculation
-                </Text>
-              )}
-            </View>
-          )}
-
-          <View style={styles.ratingContainer}>
-            <View style={styles.ratingBadge}>
-              <Feather 
-                name={safeAssetData.investmentRating === 'BUY' ? 'trending-up' : safeAssetData.investmentRating === 'SELL' ? 'trending-down' : 'minus'} 
-                size={16} 
-                color={safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow} 
+    <View style={styles.root}>
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.huge }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.hero, { height: HERO + insets.top }]}>
+          {imageUri ? (
+            <Animated.View style={[StyleSheet.absoluteFill, heroStyle]}>
+              <Image
+                source={{ uri: imageUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={250}
               />
-              <Text style={[styles.ratingText, {
-                color: safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow
-              }]}>
-                {ratingLabel(safeAssetData.investmentRating)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.whyButton}
-              onPress={() => setShowRatingSheet(true)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Why this rating"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            </Animated.View>
+          ) : productShot ? (
+            // No photo (typed search): show the product as the shops picture it.
+            <Animated.View
+              entering={FadeIn.duration(400)}
+              style={[styles.heroEmpty, { paddingTop: insets.top }]}
             >
-              <Text style={styles.whyButtonText}>Why?</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleAddToVault}
-              disabled={isSaving}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={isSaving ? "Saving asset" : "Add to vault"}
-              accessibilityState={{ disabled: isSaving, busy: isSaving }}
-            >
-              <Feather name="plus-circle" size={18} color="#000" />
-              <Text style={styles.primaryButtonText}>
-                {isSaving ? "SAVING..." : "ADD TO VAULT"}
-              </Text>
-            </TouchableOpacity>
-            {priceFound && (
-              <TouchableOpacity
-                style={styles.promoButton}
-                onPress={handleShareValueCard}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Share value card"
-              >
-                <Feather name="share" size={18} color={Colors.dark.accent} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <Text style={styles.disclaimer}>{RATING_DISCLAIMER}</Text>
-
-          {priceFound && (
-            <View style={styles.dealCheck}>
-              <Text style={styles.dealCheckLabel}>IS IT A GOOD DEAL?</Text>
-              <View style={styles.dealCheckRow}>
-                <Text style={styles.dealCheckCurrency}>$</Text>
-                <TextInput
-                  style={styles.dealCheckInput}
-                  value={listingPrice}
-                  onChangeText={setListingPrice}
-                  placeholder="Enter the asking price"
-                  placeholderTextColor={Colors.dark.textTertiary}
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                  accessibilityLabel="Asking price to compare against retail"
+              <View style={styles.productCard}>
+                <Image
+                  source={{ uri: productShot }}
+                  style={styles.productImage}
+                  contentFit="contain"
+                  transition={250}
                 />
               </View>
-              {dealDiffPct !== null && (
-                <View
-                  style={[
-                    styles.dealVerdict,
-                    {
-                      backgroundColor:
-                        dealDiffPct <= 0
-                          ? Colors.dark.successTint
-                          : Colors.dark.alertTint,
-                    },
-                  ]}
-                >
-                  <Feather
-                    name={dealDiffPct <= 0 ? "trending-down" : "trending-up"}
-                    size={16}
-                    color={dealDiffPct <= 0 ? Colors.dark.successGreen : Colors.dark.alertRed}
-                  />
-                  <Text
-                    style={[
-                      styles.dealVerdictText,
-                      { color: dealDiffPct <= 0 ? Colors.dark.successGreen : Colors.dark.alertRed },
-                    ]}
-                  >
-                    {dealDiffPct === 0
-                      ? "Right at retail price"
-                      : dealDiffPct < 0
-                        ? `${Math.abs(dealDiffPct)}% below retail · good deal`
-                        : `${dealDiffPct}% above retail`}
-                  </Text>
-                </View>
-              )}
+            </Animated.View>
+          ) : (
+            <View style={[styles.heroEmpty, { paddingTop: insets.top }]}>
+              <Icon name="search" size={40} color={Colors.textTertiary} />
             </View>
           )}
+          {imageUri ? (
+            <LinearGradient
+              colors={[
+                "rgba(0,0,0,0.5)",
+                "transparent",
+                "rgba(0,0,0,0.15)",
+                Colors.bg,
+              ]}
+              locations={[0, 0.3, 0.72, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
+        </View>
 
-          {safeAssetData.regulatedCategory ? (
-            <View style={styles.regulatedNotice}>
-              <Feather name="alert-triangle" size={16} color={Colors.dark.warningYellow} />
-              <Text style={styles.regulatedNoticeText}>
-                Regulated item (17+). Purchase links are hidden — prices shown for
-                information only.
-              </Text>
+        <View style={styles.body}>
+          {identity && conf ? (
+            <Animated.View
+              entering={FadeInDown.duration(420).springify().damping(18)}
+              style={styles.identity}
+            >
+              <View style={styles.chips}>
+                {typedSearch ? (
+                  <Chip icon="search" label={t("Searched by name")} />
+                ) : (
+                  <Chip
+                    icon={conf.icon}
+                    label={conf.label}
+                    color={conf.color}
+                  />
+                )}
+                {identity.kind === "generic" ? (
+                  <Chip icon="tag" label={t("Brand not visible")} />
+                ) : null}
+                {identity.barcode ? (
+                  <Chip icon="maximize" label={identity.barcode} />
+                ) : null}
+              </View>
+              <Txt variant="display" accessibilityRole="header">
+                {title}
+              </Txt>
+              {subtitle ? (
+                <Txt variant="body" color={Colors.textSecondary}>
+                  {subtitle}
+                </Txt>
+              ) : null}
+              <Press
+                onPress={() => {
+                  openEditor(identity.name);
+                }}
+                haptic
+                accessibilityRole="button"
+                accessibilityLabel={t("Not right?")}
+                style={styles.notRight}
+              >
+                <Icon name="edit-3" size={14} color={Colors.accent} />
+                <Txt variant="calloutStrong" color={Colors.accent}>
+                  {t("Not right?")}
+                </Txt>
+              </Press>
+              {(identity.others ?? []).length > 0 ? (
+                <View style={styles.alts}>
+                  <Txt variant="caption" color={Colors.textTertiary}>
+                    {t("Also in this photo")}
+                  </Txt>
+                  <View style={styles.chips}>
+                    {identity.others.map((o) => (
+                      <Chip
+                        key={o}
+                        label={o}
+                        icon="plus"
+                        onPress={() => applyName(o)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+              {identity.alternatives.length > 0 ? (
+                <View style={styles.alts}>
+                  <Txt variant="caption" color={Colors.textTertiary}>
+                    {t("Could also be")}
+                  </Txt>
+                  <View style={styles.chips}>
+                    {identity.alternatives.map((a) => (
+                      <Chip
+                        key={a}
+                        label={a}
+                        icon="corner-down-right"
+                        onPress={() => applyName(a)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </Animated.View>
+          ) : idError ? (
+            <View style={styles.errorCard}>
+              <Icon name="alert-circle" size={22} color={Colors.trustLow} />
+              <Txt variant="headline">{t("Couldn't identify this")}</Txt>
+              <Txt
+                variant="callout"
+                color={Colors.textSecondary}
+                style={styles.centerText}
+              >
+                {idError}
+              </Txt>
+              <View style={styles.errorActions}>
+                <Button
+                  title={t("Try again")}
+                  icon="refresh-cw"
+                  onPress={runIdentify}
+                  style={styles.flex}
+                />
+                <Button
+                  title={t("What is it?")}
+                  tone="secondary"
+                  onPress={() => {
+                    openEditor("");
+                  }}
+                  style={styles.flex}
+                />
+              </View>
             </View>
           ) : (
-          <>
-          <Text style={styles.sectionTitle}>GLOBAL MARKETS</Text>
-
-          {([
-            { code: "US", name: "USA", emoji: "🇺🇸" },
-            { code: "UK", name: "UK", emoji: "🇬🇧" },
-            { code: "TR", name: "TÜRKİYE", emoji: "🇹🇷" },
-            { code: "IT", name: "ITALY", emoji: "🇮🇹" },
-            { code: "ES", name: "SPAIN", emoji: "🇪🇸" },
-            { code: "FR", name: "FRANCE", emoji: "🇫🇷" },
-            { code: "AE", name: "DUBAI", emoji: "🇦🇪" },
-          ] as {
-            code: string;
-            name: string;
-            emoji: string;
-          }[]).map((region) => {
-            const regionDeals = safeAssetData.deals?.filter((d: ProductDeal) => d.region === region.code) || [];
-            if (regionDeals.length === 0) return null;
-
-            return (
-              <View key={region.code} style={styles.regionSection}>
-                <View style={styles.regionHeader}>
-                  <Text style={styles.regionFlag}>{region.emoji}</Text>
-                  <Text style={styles.regionTitle}>{region.name}</Text>
-                </View>
-                {regionDeals.map((deal: ProductDeal, index: number) => (
-                  <TouchableOpacity
-                    key={`${region.code}-${index}`}
-                    style={[styles.dealCard, deal.isOutlier && styles.dealCardOutlier]}
-                    onPress={() => openLink(deal.url)}
-                    activeOpacity={0.7}
-                    accessibilityRole="link"
-                    accessibilityLabel={
-                      deal.isSearchLink
-                        ? `Search ${deal.storeName}. Opens in browser.`
-                        : `${deal.storeName}, ${Math.round(deal.price)} dollars. Opens in browser.`
-                    }
-                  >
-                    <View style={styles.dealLeft}>
-                      <View style={styles.storeRow}>
-                        <Text style={styles.storeName}>{deal.storeName}</Text>
-                        {deal.isOutlier && (
-                          <View style={styles.outlierBadge}>
-                            <Text style={styles.outlierBadgeText}>OUTLIER</Text>
-                          </View>
-                        )}
-                      </View>
-                      {deal.isBestDeal && !deal.isOutlier && (
-                        <Text style={styles.bestDealText}>BEST PRICE</Text>
-                      )}
-                    </View>
-                    <View style={styles.dealRight}>
-                      {deal.isSearchLink ? (
-                        <Text style={styles.searchLinkText}>ARA</Text>
-                      ) : (
-                        <Text style={[styles.dealPrice, deal.isOutlier && styles.dealPriceOutlier]}>
-                          ${Math.round(deal.price).toLocaleString("en-US")}
-                        </Text>
-                      )}
-                      <Feather name="external-link" size={14} color={Colors.dark.textTertiary} />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            );
-          })}
-          </>
+            <View
+              style={styles.identity}
+              accessibilityLabel={t("Identifying…")}
+            >
+              <Txt variant="overline" color={Colors.accent}>
+                {t("Identifying…")}
+              </Txt>
+              <Skeleton width="86%" height={30} />
+              <Skeleton width="54%" height={30} />
+              <Skeleton width="40%" height={16} style={{ marginTop: 4 }} />
+            </View>
           )}
 
-          <TouchableOpacity
-            style={styles.shareButton}
-            activeOpacity={0.7}
-            onPress={handleShareReport}
-            accessibilityRole="button"
-            accessibilityLabel="Share report"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="share-2" size={14} color={Colors.dark.textTertiary} />
-            <Text style={styles.shareText}>SHARE REPORT</Text>
-          </TouchableOpacity>
+          {photo &&
+          identity &&
+          identity.kind !== "not_for_sale" &&
+          identity.confidence < 60 ? (
+            // Unsure: the fastest fix is a closer photo of the label or logo.
+            <Animated.View
+              entering={FadeInDown.duration(420)}
+              style={styles.notice}
+            >
+              <Icon name="camera" size={16} color={Colors.trustMid} />
+              <View style={styles.flex}>
+                <Txt variant="calloutStrong">{t("Not sure yet")}</Txt>
+                <Txt variant="callout" color={Colors.textSecondary}>
+                  {t(
+                    "Take a closer photo of the label, logo or tag and I'll pin down the exact model.",
+                  )}
+                </Txt>
+                <Press
+                  onPress={() => navigation.goBack()}
+                  haptic
+                  accessibilityRole="button"
+                  style={styles.notRight}
+                >
+                  <Icon name="camera" size={14} color={Colors.accent} />
+                  <Txt variant="calloutStrong" color={Colors.accent}>
+                    {t("Take a closer photo")}
+                  </Txt>
+                </Press>
+              </View>
+            </Animated.View>
+          ) : null}
 
-          <View style={{ height: 50 }} />
-        </ScrollView>
+          {matches.length > 0 ? (
+            <Animated.View entering={FadeInDown.duration(420).delay(80)}>
+              <VisualMatches
+                matches={matches}
+                linkable={!identity?.regulated}
+              />
+            </Animated.View>
+          ) : null}
+
+          {identity?.kind === "not_for_sale" && priceState === "idle" ? (
+            <View style={styles.notice}>
+              <Icon name="info" size={16} color={Colors.textSecondary} />
+              <View style={styles.flex}>
+                <Txt variant="calloutStrong">
+                  {t("Not something you buy in a shop")}
+                </Txt>
+                <Txt variant="callout" color={Colors.textSecondary}>
+                  {t(
+                    "Tap something else in the photo, or type what you're looking for.",
+                  )}
+                </Txt>
+                {identity.searchQuery ? (
+                  <Press
+                    onPress={() => applyName(identity.searchQuery)}
+                    haptic
+                    accessibilityRole="button"
+                    style={styles.notRight}
+                  >
+                    <Icon name="search" size={14} color={Colors.accent} />
+                    <Txt variant="calloutStrong" color={Colors.accent}>
+                      {identity.searchQuery}
+                    </Txt>
+                  </Press>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
+          {identity?.regulated ? (
+            <View style={styles.notice}>
+              <Icon name="slash" size={16} color={Colors.trustMid} />
+              <View style={styles.flex}>
+                <Txt variant="calloutStrong">{t("Age-restricted product")}</Txt>
+                <Txt variant="callout" color={Colors.textSecondary}>
+                  {t("Purchase links are hidden for age-restricted items.")}
+                </Txt>
+              </View>
+            </View>
+          ) : null}
+
+          {identity && priceState === "loading" ? (
+            <View
+              style={styles.section}
+              accessibilityLabel={t(
+                "Finding prices in the US, Europe and Türkiye…",
+              )}
+            >
+              <Txt variant="callout" color={Colors.textSecondary}>
+                {t("Finding prices in the US, Europe and Türkiye…")}
+              </Txt>
+              <Skeleton width="100%" height={196} radius={Radius.xxl} />
+              <View style={styles.tiles}>
+                <Skeleton width="48%" height={128} radius={Radius.xl} />
+                <Skeleton width="48%" height={128} radius={Radius.xl} />
+              </View>
+              <Skeleton width="100%" height={52} radius={Radius.lg} />
+            </View>
+          ) : null}
+
+          {priceState === "error" ? (
+            <View style={styles.errorCard}>
+              <Icon name="wifi-off" size={20} color={Colors.trustLow} />
+              <Txt variant="headline">{t("Couldn't load prices")}</Txt>
+              <Txt
+                variant="callout"
+                color={Colors.textSecondary}
+                style={styles.centerText}
+              >
+                {priceError}
+              </Txt>
+              <Button
+                title={t("Try again")}
+                icon="refresh-cw"
+                onPress={() => identity && runPrices(identity)}
+                style={styles.stretch}
+              />
+            </View>
+          ) : null}
+
+          {report && priceState === "done" ? (
+            <>
+              {picks?.recommended ? (
+                <Animated.View
+                  entering={FadeInDown.duration(460).springify().damping(18)}
+                  style={styles.section}
+                >
+                  <RecommendedCard
+                    offer={picks.recommended}
+                    linkable={linkable}
+                    local={picks.recommendedIsLocal}
+                  />
+                  {showSideTiles ? (
+                    <View style={styles.tiles}>
+                      {picks.cheapest ? (
+                        <PickTile
+                          label={t("Cheapest")}
+                          icon="trending-down"
+                          offer={picks.cheapest}
+                          linkable={linkable}
+                        />
+                      ) : null}
+                      {picks.safest ? (
+                        <PickTile
+                          label={t("Most trusted")}
+                          icon="shield"
+                          offer={picks.safest}
+                          linkable={linkable}
+                        />
+                      ) : null}
+                    </View>
+                  ) : null}
+                  {report.range ? (
+                    <RangeBar range={report.range} count={report.sourceCount} />
+                  ) : null}
+                  {saved && saved.history.length >= 2 ? (
+                    <PriceHistory history={saved.history} />
+                  ) : null}
+                </Animated.View>
+              ) : (
+                <View style={styles.notice}>
+                  <Icon
+                    name={report.live ? "search" : "power"}
+                    size={16}
+                    color={Colors.textSecondary}
+                  />
+                  <View style={styles.flex}>
+                    <Txt variant="calloutStrong">
+                      {report.live
+                        ? t("No live prices found")
+                        : t("Price check is off")}
+                    </Txt>
+                    <Txt variant="callout" color={Colors.textSecondary}>
+                      {report.live
+                        ? t(
+                            "Try a more specific name, or search the stores directly.",
+                          )
+                        : t(
+                            "Add a SerpAPI key on the server to see live store prices. Search links still work.",
+                          )}
+                    </Txt>
+                  </View>
+                </View>
+              )}
+
+              {report.sourceCount === 0 ? (
+                linkable ? (
+                  <View style={styles.section}>
+                    <Txt variant="title">{t("Search the stores")}</Txt>
+                    <View style={styles.list}>
+                      {report.markets.map((m, i) => (
+                        <View key={m.market}>
+                          {i > 0 ? <Divider inset={Spacing.lg} /> : null}
+                          <Press
+                            onPress={() => openStore(m.searchUrl)}
+                            haptic
+                            scale={0.985}
+                            accessibilityRole="link"
+                            style={styles.searchRow}
+                          >
+                            <Txt variant="bodyStrong" style={styles.flex}>
+                              {t(m.market)}
+                            </Txt>
+                            <Txt variant="callout" color={Colors.textTertiary}>
+                              Google Shopping
+                            </Txt>
+                            <Icon
+                              name="arrow-up-right"
+                              size={16}
+                              color={Colors.textTertiary}
+                            />
+                          </Press>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : null
+              ) : (
+                <Animated.View
+                  entering={FadeIn.duration(500).delay(120)}
+                  style={styles.section}
+                >
+                  <Txt variant="title">{t("Where it's sold")}</Txt>
+                  <MarketTabs
+                    markets={report.markets}
+                    selected={market}
+                    onSelect={(m) => {
+                      setMarket(m);
+                      setExpanded(false);
+                    }}
+                  />
+                  <View style={styles.list}>
+                    {shownOffers.length === 0 ? (
+                      <View style={styles.emptyMarket}>
+                        <Txt variant="callout" color={Colors.textTertiary}>
+                          {t("No offers found here")}
+                        </Txt>
+                      </View>
+                    ) : (
+                      shownOffers.map((o, i) => (
+                        <View key={o.id}>
+                          {i > 0 ? <Divider inset={64} /> : null}
+                          <OfferRow offer={o} linkable={linkable} />
+                        </View>
+                      ))
+                    )}
+                    {offers.length > ROWS_COLLAPSED ? (
+                      <>
+                        <Divider />
+                        <Press
+                          onPress={() => setExpanded((v) => !v)}
+                          style={styles.listFoot}
+                          haptic
+                        >
+                          <Icon
+                            name={expanded ? "chevron-up" : "chevron-down"}
+                            size={15}
+                            color={Colors.textSecondary}
+                          />
+                          <Txt
+                            variant="calloutStrong"
+                            color={Colors.textSecondary}
+                          >
+                            {t("{n} offers", { n: offers.length })}
+                          </Txt>
+                        </Press>
+                      </>
+                    ) : null}
+                    {selected && linkable ? (
+                      <>
+                        <Divider />
+                        <Press
+                          onPress={() => openStore(selected.searchUrl)}
+                          haptic
+                          accessibilityRole="link"
+                          style={styles.listFoot}
+                        >
+                          <Icon
+                            name="external-link"
+                            size={14}
+                            color={Colors.textSecondary}
+                          />
+                          <Txt
+                            variant="calloutStrong"
+                            color={Colors.textSecondary}
+                          >
+                            {t("Search on Google Shopping")}
+                          </Txt>
+                        </Press>
+                      </>
+                    ) : null}
+                  </View>
+                </Animated.View>
+              )}
+
+              {identity && identity.kind !== "not_for_sale" ? (
+                <SaleTiming category={identity.category} />
+              ) : null}
+              {identity && identity.kind !== "not_for_sale" && linkable ? (
+                <Alternatives
+                  name={identity.name}
+                  category={identity.category}
+                  priceUSD={
+                    picks?.recommended?.priceUSD ?? report.range?.median ?? null
+                  }
+                  linkable={linkable}
+                />
+              ) : null}
+
+              {report.live && report.sourceCount > 0 ? (
+                <Txt
+                  variant="caption"
+                  color={Colors.textTertiary}
+                  style={styles.footnote}
+                >
+                  {t("Live prices from Google Shopping")} · {pricedAt}
+                  {"\n"}
+                  {t("Prices may change. Check the store before buying.")}
+                </Txt>
+              ) : null}
+            </>
+          ) : null}
+
+          {identity && priceState !== "loading" ? (
+            saved || past ? (
+              <Button
+                title={t("Refresh prices")}
+                icon="refresh-cw"
+                tone="secondary"
+                onPress={() => {
+                  refreshed.current = true;
+                  void runPrices(identity);
+                }}
+              />
+            ) : (
+              <Button
+                title={t("Scan again")}
+                icon="camera"
+                tone="secondary"
+                onPress={() => navigation.goBack()}
+              />
+            )
+          ) : null}
+        </View>
+      </Animated.ScrollView>
+
+      {identity ? (
+        <View style={styles.offscreen} pointerEvents="none">
+          <ShareCard
+            ref={shareCard}
+            title={title}
+            subtitle={subtitle}
+            imageUri={imageUri ?? productShot}
+            best={identity.regulated ? null : report?.picks.recommended}
+            price={
+              report?.picks.recommended
+                ? primaryPrice(report.picks.recommended)
+                : undefined
+            }
+          />
+        </View>
+      ) : null}
+
+      <LinearGradient
+        colors={["rgba(0,0,0,0.92)", "rgba(0,0,0,0.6)", "transparent"]}
+        locations={[0, 0.6, 1]}
+        style={[styles.topScrim, { height: insets.top + 84 }]}
+        pointerEvents="none"
+      />
+      <Animated.View
+        style={[styles.compactBar, { height: insets.top + 60 }, barStyle]}
+        pointerEvents="none"
+      >
+        <BlurView
+          intensity={60}
+          tint="systemChromeMaterialDark"
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.compactTitle, { paddingTop: insets.top }]}>
+          <Txt variant="headline" numberOfLines={1}>
+            {title}
+          </Txt>
+        </View>
+        <View style={styles.compactLine} />
+      </Animated.View>
+      <View
+        style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}
+        pointerEvents="box-none"
+      >
+        <IconButton
+          icon={saved ? "chevron-left" : "x"}
+          label={t("Cancel")}
+          onPress={() => navigation.goBack()}
+        />
+        <View style={styles.topRight}>
+          {identity ? (
+            <IconButton icon="share" label={t("Share")} onPress={onShare} />
+          ) : null}
+          {identity ? (
+            <Press
+              onPress={onSave}
+              haptic
+              scale={0.94}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={savedItemId ? t("Saved") : t("Save")}
+            >
+              <Glass
+                interactive
+                tint={savedItemId ? Colors.accent : undefined}
+                style={styles.savePill}
+              >
+                <Icon
+                  name={savedItemId ? "check" : "bookmark"}
+                  size={16}
+                  color={savedItemId ? Colors.textInverse : Colors.text}
+                />
+                <Txt
+                  variant="calloutStrong"
+                  color={savedItemId ? Colors.textInverse : Colors.text}
+                >
+                  {savedItemId ? t("Saved") : t("Save")}
+                </Txt>
+              </Glass>
+            </Press>
+          ) : null}
+        </View>
       </View>
 
       <Modal
-        visible={showRatingSheet}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowRatingSheet(false)}
+        visible={editing}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditing(false)}
       >
-        <View style={styles.ratingSheetOverlay}>
-          <View style={[styles.ratingSheetContainer, { paddingBottom: insets.bottom + Spacing.xl }]}>
-            <View style={styles.handleContainer}>
-              <View style={styles.handle} />
-            </View>
-            
-            <View style={styles.ratingSheetHeader}>
-              <Text style={styles.ratingSheetTitle}>AI Rating Explanation</Text>
-              <TouchableOpacity
-                onPress={() => setShowRatingSheet(false)}
-                style={styles.closeButton}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="x" size={20} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.ratingSheetContent}>
-              <View style={[styles.ratingBadgeLarge, {
-                backgroundColor: safeAssetData.investmentRating === 'BUY' 
-                  ? 'rgba(0, 255, 148, 0.15)' 
-                  : safeAssetData.investmentRating === 'SELL' 
-                    ? 'rgba(255, 59, 48, 0.15)' 
-                    : 'rgba(250, 204, 21, 0.15)'
-              }]}>
-                <Feather 
-                  name={safeAssetData.investmentRating === 'BUY' ? 'trending-up' : safeAssetData.investmentRating === 'SELL' ? 'trending-down' : 'minus'} 
-                  size={32} 
-                  color={safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow} 
-                />
-                <Text style={[styles.ratingBadgeLargeText, {
-                  color: safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow
-                }]}>
-                  {ratingLabel(safeAssetData.investmentRating)}
-                </Text>
-              </View>
-
-              <Text style={styles.ratingExplanationTitle}>
-                Why {ratingLabel(safeAssetData.investmentRating)}?
-              </Text>
-
-              <View style={styles.ratingFactorsList}>
-                {safeAssetData.ratingReason ? (
-                  <View style={styles.ratingFactor}>
-                    <Feather
-                      name={safeAssetData.investmentRating === 'BUY' ? 'check-circle' : safeAssetData.investmentRating === 'SELL' ? 'alert-circle' : 'minus-circle'}
-                      size={16}
-                      color={safeAssetData.investmentRating === 'BUY' ? Colors.dark.successGreen : safeAssetData.investmentRating === 'SELL' ? Colors.dark.alertRed : Colors.dark.warningYellow}
-                    />
-                    <Text style={styles.ratingFactorText}>{safeAssetData.ratingReason}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.ratingFactor}>
-                    <Feather name="info" size={16} color={Colors.dark.textTertiary} />
-                    <Text style={styles.ratingFactorText}>No explanation available for this rating.</Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.disclaimerBox}>
-                <Text style={styles.disclaimerText}>
-                  AI ratings are based on market data analysis and should not be considered financial advice. 
-                  Always do your own research before making investment decisions.
-                </Text>
-              </View>
-            </ScrollView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.modalWrap}
+        >
+          <Press
+            style={StyleSheet.absoluteFill}
+            scale={1}
+            onPress={() => setEditing(false)}
+            accessibilityLabel={t("Cancel")}
+          />
+          <View
+            style={[
+              styles.sheet,
+              { paddingBottom: insets.bottom + Spacing.lg },
+            ]}
+          >
+            <Txt variant="title">{t("What is it?")}</Txt>
+            <TextInput
+              defaultValue={draft}
+              onChangeText={(v) => {
+                typed.current = v;
+                const ok = v.trim().length >= 2;
+                if (ok !== canApply) setCanApply(ok);
+              }}
+              placeholder={t("Type the product name, e.g. iPhone 15 Pro 256GB")}
+              placeholderTextColor={Colors.textTertiary}
+              style={styles.input}
+              autoFocus
+              returnKeyType="search"
+              onSubmitEditing={() => applyName(typed.current)}
+              selectionColor={Colors.accent}
+            />
+            <Button
+              title={t("Search prices")}
+              icon="search"
+              onPress={() => applyName(typed.current)}
+              disabled={!canApply}
+            />
+            <Button
+              title={t("Cancel")}
+              tone="ghost"
+              onPress={() => setEditing(false)}
+            />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
-    </ScopeBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  offscreenCard: {
-    position: "absolute",
-    left: -9999,
-    top: 0,
-    width: VALUE_CARD_WIDTH,
-    height: VALUE_CARD_HEIGHT,
+  root: { flex: 1, backgroundColor: Colors.bg },
+  flex: { flex: 1 },
+  stretch: { alignSelf: "stretch" },
+  centerText: { textAlign: "center" },
+  hero: {
+    width: "100%",
+    backgroundColor: Colors.bg,
+    overflow: "hidden",
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "transparent",
+  body: {
+    ...READABLE,
+    paddingHorizontal: Spacing.gutter,
+    marginTop: -Spacing.xxxl,
+    gap: Spacing.xxl,
   },
-  cardContainer: {
-    backgroundColor: Colors.dark.backgroundSecondary,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    height: SCREEN_HEIGHT * 0.85,
-  },
-  handleContainer: {
-    alignItems: "center",
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  handle: {
-    width: 50,
-    height: 4,
-    backgroundColor: Colors.dark.textDim,
-    borderRadius: 2,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing["2xl"],
-    marginBottom: Spacing.xl,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  closeButton: {
-    padding: Spacing.sm,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 20,
-  },
-  tagRow: {
-    flexDirection: "row",
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  categoryTag: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: Spacing.xs,
-  },
-  categoryText: {
-    fontSize: Typography.micro.fontSize,
-    color: Colors.dark.textSecondary,
-    fontFamily: Fonts?.mono,
-  },
-  matchTag: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    backgroundColor: "rgba(0, 255, 148, 0.1)",
-    borderRadius: Spacing.xs,
-  },
-  matchText: {
-    fontSize: Typography.micro.fontSize,
-    fontWeight: "700",
-    color: Colors.dark.accentIce,
-    fontFamily: Fonts?.mono,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: Colors.dark.text,
-    fontFamily: Fonts?.mono,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing["2xl"],
-  },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: Spacing.md,
-    marginBottom: Spacing["3xl"],
-  },
-  price: {
-    fontSize: Typography.price.fontSize,
-    fontWeight: Typography.price.fontWeight,
-    color: Colors.dark.text,
-  },
-  noPriceBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    marginBottom: Spacing["3xl"],
-    backgroundColor: "rgba(250, 204, 21, 0.08)",
-    borderColor: "rgba(250, 204, 21, 0.25)",
-    borderWidth: 1,
-    borderRadius: BorderRadius.lg,
-  },
-  noPriceTextWrap: {
-    flex: 1,
-  },
-  noPriceTitle: {
-    fontSize: Typography.h4.fontSize,
-    fontWeight: "700",
-    color: Colors.dark.text,
-    fontFamily: Fonts?.mono,
-  },
-  noPriceSub: {
-    fontSize: Typography.small.fontSize,
-    color: Colors.dark.textTertiary,
-    marginTop: 2,
-  },
-  searchLinkText: {
-    fontSize: Typography.label.fontSize,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: Colors.dark.warningYellow,
-    fontFamily: Fonts?.mono,
-  },
-  trendBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  trendText: {
-    fontSize: Typography.label.fontSize,
-    fontWeight: "700",
-    fontFamily: Fonts?.mono,
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: Spacing.md,
-    marginBottom: Spacing["3xl"],
-  },
-  primaryButton: {
-    flex: 1,
-    height: Spacing.buttonHeight,
-    backgroundColor: "#FFF",
-    borderRadius: BorderRadius.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.sm,
-  },
-  primaryButtonText: {
-    color: "#000",
-    fontWeight: "700",
-    fontFamily: Fonts?.mono,
-  },
-  promoButton: {
-    width: Spacing.buttonHeight,
-    height: Spacing.buttonHeight,
-    backgroundColor: "rgba(0, 255, 148, 0.15)",
-    borderRadius: BorderRadius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(0, 255, 148, 0.3)",
-  },
-  trustRow: {
+  identity: { gap: Spacing.sm },
+  chips: { flexDirection: "row", gap: Spacing.sm, flexWrap: "wrap" },
+  notRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 6,
+    alignSelf: "flex-start",
+    paddingVertical: 4,
   },
-  trustText: {
-    fontSize: 11,
-    color: Colors.dark.textTertiary,
-    fontFamily: Fonts?.mono,
+  alts: { gap: 6, marginTop: 2 },
+  section: { gap: Spacing.md },
+  tiles: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    justifyContent: "space-between",
   },
-  regulatedNotice: {
+  list: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    overflow: "hidden",
+  },
+  listFoot: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
-    backgroundColor: "rgba(250, 204, 21, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(250, 204, 21, 0.25)",
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: Spacing.md + 2,
   },
-  regulatedNoticeText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
-    color: Colors.dark.textSecondary,
-    fontFamily: Fonts?.mono,
-  },
-  dealCheck: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing["2xl"],
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.dark.accentBorder,
-    backgroundColor: Colors.dark.accentTint,
-  },
-  dealCheckLabel: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: Colors.dark.accentIce,
-    fontFamily: Fonts?.mono,
-    marginBottom: Spacing.sm,
-  },
-  dealCheckRow: {
+  searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    minHeight: 54,
   },
-  dealCheckCurrency: {
-    fontSize: 16,
-    color: Colors.dark.textSecondary,
-    fontFamily: Fonts?.mono,
-  },
-  dealCheckInput: {
-    flex: 1,
-    height: 40,
-    marginLeft: 6,
-    fontSize: 15,
-    color: Colors.dark.text,
-    fontFamily: Fonts?.mono,
-  },
-  dealVerdict: {
+  emptyMarket: { paddingVertical: Spacing.xxl, alignItems: "center" },
+  footnote: { textAlign: "center", lineHeight: 17 },
+  notice: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  dealVerdictText: {
-    fontSize: 14,
-    fontWeight: "700",
-    fontFamily: Fonts?.mono,
-  },
-  disclaimer: {
-    fontSize: 10,
-    color: Colors.dark.textTertiary,
-    fontFamily: Fonts?.mono,
-    letterSpacing: 0.3,
-    textAlign: "center",
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  sectionTitle: {
-    fontSize: Typography.micro.fontSize,
-    fontWeight: Typography.micro.fontWeight,
-    letterSpacing: 1,
-    color: Colors.dark.textTertiary,
-    fontFamily: Fonts?.mono,
-    marginBottom: Spacing.md,
-  },
-  regionSection: {
-    marginBottom: Spacing.lg,
-  },
-  regionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-    paddingBottom: Spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  regionFlag: {
-    fontSize: 15,
-  },
-  regionTitle: {
-    fontSize: Typography.label.fontSize,
-    fontWeight: "700",
-    fontFamily: Fonts?.mono,
-    letterSpacing: 1,
-    color: Colors.dark.accentIce,
-  },
-  dealCard: {
-    backgroundColor: Colors.dark.backgroundTertiary,
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
     padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
+  },
+  errorCard: {
+    alignItems: "center",
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+  },
+  errorActions: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+    alignSelf: "stretch",
+    marginTop: Spacing.sm,
+  },
+  topScrim: { position: "absolute", top: 0, left: 0, right: 0 },
+  topBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.dark.cardBorder,
+    paddingHorizontal: Spacing.lg,
   },
-  storeName: {
-    color: Colors.dark.text,
-    fontWeight: "700",
-    fontSize: Typography.body.fontSize,
-  },
-  bestDealText: {
-    fontSize: Typography.micro.fontSize,
-    color: Colors.dark.accent,
-    fontFamily: Fonts?.mono,
-    marginTop: Spacing.xs,
-  },
-  dealRight: {
+  topRight: { flexDirection: "row", gap: Spacing.sm, alignItems: "center" },
+  savePill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: 6,
+    height: 44,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 22,
+    overflow: "hidden",
   },
-  dealPrice: {
-    color: Colors.dark.text,
-    fontWeight: "700",
-    fontSize: Typography.body.fontSize,
-  },
-  shareButton: {
-    flexDirection: "row",
-    alignSelf: "center",
+  offscreen: { position: "absolute", left: -10000, top: 0 },
+  productCard: {
+    width: 190,
+    height: 190,
+    borderRadius: 36,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
     marginTop: Spacing.xl,
-    gap: Spacing.sm,
   },
-  shareText: {
-    fontSize: Typography.label.fontSize,
-    color: Colors.dark.textTertiary,
-    fontFamily: Fonts?.mono,
+  productImage: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 20,
   },
-  priceRangeContainer: {
-    backgroundColor: Colors.dark.backgroundTertiary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.dark.cardBorder,
-  },
-  priceRangeTitle: {
-    fontSize: Typography.micro.fontSize,
-    fontWeight: "700",
-    color: Colors.dark.textTertiary,
-    fontFamily: Fonts?.mono,
-    letterSpacing: 1,
-    marginBottom: Spacing.md,
-  },
-  priceRangeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  priceRangeItem: {
+  heroEmpty: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  compactBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    overflow: "hidden",
+  },
+  // Sits between the close button and the share/save cluster.
+  compactTitle: {
     flex: 1,
+    justifyContent: "center",
+    paddingLeft: 72,
+    paddingRight: 196,
   },
-  priceRangeMedian: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: Colors.dark.cardBorder,
+  compactLine: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.line,
   },
-  priceRangeLabel: {
-    fontSize: Typography.micro.fontSize,
-    color: Colors.dark.textTertiary,
-    fontFamily: Fonts?.mono,
-    marginBottom: Spacing.xs,
-  },
-  priceRangeValue: {
-    fontSize: Typography.body.fontSize,
-    fontWeight: "700",
-    color: Colors.dark.textSecondary,
-  },
-  priceRangeMedianValue: {
-    color: Colors.dark.accentIce,
-    fontSize: Typography.h3.fontSize,
-  },
-  outlierInfo: {
-    fontSize: Typography.micro.fontSize,
-    color: Colors.dark.warningYellow,
-    fontFamily: Fonts?.mono,
-    textAlign: "center",
-    marginTop: Spacing.md,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: Colors.dark.backgroundTertiary,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.dark.cardBorder,
-  },
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  ratingText: {
-    fontSize: Typography.label.fontSize,
-    fontWeight: "700",
-    fontFamily: Fonts?.mono,
-  },
-  whyButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: BorderRadius.sm,
-  },
-  whyButtonText: {
-    fontSize: Typography.label.fontSize,
-    color: Colors.dark.textSecondary,
-    fontFamily: Fonts?.mono,
-  },
-  dealCardOutlier: {
-    opacity: 0.6,
-    borderColor: Colors.dark.warningYellow,
-  },
-  dealLeft: {
+  modalWrap: {
     flex: 1,
-  },
-  storeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  outlierBadge: {
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    backgroundColor: "rgba(250, 204, 21, 0.2)",
-    borderRadius: 4,
-  },
-  outlierBadgeText: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: Colors.dark.warningYellow,
-    fontFamily: Fonts?.mono,
-  },
-  dealPriceOutlier: {
-    color: Colors.dark.textTertiary,
-    textDecorationLine: "line-through",
-  },
-  ratingSheetOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "flex-end",
+    backgroundColor: Colors.scrim,
   },
-  ratingSheetContainer: {
-    backgroundColor: Colors.dark.backgroundSecondary,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    maxHeight: SCREEN_HEIGHT * 0.7,
-  },
-  ratingSheetHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: Spacing["2xl"],
-    paddingBottom: Spacing.lg,
-  },
-  ratingSheetTitle: {
-    fontSize: Typography.h2.fontSize,
-    fontWeight: "700",
-    color: Colors.dark.text,
-    fontFamily: Fonts?.mono,
-  },
-  ratingSheetContent: {
-    paddingHorizontal: Spacing["2xl"],
-    paddingBottom: Spacing["2xl"],
-  },
-  ratingBadgeLarge: {
-    alignSelf: "center",
-    alignItems: "center",
-    paddingHorizontal: Spacing["3xl"],
-    paddingVertical: Spacing.xl,
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  ratingBadgeLargeText: {
-    fontSize: Typography.h1.fontSize,
-    fontWeight: "700",
-    fontFamily: Fonts?.mono,
-  },
-  ratingExplanationTitle: {
-    fontSize: Typography.h3.fontSize,
-    fontWeight: "700",
-    color: Colors.dark.text,
-    textAlign: "center",
-    marginBottom: Spacing.xl,
-  },
-  ratingFactorsList: {
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xxl,
+    borderTopRightRadius: Radius.xxl,
+    padding: Spacing.xl,
     gap: Spacing.md,
-    marginBottom: Spacing.xl,
   },
-  ratingFactor: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-    backgroundColor: Colors.dark.backgroundTertiary,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  ratingFactorText: {
-    flex: 1,
-    fontSize: Typography.body.fontSize,
-    color: Colors.dark.text,
-  },
-  disclaimerBox: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.dark.cardBorder,
-  },
-  disclaimerText: {
-    fontSize: Typography.small.fontSize,
-    color: Colors.dark.textTertiary,
-    textAlign: "center",
-    lineHeight: 20,
+  input: {
+    height: 54,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.surfaceRaised,
+    paddingHorizontal: Spacing.lg,
+    color: Colors.text,
+    ...Fonts.medium,
+    fontSize: 16,
   },
 });

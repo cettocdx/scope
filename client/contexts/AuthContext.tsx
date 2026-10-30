@@ -77,6 +77,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  const refresh = useCallback(async () => {
+    const [fresh, rcPro] = await Promise.all([fetchMe(), isProActive()]);
+    if (fresh) setUser(fresh);
+    setIsPro((fresh?.isPro ?? false) || rcPro);
+  }, []);
+
   const signInWithApple = useCallback(async () => {
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
@@ -105,19 +111,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     invalidateVault();
     // Pull authoritative Pro after RevenueCat user is linked.
     void refresh();
-  }, [invalidateVault]);
+  }, [invalidateVault, refresh]);
 
   const completeGoogleSignIn = useCallback(
     async (idToken: string) => {
       const deviceId = await getDeviceId();
-      const { user: signedIn } = await signInWithGoogleToken({ idToken, deviceId });
+      const { user: signedIn } = await signInWithGoogleToken({
+        idToken,
+        deviceId,
+      });
       setUser(signedIn);
       setIsPro(signedIn.isPro);
       await linkPurchasesUser(signedIn.id);
       invalidateVault();
       void refresh();
     },
-    [invalidateVault],
+    [invalidateVault, refresh],
   );
 
   const signOut = useCallback(async () => {
@@ -127,12 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsPro(false);
     invalidateVault();
   }, [invalidateVault]);
-
-  const refresh = useCallback(async () => {
-    const [fresh, rcPro] = await Promise.all([fetchMe(), isProActive()]);
-    if (fresh) setUser(fresh);
-    setIsPro((fresh?.isPro ?? false) || rcPro);
-  }, []);
 
   const setProLocally = useCallback((value: boolean) => setIsPro(value), []);
 

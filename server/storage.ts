@@ -7,6 +7,7 @@ import {
   type InsertPortfolioAsset,
 } from "@shared/schema";
 import { db } from "./db";
+import { RedisStorage } from "./storage-redis";
 import { eq, and, desc, isNull } from "drizzle-orm";
 
 /**
@@ -26,6 +27,12 @@ function ownerWhere(owner: OwnerKey) {
 }
 
 export interface IStorage {
+  /**
+   * True when each owner's assets live in their own namespace, so a client's
+   * id can be kept on create without any risk of touching another owner's row.
+   */
+  readonly ownerScopedIds?: boolean;
+
   getUser(id: string): Promise<User | undefined>;
   findOrCreateUser(identity: InsertUser): Promise<User>;
   touchUser(id: string): Promise<void>;
@@ -38,7 +45,10 @@ export interface IStorage {
   linkRevenueCat(userId: string, revenueCatId: string): Promise<void>;
 
   getPortfolioAssets(owner: OwnerKey): Promise<PortfolioAsset[]>;
-  getPortfolioAsset(id: string, owner: OwnerKey): Promise<PortfolioAsset | undefined>;
+  getPortfolioAsset(
+    id: string,
+    owner: OwnerKey,
+  ): Promise<PortfolioAsset | undefined>;
   upsertPortfolioAsset(asset: InsertPortfolioAsset): Promise<PortfolioAsset>;
   updatePortfolioAsset(
     id: string,
@@ -92,7 +102,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async touchUser(id: string): Promise<void> {
-    await db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, id));
+    await db
+      .update(users)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(users.id, id));
   }
 
   async setPro(args: {
@@ -138,7 +151,9 @@ export class DatabaseStorage implements IStorage {
     return asset || undefined;
   }
 
-  async upsertPortfolioAsset(asset: InsertPortfolioAsset): Promise<PortfolioAsset> {
+  async upsertPortfolioAsset(
+    asset: InsertPortfolioAsset,
+  ): Promise<PortfolioAsset> {
     const [created] = await db
       .insert(portfolioAssets)
       .values(asset)
@@ -200,4 +215,15 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+/** Cloud sync is on when there is Postgres or an Upstash Redis (Vercel KV). */
+export function cloudSyncConfigured(): boolean {
+  return Boolean(
+    process.env.DATABASE_URL ||
+      process.env.KV_REST_API_URL ||
+      process.env.UPSTASH_REDIS_REST_URL,
+  );
+}
+
+export const storage: IStorage = process.env.DATABASE_URL
+  ? new DatabaseStorage()
+  : new RedisStorage();

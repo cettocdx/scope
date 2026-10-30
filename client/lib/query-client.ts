@@ -1,6 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import Constants from "expo-constants";
 
+/** The public API (Vercel, fra1). Release builds use it unless EXPO_PUBLIC_DOMAIN overrides. */
+const PUBLIC_API_HOST = "scope-api-flax.vercel.app";
+
 /** Local dev backend port (the Express server). Avoids macOS AirPlay on 5000. */
 const DEV_API_PORT = process.env.EXPO_PUBLIC_API_PORT || "4000";
 
@@ -24,8 +27,9 @@ function devLanBaseUrl(): string {
 /**
  * Gets the base URL for the Express API server.
  * Resolution order:
- *  1. EXPO_PUBLIC_DOMAIN env (production)
+ *  1. EXPO_PUBLIC_DOMAIN env (e.g. a Mac on the home network)
  *  2. Local dev: auto-detected LAN IP + DEV_API_PORT (so phones can connect)
+ *  3. Release builds: the public API on Vercel
  * Uses http:// for localhost / LAN hosts, https:// otherwise.
  * @returns {string} The API base URL
  */
@@ -36,10 +40,15 @@ export function getApiUrl(): string {
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       return devLanBaseUrl();
     }
-    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+    return `https://${PUBLIC_API_HOST}/`;
   }
 
-  const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  // Home-network servers (a Mac's .local name or a private IP) speak plain http.
+  const hostname = host.split(":")[0];
+  const isLocal =
+    hostname === "localhost" ||
+    hostname.endsWith(".local") ||
+    /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
   const scheme = isLocal ? "http" : "https";
 
   return new URL(`${scheme}://${host}`).href;

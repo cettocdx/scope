@@ -1,0 +1,7 @@
+{
+  "name": "scope-camera",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SCOPE's iOS camera: live product detection with Apple Vision",
+  "main": "index.ts"
+}

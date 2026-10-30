@@ -1,94 +1,76 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { PortfolioAsset, AssetData, Condition, Country, AssetAttributes } from "@/types";
 
-import HomeScreen from "@/screens/HomeScreen";
-import VaultScreen from "@/screens/VaultScreen";
-import ScannerScreen from "@/screens/ScannerScreen";
-import ReviewScreen from "@/screens/ReviewScreen";
-import ConfirmScreen from "@/screens/ConfirmScreen";
-import AnalyzingScreen from "@/screens/AnalyzingScreen";
+import OnboardingScreen from "@/screens/OnboardingScreen";
+import ScanScreen from "@/screens/ScanScreen";
 import ResultScreen from "@/screens/ResultScreen";
-import AssetDetailScreen from "@/screens/AssetDetailScreen";
-import AnalyticsScreen from "@/screens/AnalyticsScreen";
+import SavedScreen from "@/screens/SavedScreen";
+import SettingsScreen from "@/screens/SettingsScreen";
 import AuthScreen from "@/screens/AuthScreen";
 import PaywallScreen from "@/screens/PaywallScreen";
-
-export interface RefinementData {
-  condition: Condition;
-  country: Country;
-  attributes?: AssetAttributes;
-  itemName?: string;
-  category?: string;
-}
+import { Colors } from "@/constants/theme";
 
 export type RootStackParamList = {
-  Home: undefined;
-  Vault: undefined;
-  Scanner: undefined;
-  Review: { imageBase64: string; barcode?: string };
-  Confirm: { imageBase64: string; initialData?: Partial<AssetData>; barcode?: string };
-  Analyzing: { imageBase64: string; refinements?: RefinementData; barcode?: string };
-  Result: { imageBase64: string; assetData: AssetData };
-  AssetDetail: { asset: PortfolioAsset };
-  Analytics: undefined;
+  Onboarding: undefined;
+  Scan: undefined;
+  /**
+   * A fresh scan (photo held in scan-session), a saved item, a past scan from
+   * History, or a typed product name.
+   */
+  Result: {
+    scanId?: string;
+    savedId?: string;
+    historyId?: string;
+    query?: string;
+  };
+  Saved: { tab?: "saved" | "history" } | undefined;
+  Settings: undefined;
   Auth: undefined;
   Paywall: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function RootStackNavigator() {
+export default function RootStackNavigator({
+  initialRouteName = "Scan",
+}: {
+  initialRouteName?: "Onboarding" | "Scan";
+}) {
   return (
     <Stack.Navigator
-      initialRouteName="Home"
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: "#000000" },
-        animation: "fade",
+        contentStyle: { backgroundColor: Colors.bg },
+        animation: "slide_from_right",
       }}
     >
-      <Stack.Screen name="Home" component={HomeScreen} />
-      <Stack.Screen name="Vault" component={VaultScreen} />
-      <Stack.Screen 
-        name="Scanner" 
-        component={ScannerScreen}
-        options={{ animation: "slide_from_bottom" }}
-      />
-      <Stack.Screen name="Review" component={ReviewScreen} />
-      <Stack.Screen 
-        name="Confirm" 
-        component={ConfirmScreen}
-        options={{ animation: "slide_from_right" }}
-      />
-      <Stack.Screen name="Analyzing" component={AnalyzingScreen} />
-      <Stack.Screen 
-        name="Result" 
-        component={ResultScreen}
-        options={{ 
-          presentation: "modal",
-          animation: "slide_from_bottom",
-        }}
-      />
-      <Stack.Screen 
-        name="AssetDetail" 
-        component={AssetDetailScreen}
-        options={{ animation: "slide_from_right" }}
+      <Stack.Screen
+        name="Onboarding"
+        component={OnboardingScreen}
+        options={{ animation: "fade", gestureEnabled: false }}
       />
       <Stack.Screen
-        name="Analytics"
-        component={AnalyticsScreen}
-        options={{ animation: "slide_from_right" }}
+        name="Scan"
+        component={ScanScreen}
+        options={{ animation: "fade" }}
       />
+      <Stack.Screen
+        name="Result"
+        component={ResultScreen}
+        options={{ animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen name="Saved" component={SavedScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen
         name="Auth"
         component={AuthScreen}
-        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        options={{ presentation: "modal" }}
       />
       <Stack.Screen
         name="Paywall"
         component={PaywallScreen}
-        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        options={{ presentation: "modal" }}
       />
     </Stack.Navigator>
   );

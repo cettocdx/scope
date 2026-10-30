@@ -1,82 +1,91 @@
 # SCOPE — Kurulum & Çalıştırma (Türkçe)
 
-Bu rehber, uygulamayı **kendi telefonunda çalışır** hale getirmen için adım adım anlatır.
-Tarama + AI analizinin çalışması için **tek gereken ücretsiz bir Google Gemini anahtarı.**
+Bu rehber, uygulamayı kendi bilgisayarında ve telefonunda (ya da iOS simülatöründe)
+çalıştırman için adım adım anlatır.
 
 ---
 
 ## 0. Gereksinimler (bir kez)
-- **Node.js 20+** (kuruluysa geç)
-- Telefonuna **Expo Go** uygulaması (App Store / Play Store)
-- Bilgisayar ve telefon **aynı WiFi'de**
+- **Node.js 20+**
+- Telefonda **Expo Go** (App Store / Play Store) _ya da_ Mac'te Xcode + iOS simülatörü
+- Telefonla deneyeceksen bilgisayar ve telefon **aynı Wi-Fi'de**
 
 ---
 
-## 1. Ücretsiz Gemini API anahtarı al (2 dakika)
-1. Tarayıcıda aç: **https://aistudio.google.com/apikey**
-2. Google hesabınla giriş yap.
-3. **"Create API key"** (API anahtarı oluştur) butonuna bas.
-4. Çıkan uzun anahtarı **kopyala** (örn. `AIza...`).
+## 1. Anahtarlar
 
-> Ücretsiz, kredi kartı istemez. Günlük belli bir kullanım limiti vardır, denemeler için fazlasıyla yeter.
+| Ne için | Değişken | Zorunlu mu? |
+|---|---|---|
+| Ürünü fotoğraftan tanımak | `OPENROUTER_API_KEY` **veya** `GEMINI_API_KEY` | Evet (biri) |
+| ABD / Avrupa / Türkiye mağaza fiyatları + linkleri | `SERPAPI_KEY` | Hayır — yoksa mağaza arama linkleri gösterilir |
+| Kaydedilenleri cihazlar arası eşitlemek | `DATABASE_URL` (PostgreSQL) | Hayır — yoksa kayıtlar telefonda kalır |
+| "Mağazalarda aynısı" (Google Lens ile birebir ürün) | `SERPAPI_KEY` + `PUBLIC_BASE_URL` **veya** `BLOB_READ_WRITE_TOKEN` | Hayır — yoksa bu bölüm gizlenir |
 
----
+- OpenRouter anahtarı: https://openrouter.ai/keys (tek anahtarla birçok model; varsayılan `google/gemini-2.5-flash`)
+- Gemini anahtarı (ücretsiz): https://aistudio.google.com/apikey
+- SerpAPI: https://serpapi.com — her tarama, aranan her ülke için bir arama harcar
+  (`PRICE_COUNTRIES` ile ülke sayısını azaltabilirsin).
 
-## 2. `.env` dosyasını oluştur
-Bilgisayarın Terminal'inde:
 ```
-cd /Users/cetto/Developer/scope
 cp .env.example .env
 ```
-Sonra `.env` dosyasını bir metin editörüyle aç (örn. `open -e .env`) ve şu satırı doldur:
-```
-GEMINI_API_KEY=BURAYA_KOPYALADIĞIN_ANAHTARI_YAPIŞTIR
-```
-Kaydet. (Diğer satırları boş bırakabilirsin — opsiyoneller.)
+Sonra `.env` içine anahtarlarını yapıştır.
 
 ---
 
-## 3. İki şeyi aynı anda çalıştır
-SCOPE iki parçadan oluşur: **backend (sunucu)** ve **mobil uygulama**.
+## 2. Çalıştır
 
-**Terminal penceresi 1 — sunucu:**
+**Terminal 1 — sunucu (port 4000):**
 ```
-cd /Users/cetto/Developer/scope
-npm run server:dev
+npm install
+PORT=4000 npm run server:dev
 ```
-`express server serving on port 5000` yazısını görürsen sunucu hazır.
+`express server serving on port 4000` yazısını görünce hazır.
+(5000 portunu macOS AirPlay kullandığı için uygulama 4000'i bekler.)
 
-**Terminal penceresi 2 — mobil uygulama:**
+**Terminal 2 — uygulama:**
 ```
-cd /Users/cetto/Developer/scope
 npx expo start
 ```
-Çıkan **QR kodu** telefonla okut (iPhone: Kamera; Android: Expo Go → Scan QR).
-
-> İkisini tek komutla da çalıştırabilirsin: `npm run all:dev`
-
----
-
-## 4. Dene
-Telefonda SCOPE açılınca → **START SCANNING** → bir eşyanın fotoğrafını çek → AI analiz etsin.
+- Telefonda: QR kodu okut.
+- Simülatörde: terminalde `i` tuşuna bas.
 
 ---
 
-## Ne zaman ne gerekir?
-| Özellik | Gereken |
-|---|---|
-| Tarama + AI ürün tanıma + değerleme | **GEMINI_API_KEY** (zorunlu) |
-| Gerçek çok-bölgeli mağaza fiyatları | SERPAPI_KEY (opsiyonel) |
-| Ekstra görsel tanıma (renk/malzeme) | XIMILAR_API_KEY / CLARIFAI_API_KEY (opsiyonel) |
-| Cihazlar arası bulut portföy senkronu | DATABASE_URL — PostgreSQL (opsiyonel) |
+## 3. Dene
+Uygulama doğrudan kamerayla açılır. Bir ürüne doğrult ve deklanşöre bas — ya da sol alttaki
+galeri düğmesiyle bir fotoğraf seç (simülatörde kamera olmadığı için bu yolu kullan).
 
-> Anahtar yoksa uygulama çökmez: ilgili özellik kapanır, gerisi çalışır. DATABASE_URL olmadan da
-> sunucu açılır; portföyün telefonda yerel olarak saklanır.
+1. Ürün birkaç saniyede tanınır (ad, marka, varyant, eşleşme güveni).
+2. Ardından ABD, Avrupa ve Türkiye fiyatları gelir: **Önerilen**, **En ucuz**, **En güvenilir**,
+   tipik fiyat aralığı ve pazar pazar mağaza listesi.
+3. Yanlış tanındıysa **Doğru değil mi?** ile ürün adını yazıp fiyatları yeniden ara.
+4. **Kaydet** ile ürünü ve fiyatlarını Kaydedilenler'de tut, sonra fiyatları yenile.
+
+---
+
+## 4. Yayındaki sunucu (Vercel)
+Telefondaki uygulama varsayılan olarak `https://scope-api-flax.vercel.app` adresine bağlanır
+(Frankfurt bölgesi). Mac'in açık olması ya da aynı Wi-Fi gerekmez.
+
+- Anahtarlar Vercel projesinde (`scope-api`) tanımlı: `OPENROUTER_API_KEY`, `SERPAPI_KEY`,
+  `BLOB_READ_WRITE_TOKEN`, `APPLE_BUNDLE_ID`. Değer girerken tırnak kullanma.
+- Yeniden yayınlamak için:
+  ```
+  npx vercel deploy --prod
+  ```
+  (`npm run api:build` sunucuyu `api/index.mjs` olarak paketler; Vercel bunu kendisi çalıştırır.)
+- Kaydedilenlerin bulut yedeği Upstash Redis'te (`scope-kv`, Frankfurt, ücretsiz plan, otomatik
+  yükseltme kapalı). Vercel `KV_REST_API_URL` / `KV_REST_API_TOKEN` değişkenlerini kendisi ekler.
+  `DATABASE_URL` (Postgres) verilirse onun yerine Postgres kullanılır.
+- Telefonu yine Mac'teki sunucuya bağlamak istersen derlerken
+  `EXPO_PUBLIC_DOMAIN=<mac-adı>.local:4000` ver.
 
 ---
 
 ## Sık karşılaşılan sorunlar
-- **"AI is not configured" hatası** → `.env` içinde `GEMINI_API_KEY` boş veya yanlış. Doğru yapıştırıp sunucuyu yeniden başlat.
-- **Telefonda "Cannot find module ..." (kırmızı ekran)** → `npm install` ile bağımlılıkları kur, sonra `npx expo start -c`.
-- **Telefon sunucuya bağlanamıyor** → bilgisayar ve telefon aynı WiFi'de mi? Sunucu (Terminal 1) çalışıyor mu?
-- **Fiyatlar gerçekçi değil** → SERPAPI_KEY eklemeden fiyatlar AI tahminidir; gerçek fiyat için SerpAPI anahtarı ekle.
+- **"Sunucuda yapay zekâ henüz ayarlı değil"** → `.env` içinde `OPENROUTER_API_KEY` ya da
+  `GEMINI_API_KEY` yok. Ekle ve sunucuyu yeniden başlat.
+- **"Fiyat araması kapalı"** → `SERPAPI_KEY` yok. Ürün yine tanınır; mağaza arama linkleri çalışır.
+- **"Sunucuya ulaşılamıyor"** → sunucu çalışıyor mu, port 4000 mü, telefon aynı Wi-Fi'de mi?
+- **Kırmızı ekran / "Cannot find module"** → `npm install`, sonra `npx expo start -c`.

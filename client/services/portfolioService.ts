@@ -9,7 +9,9 @@ import { PortfolioAsset } from "@/types";
  * Attach the account session token when signed in. The server then scopes the
  * portfolio to the account (cross-device sync) instead of the device.
  */
-function authHeaders(base: Record<string, string> = {}): Record<string, string> {
+function authHeaders(
+  base: Record<string, string> = {},
+): Record<string, string> {
   const token = getAuthTokenSync();
   return token ? { ...base, Authorization: `Bearer ${token}` } : base;
 }
@@ -47,7 +49,9 @@ function generateDeviceId(): string {
   if (cryptoObj?.getRandomValues) {
     const bytes = new Uint8Array(16);
     cryptoObj.getRandomValues(bytes);
-    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
     return `device-${hex}`;
   }
 
@@ -82,7 +86,9 @@ export async function getLocalPortfolio(): Promise<PortfolioAsset[]> {
   }
 }
 
-export async function saveLocalPortfolio(assets: PortfolioAsset[]): Promise<void> {
+export async function saveLocalPortfolio(
+  assets: PortfolioAsset[],
+): Promise<void> {
   try {
     await AsyncStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(assets));
   } catch (e) {
@@ -156,7 +162,9 @@ async function flushQueue(): Promise<void> {
 /** Asset ids with a delete still pending (hidden from the merged view). */
 async function pendingDeleteIds(): Promise<Set<string>> {
   const queue = await getQueue();
-  return new Set(queue.filter((o) => o.kind === "delete").map((o) => o.assetId));
+  return new Set(
+    queue.filter((o) => o.kind === "delete").map((o) => o.assetId),
+  );
 }
 
 /** Local-only adds not yet confirmed by the server (protected during merge). */
@@ -204,15 +212,14 @@ async function pushUpsert(asset: PortfolioAsset): Promise<boolean> {
       // 4xx is a permanent rejection (bad payload) — drop it so it does not
       // wedge the queue forever. 5xx is transient and worth retrying.
       if (response.status >= 400 && response.status < 500) {
-        console.error("Cloud upsert rejected:", await response.text());
+        console.warn("Cloud upsert rejected:", response.status);
         return true;
       }
       return false;
     }
     return true;
-  } catch (e) {
-    console.error("Cloud upsert error (will retry):", e);
-    return false;
+  } catch {
+    return false; // retried on the next sync
   }
 }
 
@@ -230,9 +237,8 @@ async function pushDelete(assetId: string): Promise<boolean> {
     // it was already gone. Only a network failure is worth retrying.
     if (!response.ok && response.status >= 500) return false;
     return true;
-  } catch (e) {
-    console.error("Cloud delete error (will retry):", e);
-    return false;
+  } catch {
+    return false; // retried on the next sync
   }
 }
 
@@ -247,7 +253,11 @@ async function fetchCloudPortfolio(): Promise<PortfolioAsset[] | null> {
       CLOUD_TIMEOUT_MS,
     );
     if (!response.ok) {
-      console.error("Cloud fetch failed:", await response.text());
+      // 503 = the server has no database: saved items are device-only, which
+      // is a supported mode, not an error.
+      if (response.status !== 503) {
+        console.warn("Cloud fetch failed:", response.status);
+      }
       return null;
     }
 
@@ -256,8 +266,8 @@ async function fetchCloudPortfolio(): Promise<PortfolioAsset[] | null> {
       ...a,
       dateAdded: a.dateAdded || new Date().toISOString(),
     }));
-  } catch (e) {
-    console.error("Cloud fetch error:", e);
+  } catch {
+    // Offline: local stays authoritative until the next sync.
     return null;
   }
 }
@@ -266,9 +276,14 @@ async function fetchCloudPortfolio(): Promise<PortfolioAsset[] | null> {
 // Public mutations — update local immediately, then sync (queue on failure).
 // ---------------------------------------------------------------------------
 
-export async function addAssetToPortfolio(asset: PortfolioAsset): Promise<void> {
+export async function addAssetToPortfolio(
+  asset: PortfolioAsset,
+): Promise<void> {
   const portfolio = await getLocalPortfolio();
-  await saveLocalPortfolio([asset, ...portfolio.filter((a) => a.id !== asset.id)]);
+  await saveLocalPortfolio([
+    asset,
+    ...portfolio.filter((a) => a.id !== asset.id),
+  ]);
 
   await enqueue({ kind: "upsert", asset });
   await flushQueue();
@@ -318,6 +333,9 @@ export async function syncPortfolio(): Promise<PortfolioAsset[]> {
             imageUri: a.imageUri ?? localA.imageUri,
             thumbnailUri: a.thumbnailUri ?? localA.thumbnailUri,
             imageBase64: a.imageBase64 ?? localA.imageBase64,
+            // The full scan only lives on the device; the cloud row is slim.
+            identity: localA.identity,
+            report: localA.report,
           }
         : a,
     );

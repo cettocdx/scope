@@ -1,0 +1,12 @@
+ios
+android
+client
+assets
+static-build
+server_dist
+design
+branding
+*.log
+.expo
+.env
+.env.*

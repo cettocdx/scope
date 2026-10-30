@@ -18,7 +18,10 @@ interface ErApiResponse {
  * Returns a map of currency code → USD value of 1 unit (e.g. TRY → 0.029).
  * null on any failure so callers keep their fallback table.
  */
-export async function fetchUsdPerUnit(): Promise<Record<string, number> | null> {
+export async function fetchUsdPerUnit(): Promise<Record<
+  string,
+  number
+> | null> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);

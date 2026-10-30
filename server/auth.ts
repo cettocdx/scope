@@ -55,7 +55,9 @@ function secretKey(): Uint8Array {
 }
 
 /** Verify an Apple identity token and extract the stable user identity. */
-export async function verifyAppleToken(idToken: string): Promise<ProviderIdentity> {
+export async function verifyAppleToken(
+  idToken: string,
+): Promise<ProviderIdentity> {
   const { payload } = await jwtVerify(idToken, APPLE_JWKS, {
     issuer: "https://appleid.apple.com",
     audience: APPLE_AUDIENCES,
@@ -69,7 +71,9 @@ export async function verifyAppleToken(idToken: string): Promise<ProviderIdentit
 }
 
 /** Verify a Google id_token and extract the stable user identity. */
-export async function verifyGoogleToken(idToken: string): Promise<ProviderIdentity> {
+export async function verifyGoogleToken(
+  idToken: string,
+): Promise<ProviderIdentity> {
   const { payload } = await jwtVerify(idToken, GOOGLE_JWKS, {
     issuer: ["https://accounts.google.com", "accounts.google.com"],
     // If no client ids are configured we still verify signature + issuer; the
@@ -117,7 +121,6 @@ function bearer(req: Request): string | null {
 }
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       userId?: string;

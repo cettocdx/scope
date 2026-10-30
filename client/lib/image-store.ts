@@ -52,10 +52,14 @@ export async function persistAssetImage(
     });
 
     // The thumbnail is derived from the now-persisted file (a real file uri).
-    const thumb = await manipulateAsync(imageUri, [{ resize: { width: 240 } }], {
-      compress: 0.6,
-      format: SaveFormat.JPEG,
-    });
+    const thumb = await manipulateAsync(
+      imageUri,
+      [{ resize: { width: 240 } }],
+      {
+        compress: 0.6,
+        format: SaveFormat.JPEG,
+      },
+    );
     await FileSystem.deleteAsync(thumbnailUri, { idempotent: true });
     await FileSystem.copyAsync({ from: thumb.uri, to: thumbnailUri });
 
@@ -75,7 +79,9 @@ export async function deleteAssetImage(
     asset.thumbnailUri,
     `${ASSET_DIR}${asset.id}.jpg`,
     `${ASSET_DIR}${asset.id}_thumb.jpg`,
-  ].filter((u): u is string => typeof u === "string" && u.startsWith("file://"));
+  ].filter(
+    (u): u is string => typeof u === "string" && u.startsWith("file://"),
+  );
 
   await Promise.all(
     targets.map((uri) =>

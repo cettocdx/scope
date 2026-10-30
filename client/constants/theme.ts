@@ -1,184 +1,129 @@
-import { Platform } from "react-native";
+import { TextStyle } from "react-native";
 
+/**
+ * SCOPE design tokens.
+ *
+ * Camera-first and dark: the photo is the hero, chrome stays quiet. One signal
+ * colour (white) marks the action and the recommended buy; trust has its own
+ * three-step scale so "cheap" and "safe" never get confused.
+ */
 export const Colors = {
-  light: {
-    text: "#FFFFFF",
-    textSecondary: "rgba(255, 255, 255, 0.6)",
-    textTertiary: "rgba(255, 255, 255, 0.4)",
-    textDim: "rgba(255, 255, 255, 0.2)",
-    buttonText: "#000000",
-    tabIconDefault: "rgba(255, 255, 255, 0.4)",
-    tabIconSelected: "#00FF94",
-    link: "#00FF94",
-    backgroundRoot: "#000000",
-    backgroundDefault: "#0A0A0A",
-    backgroundSecondary: "#111111",
-    backgroundTertiary: "#141414",
-    successGreen: "#00FF94",
-    alertRed: "#FF3B30",
-    warningYellow: "#FACC15",
-    // Semantic tints derived from successGreen / alertRed, so screens stop
-    // hand-writing the same rgba() literals for status pills and badges.
-    successTint: "rgba(0, 255, 148, 0.1)",
-    successTintStrong: "rgba(0, 255, 148, 0.15)",
-    alertTint: "rgba(255, 59, 48, 0.1)",
-    alertTintStrong: "rgba(255, 59, 48, 0.15)",
-    overlayLight: "rgba(255, 255, 255, 0.1)",
-    glassSurface: "rgba(20, 20, 20, 0.6)",
-    glassBorder: "rgba(255, 255, 255, 0.08)",
-    cardBorder: "#222222",
-    cardBorderLight: "#333333",
-    // --- Scope brand palette (matches the home screen) ---
-    // Blue/violet is the BRAND accent (buttons, highlights, active states);
-    // successGreen / alertRed stay reserved for gain/loss semantics.
-    accent: "#5B7CFF",
-    accentDeep: "#8B5CFF",
-    accentIce: "#B9D4FF",
-    accentTint: "rgba(91, 124, 255, 0.12)",
-    accentTintStrong: "rgba(91, 124, 255, 0.18)",
-    accentBorder: "rgba(91, 124, 255, 0.35)",
-    navyGlow: "#07122A",
-  },
-  dark: {
-    text: "#FFFFFF",
-    textSecondary: "rgba(255, 255, 255, 0.6)",
-    textTertiary: "rgba(255, 255, 255, 0.4)",
-    textDim: "rgba(255, 255, 255, 0.2)",
-    buttonText: "#000000",
-    tabIconDefault: "rgba(255, 255, 255, 0.4)",
-    tabIconSelected: "#00FF94",
-    link: "#00FF94",
-    backgroundRoot: "#000000",
-    backgroundDefault: "#0A0A0A",
-    backgroundSecondary: "#111111",
-    backgroundTertiary: "#141414",
-    successGreen: "#00FF94",
-    alertRed: "#FF3B30",
-    warningYellow: "#FACC15",
-    // Semantic tints derived from successGreen / alertRed, so screens stop
-    // hand-writing the same rgba() literals for status pills and badges.
-    successTint: "rgba(0, 255, 148, 0.1)",
-    successTintStrong: "rgba(0, 255, 148, 0.15)",
-    alertTint: "rgba(255, 59, 48, 0.1)",
-    alertTintStrong: "rgba(255, 59, 48, 0.15)",
-    overlayLight: "rgba(255, 255, 255, 0.1)",
-    glassSurface: "rgba(20, 20, 20, 0.6)",
-    glassBorder: "rgba(255, 255, 255, 0.08)",
-    cardBorder: "#222222",
-    cardBorderLight: "#333333",
-    // --- Scope brand palette (matches the home screen) ---
-    // Blue/violet is the BRAND accent (buttons, highlights, active states);
-    // successGreen / alertRed stay reserved for gain/loss semantics.
-    accent: "#5B7CFF",
-    accentDeep: "#8B5CFF",
-    accentIce: "#B9D4FF",
-    accentTint: "rgba(91, 124, 255, 0.12)",
-    accentTintStrong: "rgba(91, 124, 255, 0.18)",
-    accentBorder: "rgba(91, 124, 255, 0.35)",
-    navyGlow: "#07122A",
-  },
-};
+  // iOS system dark: true black canvas, grouped surfaces on top.
+  bg: "#000000",
+  surface: "#1C1C1E",
+  surfaceRaised: "#2C2C2E",
+  surfacePressed: "#3A3A3C",
+  line: "rgba(84,84,88,0.45)",
+  lineStrong: "rgba(255,255,255,0.16)",
+
+  text: "#FFFFFF",
+  textSecondary: "rgba(235,235,245,0.62)",
+  textTertiary: "rgba(235,235,245,0.32)",
+  textInverse: "#000000",
+
+  // Apple-style: the action colour is plain white on black.
+  accent: "#FFFFFF",
+  accentPressed: "#E5E5EA",
+  accentTint: "rgba(255,255,255,0.12)",
+
+  // iOS system green / yellow / red (dark variants).
+  trustHigh: "#30D158",
+  trustHighTint: "rgba(48,209,88,0.16)",
+  trustMid: "#FFD60A",
+  trustMidTint: "rgba(255,214,10,0.14)",
+  trustLow: "#FF453A",
+  trustLowTint: "rgba(255,69,58,0.16)",
+
+  scrim: "rgba(0,0,0,0.5)",
+  glass: "rgba(44,44,46,0.62)",
+} as const;
 
 export const Spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 20,
-  "2xl": 24,
-  "3xl": 30,
-  "4xl": 40,
-  "5xl": 48,
-  inputHeight: 48,
-  buttonHeight: 56,
-  buttonHeightLarge: 64,
-};
+  xxl: 24,
+  xxxl: 32,
+  huge: 48,
+  gutter: 20,
+} as const;
 
-export const BorderRadius = {
-  xs: 4,
+/** Content never gets wider than a comfortable reading column (iPad). */
+export const READABLE = {
+  width: "100%",
+  maxWidth: 640,
+  alignSelf: "center",
+} as const;
+
+export const Radius = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 20,
-  "2xl": 24,
-  "3xl": 30,
-  full: 9999,
-};
+  xl: 22,
+  xxl: 28,
+  full: 999,
+} as const;
 
-export const Typography = {
-  hero: {
-    fontSize: 64,
-    fontWeight: "900" as const,
-    letterSpacing: -2,
+/**
+ * SF Pro, the system font: iOS switches between Text and Display optical sizes
+ * and applies Apple's tracking on its own, so only weights are set here.
+ */
+export const Fonts = {
+  regular: { fontWeight: "400" },
+  medium: { fontWeight: "500" },
+  semibold: { fontWeight: "600" },
+  bold: { fontWeight: "700" },
+  extrabold: { fontWeight: "800" },
+} satisfies Record<string, TextStyle>;
+
+const tabular: TextStyle["fontVariant"] = ["tabular-nums"];
+
+/** Apple's Dynamic Type scale (Large) under the names the screens use. */
+export const Type = {
+  largeTitle: { ...Fonts.bold, fontSize: 34, lineHeight: 41 },
+  display: { ...Fonts.bold, fontSize: 28, lineHeight: 34 },
+  title: { ...Fonts.bold, fontSize: 22, lineHeight: 28 },
+  title3: { ...Fonts.semibold, fontSize: 20, lineHeight: 25 },
+  headline: { ...Fonts.semibold, fontSize: 17, lineHeight: 22 },
+  body: { ...Fonts.regular, fontSize: 17, lineHeight: 22 },
+  bodyStrong: { ...Fonts.semibold, fontSize: 17, lineHeight: 22 },
+  subhead: { ...Fonts.regular, fontSize: 15, lineHeight: 20 },
+  subheadStrong: { ...Fonts.semibold, fontSize: 15, lineHeight: 20 },
+  callout: { ...Fonts.regular, fontSize: 15, lineHeight: 20 },
+  calloutStrong: { ...Fonts.semibold, fontSize: 15, lineHeight: 20 },
+  footnote: { ...Fonts.regular, fontSize: 13, lineHeight: 18 },
+  caption: { ...Fonts.medium, fontSize: 12, lineHeight: 16 },
+  overline: {
+    ...Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    textTransform: "uppercase",
   },
-  h1: {
-    fontSize: 32,
-    fontWeight: "700" as const,
-  },
-  h2: {
-    fontSize: 24,
-    fontWeight: "700" as const,
-  },
-  h3: {
-    fontSize: 20,
-    fontWeight: "600" as const,
-  },
-  h4: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-  },
-  body: {
-    fontSize: 16,
-    fontWeight: "400" as const,
-  },
-  small: {
-    fontSize: 14,
-    fontWeight: "400" as const,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "400" as const,
-  },
-  micro: {
-    fontSize: 10,
-    fontWeight: "700" as const,
-    letterSpacing: 1,
-  },
-  metadata: {
-    fontSize: 9,
-    fontWeight: "400" as const,
+  priceHero: {
+    ...Fonts.bold,
+    fontSize: 40,
+    lineHeight: 46,
+    fontVariant: tabular,
   },
   price: {
-    fontSize: 42,
-    fontWeight: "700" as const,
+    ...Fonts.semibold,
+    fontSize: 17,
+    lineHeight: 22,
+    fontVariant: tabular,
   },
   priceSmall: {
-    fontSize: 20,
-    fontWeight: "700" as const,
+    ...Fonts.medium,
+    fontSize: 15,
+    lineHeight: 20,
+    fontVariant: tabular,
   },
-  link: {
-    fontSize: 16,
-    fontWeight: "400" as const,
-  },
-};
+} satisfies Record<string, TextStyle>;
 
-// Inter is the product typeface (loaded in App.tsx). Because @expo-google-fonts
-// ships one file per weight, we reference the exact weight family rather than
-// relying on fontWeight (which native ignores for a specific-weight family).
-//
-// `mono` is kept as a key for backward-compat with existing styles, but now maps
-// to Inter Medium — the app moves from a "tactical monospace" look to a clean,
-// premium AI-native typographic system. Letter-spacing on labels is preserved.
-const isWeb = Platform.OS === "web";
-const interSans = isWeb ? "Inter, system-ui, sans-serif" : "Inter_400Regular";
-
-export const Fonts = {
-  sans: interSans,
-  serif: interSans,
-  rounded: interSans,
-  mono: isWeb ? "Inter, system-ui, sans-serif" : "Inter_500Medium",
-  medium: isWeb ? "Inter, system-ui, sans-serif" : "Inter_500Medium",
-  semibold: isWeb ? "Inter, system-ui, sans-serif" : "Inter_600SemiBold",
-  bold: isWeb ? "Inter, system-ui, sans-serif" : "Inter_700Bold",
-  black: isWeb ? "Inter, system-ui, sans-serif" : "Inter_800ExtraBold",
-};
+export function trustColors(score: number): { fg: string; bg: string } {
+  if (score >= 80) return { fg: Colors.trustHigh, bg: Colors.trustHighTint };
+  if (score >= 50) return { fg: Colors.trustMid, bg: Colors.trustMidTint };
+  return { fg: Colors.trustLow, bg: Colors.trustLowTint };
+}
