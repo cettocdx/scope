@@ -49,6 +49,15 @@ import { putPhoto } from "@/lib/scan-session";
 import { quotaStatus, FREE_DAILY_SCANS } from "@/lib/quota";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { useHistory } from "@/lib/history";
+import { autoCaptureEnabled } from "@/lib/camera-prefs";
+import { useSteady } from "@/lib/use-steady";
+import { DetectionOverlay } from "@/components/Detection";
+import {
+  ScopeCamera,
+  scopeCameraAvailable,
+  type DetectedObject,
+  type ScopeCameraHandle,
+} from "../../modules/scope-camera";
 import { useAuth } from "@/contexts/AuthContext";
 import { t } from "@/lib/i18n";
 
@@ -57,13 +66,23 @@ type Props = NativeStackScreenProps<RootStackParamList, "Scan">;
 /** Long edge we send to the AI: sharp enough to read labels, small enough to be fast. */
 const MAX_EDGE = 1280;
 
-async function prepare(uri: string, width?: number, height?: number) {
-  const landscape = (width ?? 0) > (height ?? 0);
+type Crop = { originX: number; originY: number; width: number; height: number };
+
+async function prepare(
+  uri: string,
+  width?: number,
+  height?: number,
+  crop?: Crop,
+) {
+  const w = crop?.width ?? width;
+  const h = crop?.height ?? height;
+  const landscape = (w ?? 0) > (h ?? 0);
   const resize =
-    !width || !height || Math.max(width, height) > MAX_EDGE
+    !w || !h || Math.max(w, h) > MAX_EDGE
       ? [{ resize: landscape ? { width: MAX_EDGE } : { height: MAX_EDGE } }]
       : [];
-  const out = await manipulateAsync(uri, resize, {
+  const actions = crop ? [{ crop }, ...resize] : resize;
+  const out = await manipulateAsync(uri, actions, {
     compress: 0.72,
     format: SaveFormat.JPEG,
     base64: true,
@@ -84,6 +103,15 @@ export default function ScanScreen({ navigation }: Props) {
   const [zoom, setZoom] = useState(0);
   const pinchStart = useRef(0);
   const [searching, setSearching] = useState(false);
+  // Our own iOS camera (Apple Vision detection); expo-camera elsewhere.
+  const native = scopeCameraAvailable;
+  const nativeCam = useRef<ScopeCameraHandle>(null);
+  const [objects, setObjects] = useState<DetectedObject[]>([]);
+  const [stable, setStable] = useState(false);
+  const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
+  const [autoCapture, setAutoCapture] = useState(true);
+  // Auto-capture fires once per lock; the scene must change before the next.
+  const armed = useRef(true);
   const { assets } = usePortfolio();
   const history = useHistory();
   const last = history[0];
@@ -134,6 +162,57 @@ export default function ScanScreen({ navigation }: Props) {
       setBusy(false);
     }
   }, [busy, go]);
+
+  /** Native capture; crops to `target` (a tapped object or the locked one). */
+  const captureNative = useCallback(
+    async (target?: DetectedObject) => {
+      if (!nativeCam.current || busy) return;
+      tap("medium");
+      setBusy(true);
+      armed.current = false;
+      try {
+        const shot = await nativeCam.current.takePhoto();
+        const crop =
+          target && viewSize.width > 0
+            ? cropFor(target, viewSize, shot, 0.15)
+            : undefined;
+        await go(await prepare(shot.uri, shot.width, shot.height, crop));
+      } catch {
+        Alert.alert(t("Couldn't take the photo"));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, go, viewSize],
+  );
+
+  const primary = objects.find((o) => o.primary);
+  const steady = useSteady(!native && focused);
+  const shutter = useCallback(() => {
+    if (native) void captureNative(stable ? primary : undefined);
+    else void capture();
+  }, [capture, captureNative, native, primary, stable]);
+
+  // Hold still on something for a moment and it takes the photo itself.
+  useEffect(() => {
+    if (!native || !autoCapture || !focused || busy) return;
+    if (!stable) {
+      armed.current = true;
+      return;
+    }
+    if (!armed.current || !primary) return;
+    select();
+    const timer = setTimeout(() => {
+      if (armed.current) void captureNative(primary);
+    }, 900);
+    return () => clearTimeout(timer);
+    // The latest primary box is read when the timer fires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stable, autoCapture, focused, busy, native]);
+
+  useEffect(() => {
+    autoCaptureEnabled().then(setAutoCapture);
+  }, [focused]);
 
   // The newest screenshot (Instagram, TikTok, a shop app…) in one tap.
   const scanScreenshot = useCallback(async () => {
@@ -236,7 +315,28 @@ export default function ScanScreen({ navigation }: Props) {
 
   return (
     <View style={styles.root}>
-      {cameraUsable && focused ? (
+      {cameraUsable && native ? (
+        <ScopeCamera
+          ref={nativeCam}
+          style={StyleSheet.absoluteFill}
+          active={focused}
+          torch={torch}
+          zoom={1 + zoom * 5}
+          onLayout={(e) => setViewSize(e.nativeEvent.layout)}
+          onReady={() => setReady(true)}
+          onError={() => setCameraFailed(true)}
+          onObjects={(e) => {
+            setObjects(e.nativeEvent.objects);
+            setStable(e.nativeEvent.stable);
+          }}
+          onBarcode={({ nativeEvent: { data } }) => {
+            if (data && /^\d{8,14}$/.test(data) && data !== barcode) {
+              notify();
+              setBarcode(data);
+            }
+          }}
+        />
+      ) : cameraUsable && focused ? (
         <CameraView
           ref={camera}
           style={StyleSheet.absoluteFill}
@@ -260,7 +360,9 @@ export default function ScanScreen({ navigation }: Props) {
       {cameraUsable ? (
         <GestureDetector gesture={pinch}>
           <View style={styles.center}>
-            <ScanFrame locked={!!barcode} />
+            {native && objects.length > 0 && !barcode ? null : (
+              <ScanFrame locked={!!barcode} steady={steady} />
+            )}
             {zoom > 0.005 ? (
               <Press
                 onPress={() => {
@@ -280,6 +382,15 @@ export default function ScanScreen({ navigation }: Props) {
             ) : null}
           </View>
         </GestureDetector>
+      ) : null}
+
+      {cameraUsable && native && focused && !barcode ? (
+        <DetectionOverlay
+          objects={objects}
+          stable={stable}
+          autoCapture={autoCapture}
+          onPick={(o) => void captureNative(o)}
+        />
       ) : null}
 
       <LinearGradient
@@ -376,7 +487,17 @@ export default function ScanScreen({ navigation }: Props) {
               bg={Colors.accent}
             />
           ) : cameraUsable ? (
-            <Txt variant="headline">{t("Point at a product")}</Txt>
+            <Txt variant="headline">
+              {native
+                ? primary
+                  ? stable
+                    ? t("Got it")
+                    : t("Hold steady…")
+                  : t("Point at a product")
+                : steady
+                  ? t("Ready · tap to scan")
+                  : t("Point at a product")}
+            </Txt>
           ) : null}
           <Press
             onPress={() => setSearching(true)}
@@ -421,7 +542,7 @@ export default function ScanScreen({ navigation }: Props) {
             <View style={styles.recentEmpty} />
           )}
           <Press
-            onPress={capture}
+            onPress={shutter}
             disabled={!cameraUsable || !ready || busy}
             scale={0.92}
             accessibilityRole="button"
@@ -459,7 +580,14 @@ const FRAME = 260;
  * The viewfinder: four corners with a soft light line sweeping through, which
  * turn green (like a lock) once a barcode is found.
  */
-function ScanFrame({ locked }: { locked: boolean }) {
+function ScanFrame({
+  locked,
+  steady = false,
+}: {
+  locked: boolean;
+  /** Fallback camera: the phone is held still. */
+  steady?: boolean;
+}) {
   const sweep = useSharedValue(0);
   const lock = useSharedValue(0);
 
@@ -485,7 +613,11 @@ function ScanFrame({ locked }: { locked: boolean }) {
     transform: [{ scale: 1 - lock.value * 0.06 }],
   }));
 
-  const corner = locked ? Colors.trustHigh : "rgba(255,255,255,0.92)";
+  const corner = locked
+    ? Colors.trustHigh
+    : steady
+      ? Colors.text
+      : "rgba(255,255,255,0.7)";
   return (
     <Animated.View style={[styles.frame, frameStyle]} pointerEvents="none">
       <Animated.View style={[styles.scanLine, lineStyle]}>
@@ -578,6 +710,33 @@ function SearchSheet({
       </KeyboardAvoidingView>
     </Modal>
   );
+}
+
+/**
+ * Map a box seen on screen (aspect-filled preview) to pixels in the photo,
+ * with some padding so the AI still gets a little context.
+ */
+function cropFor(
+  box: DetectedObject,
+  view: { width: number; height: number },
+  photo: { width: number; height: number },
+  pad: number,
+): Crop {
+  const scale = Math.max(view.width / photo.width, view.height / photo.height);
+  const offX = (photo.width * scale - view.width) / 2;
+  const offY = (photo.height * scale - view.height) / 2;
+  const px = box.width * pad;
+  const py = box.height * pad;
+  const x0 = Math.max(0, (box.x - px + offX) / scale);
+  const y0 = Math.max(0, (box.y - py + offY) / scale);
+  const x1 = Math.min(photo.width, (box.x + box.width + px + offX) / scale);
+  const y1 = Math.min(photo.height, (box.y + box.height + py + offY) / scale);
+  return {
+    originX: Math.round(x0),
+    originY: Math.round(y0),
+    width: Math.round(x1 - x0),
+    height: Math.round(y1 - y0),
+  };
 }
 
 const CORNER = 34;

@@ -14,6 +14,7 @@ import { DISPLAY_CURRENCIES, useSettings } from "@/contexts/SettingsContext";
 import { quotaStatus } from "@/lib/quota";
 import { setOnboarded } from "@/lib/onboarding";
 import { t } from "@/lib/i18n";
+import { autoCaptureEnabled, setAutoCaptureEnabled } from "@/lib/camera-prefs";
 import {
   alertsEnabled,
   askForAlertPermission,
@@ -129,6 +130,11 @@ export default function SettingsScreen({ navigation }: Props) {
   const [left, setLeft] = useState<number | null>(null);
   const [alerts, setAlerts] = useState(true);
   const [checking, setChecking] = useState(false);
+  const [autoCap, setAutoCap] = useState(true);
+
+  useEffect(() => {
+    autoCaptureEnabled().then(setAutoCap);
+  }, []);
 
   useEffect(() => {
     alertsEnabled().then(setAlerts);
@@ -216,6 +222,31 @@ export default function SettingsScreen({ navigation }: Props) {
                 </Press>
               );
             })}
+          </View>
+        </Section>
+
+        <Section title={t("Camera")}>
+          <View style={styles.row}>
+            <Icon name="camera" size={18} color={Colors.textSecondary} />
+            <View style={styles.flex}>
+              <Txt variant="bodyStrong">{t("Auto capture")}</Txt>
+              <Txt variant="callout" color={Colors.textTertiary}>
+                {t("Takes the photo once a product is locked")}
+              </Txt>
+            </View>
+            <Switch
+              value={autoCap}
+              onValueChange={(v) => {
+                select();
+                setAutoCap(v);
+                void setAutoCaptureEnabled(v);
+              }}
+              trackColor={{
+                true: Colors.trustHigh,
+                false: Colors.surfacePressed,
+              }}
+              accessibilityLabel={t("Auto capture")}
+            />
           </View>
         </Section>
 

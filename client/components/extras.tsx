@@ -4,9 +4,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { Colors, Radius, Spacing } from "@/constants/theme";
 import { Icon } from "@/components/Icon";
-import { Press, Txt } from "@/components/ui";
+import { Divider, Press, Txt } from "@/components/ui";
 import { OfferRow } from "@/components/offers";
-import { Divider } from "@/components/ui";
 import { useSettings } from "@/contexts/SettingsContext";
 import { LOCALE, t } from "@/lib/i18n";
 import { nextSale } from "@/lib/sale-calendar";

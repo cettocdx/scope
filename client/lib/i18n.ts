@@ -193,6 +193,16 @@ const tr = {
     "Yapay zekâ önerisi, canlı fiyat. Almadan önce özellikleri karşılaştır.",
   "Best time to buy": "En iyi alım zamanı",
   "Choose a photo": "Fotoğraf seç",
+  "Scan this object": "Bu nesneyi tara",
+  "Detected · capturing": "Algılandı · çekiliyor",
+  Detected: "Algılandı",
+  "Hold steady…": "Sabit tut…",
+  "Got it": "Buldum",
+  "Ready · tap to scan": "Hazır · taramak için dokun",
+  "Auto capture": "Otomatik çekim",
+  Camera: "Kamera",
+  "Takes the photo once a product is locked":
+    "Ürün algılanınca fotoğrafı kendisi çeker",
   "Scan latest screenshot": "Son ekran görüntüsünü tara",
   "Photo access is off": "Fotoğraf erişimi kapalı",
   "Allow photo access in Settings to scan screenshots.":
