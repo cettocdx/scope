@@ -1,8 +1,9 @@
 import Constants from "expo-constants";
 import { getApiUrl } from "@/lib/query-client";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { t } from "@/lib/i18n";
+import { LANG, t } from "@/lib/i18n";
 import type {
+  AlternativesResponse,
   IdentifyResponse,
   Market,
   VisualMatchesResponse,
@@ -219,4 +220,18 @@ export function reportClientError(args: {
     },
     8_000,
   ).catch(() => {});
+}
+
+/** Cheaper products that do the same job, priced in the user's market. */
+export function fetchAlternatives(args: {
+  name: string;
+  category?: string | null;
+  priceUSD?: number | null;
+  homeMarket: Market;
+}): Promise<AlternativesResponse> {
+  return post<AlternativesResponse>(
+    "/api/alternatives",
+    { ...args, lang: LANG },
+    30_000,
+  );
 }

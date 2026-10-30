@@ -182,6 +182,32 @@ const tr = {
   "From abroad: shipping and import fees may be added":
     "Yurt dışından: kargo ve ithalat ücreti eklenebilir",
   "Price history": "Fiyat geçmişi",
+  "Cheaper alternatives": "Daha ucuz alternatifler",
+  "Couldn't load. Tap to try again.": "Yüklenemedi. Tekrar denemek için dokun.",
+  "Same job for less money, priced live":
+    "Aynı işi daha ucuza yapanlar, canlı fiyatla",
+  "Looking for cheaper options…": "Daha ucuz seçenekler aranıyor…",
+  "Nothing clearly cheaper that does the same job right now.":
+    "Şu an aynı işi açıkça daha ucuza yapan bir ürün bulunamadı.",
+  "Suggested by AI, priced live. Compare features before buying.":
+    "Yapay zekâ önerisi, canlı fiyat. Almadan önce özellikleri karşılaştır.",
+  "Best time to buy": "En iyi alım zamanı",
+  today: "bugün",
+  tomorrow: "yarın",
+  "in {n} days": "{n} gün sonra",
+  "Prices in this category often drop then. If you can wait, it may pay off.":
+    "Bu kategoride fiyatlar o dönemde sık düşer. Bekleyebilirsen değebilir.",
+  "A usual sale period for this category. Each shop decides its own discounts.":
+    "Bu kategori için olağan indirim dönemi. İndirimleri her mağaza kendi belirler.",
+  "Black Friday": "Black Friday",
+  "Black Friday (Efsane Cuma)": "Black Friday (Efsane Cuma)",
+  "Cyber Monday": "Cyber Monday",
+  "11.11 Singles' Day": "11.11 İndirimleri",
+  "Amazon Prime Day": "Amazon Prime Day",
+  "Winter season-end sale": "Kış sezon sonu indirimi",
+  "Summer season-end sale": "Yaz sezon sonu indirimi",
+  "Back-to-school deals": "Okula dönüş indirimleri",
+  "January sales": "Ocak indirimleri",
   "Snap anything. Pay the best price.": "Her şeyi çek. En iyi fiyata al.",
   "since you saved it": "kaydettiğinden beri",
   "{n} checks": "{n} kontrol",

@@ -45,6 +45,7 @@ import {
   Txt,
 } from "@/components/ui";
 import { ShareCard } from "@/components/ShareCard";
+import { Alternatives, SaleTiming } from "@/components/extras";
 import {
   MarketTabs,
   OfferRow,
@@ -883,6 +884,20 @@ export default function ResultScreen({ navigation, route }: Props) {
                   </View>
                 </Animated.View>
               )}
+
+              {identity && identity.kind !== "not_for_sale" ? (
+                <SaleTiming category={identity.category} />
+              ) : null}
+              {identity && identity.kind !== "not_for_sale" && linkable ? (
+                <Alternatives
+                  name={identity.name}
+                  category={identity.category}
+                  priceUSD={
+                    picks?.recommended?.priceUSD ?? report.range?.median ?? null
+                  }
+                  linkable={linkable}
+                />
+              ) : null}
 
               {report.live && report.sourceCount > 0 ? (
                 <Txt

@@ -147,13 +147,16 @@ async function callOpenRouter(
           messages: [
             {
               role: "user",
-              content: [
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${mimeType};base64,${base64}` },
-                },
-                { type: "text", text: prompt },
-              ],
+              // No image: a text-only question (askText).
+              content: base64
+                ? [
+                    {
+                      type: "image_url",
+                      image_url: { url: `data:${mimeType};base64,${base64}` },
+                    },
+                    { type: "text", text: prompt },
+                  ]
+                : [{ type: "text", text: prompt }],
             },
           ],
         }),
@@ -224,7 +227,7 @@ async function callGemini(
             {
               role: "user",
               parts: [
-                { inlineData: { mimeType, data: base64 } },
+                ...(base64 ? [{ inlineData: { mimeType, data: base64 } }] : []),
                 { text: prompt },
               ],
             },
@@ -294,4 +297,9 @@ export function parseModelJson(text: string): unknown {
       return JSON.parse(cleaned.slice(start, end + 1));
     throw new Error("Model did not return JSON");
   }
+}
+
+/** A text-only JSON question to the fast model (no image). */
+export function askText(prompt: string): Promise<VisionResult> {
+  return askVision("text/plain", "", prompt);
 }

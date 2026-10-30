@@ -17,7 +17,12 @@ import { scheduleFxRefresh } from "./fx";
 import { activeProvider, AiNotConfiguredError } from "./ai";
 import { identifyProduct } from "./identify";
 import { findPrices, resolveOfferLink } from "./pricing";
-import type { IdentifyResponse, VisualMatchesResponse } from "@shared/scan";
+import { findAlternatives } from "./alternatives";
+import type {
+  AlternativesResponse,
+  IdentifyResponse,
+  VisualMatchesResponse,
+} from "@shared/scan";
 import { findVisualMatches } from "./lens";
 import {
   heldImage,
@@ -52,6 +57,14 @@ const pricesRequestSchema = z.object({
   barcode: z.string().max(64).nullable().optional(),
   estimateUSD: z.number().positive().nullable().optional(),
   homeMarket: z.enum(["US", "EU", "TR"]).nullable().optional(),
+});
+
+const alternativesSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  category: z.string().max(40).nullable().optional(),
+  priceUSD: z.number().positive().nullable().optional(),
+  homeMarket: z.enum(["US", "EU", "TR"]),
+  lang: z.enum(["tr", "en"]).default("en"),
 });
 
 const feedbackSchema = z.object({
@@ -512,6 +525,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // Turns a tapped offer into the seller's own page (one lookup per product,
   // cached), so "Buy" lands on the store instead of a Google results page.
+  app.post("/api/alternatives", async (req, res) => {
+    const parsed = alternativesSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Bad request" });
+    try {
+      const t0 = Date.now();
+      const alternatives = await findAlternatives(parsed.data);
+      track("alternatives", {
+        count: alternatives.length,
+        durationMs: Date.now() - t0,
+      });
+      const body: AlternativesResponse = { alternatives };
+      res.json(body);
+    } catch (error) {
+      captureError(error, { route: "/api/alternatives" });
+      res.status(502).json({ error: "Could not find alternatives" });
+    }
+  });
+
   // "Not right?" corrections and crashes from the app: logged so we can see
   // which products the model gets wrong and which screens break.
   app.post("/api/feedback", (req, res) => {

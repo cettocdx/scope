@@ -169,3 +169,17 @@ export interface VisualMatchesResponse {
   matches: VisualMatch[];
   tookMs: number;
 }
+
+/** A cheaper product that does the same job (POST /api/alternatives). */
+export interface Alternative {
+  name: string;
+  brand: string | null;
+  /** One line on why it is a fair swap, in the user's language. */
+  why: string;
+  /** Best trustworthy offer in the user's own market, if one was found. */
+  offer: Offer | null;
+}
+
+export interface AlternativesResponse {
+  alternatives: Alternative[];
+}

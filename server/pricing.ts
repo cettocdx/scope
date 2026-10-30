@@ -781,12 +781,17 @@ export async function findPrices(
   req: PricesRequest,
   fetcher: Fetcher = defaultFetcher,
   deadlineMs: number = PRICE_DEADLINE_MS,
+  /** Search only these markets (e.g. the user's own, for cheap side lookups). */
+  onlyMarkets?: Market[],
 ): Promise<PriceReport> {
   const query = req.query.trim();
   if (!process.env.SERPAPI_KEY) return buildReport([], query, false);
+  const countries = onlyMarkets
+    ? activeCountries().filter((c) => onlyMarkets.includes(COUNTRIES[c].market))
+    : activeCountries();
   const offers = await collect(
     { ...req, query },
-    activeCountries(),
+    countries,
     fetcher,
     deadlineMs,
   );
