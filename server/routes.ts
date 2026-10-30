@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
-import { storage, type OwnerKey } from "./storage";
+import { cloudSyncConfigured, storage, type OwnerKey } from "./storage";
 import { insertPortfolioAssetSchema, type Deal } from "@shared/schema";
 import {
   verifyAppleToken,
@@ -746,11 +746,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // token; the path :deviceId is the anonymous fallback owner.
   // -------------------------------------------------------------------------
 
-  // Cloud portfolio sync needs a database. When DATABASE_URL is not set, return
-  // a clean 503 instead of letting each query throw a 500 — the client treats
-  // this as "offline" and keeps the local (device) portfolio intact.
+  // Cloud portfolio sync needs a database (Postgres or Upstash Redis). Without
+  // one, return a clean 503 instead of letting each query throw a 500 — the
+  // client treats this as "offline" and keeps the local portfolio intact.
   app.use("/api/portfolio", (_req, res, next) => {
-    if (!process.env.DATABASE_URL) {
+    if (!cloudSyncConfigured()) {
       return res.status(503).json({ error: "Cloud sync is not configured" });
     }
     next();
@@ -810,9 +810,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // No matching record owned by this owner. Drop any client id so a create
-      // cannot overwrite another owner's asset via id conflict.
-      const { id: _ignoredId, ...createData } = assetData;
+      // No matching record owned by this owner. In a shared table, drop any
+      // client id so a create cannot overwrite another owner's asset via an id
+      // conflict; per-owner storage keeps it so the phone's copy stays matched.
+      const { id: clientId, ...rest } = assetData;
+      const createData = storage.ownerScopedIds
+        ? { ...rest, id: clientId }
+        : rest;
       const asset = await storage.upsertPortfolioAsset({
         ...createData,
         deviceId,

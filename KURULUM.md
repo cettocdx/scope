@@ -75,6 +75,9 @@ Telefondaki uygulama varsayılan olarak `https://scope-api-flax.vercel.app` adre
   npx vercel deploy --prod
   ```
   (`npm run api:build` sunucuyu `api/index.mjs` olarak paketler; Vercel bunu kendisi çalıştırır.)
+- Kaydedilenlerin bulut yedeği Upstash Redis'te (`scope-kv`, Frankfurt, ücretsiz plan, otomatik
+  yükseltme kapalı). Vercel `KV_REST_API_URL` / `KV_REST_API_TOKEN` değişkenlerini kendisi ekler.
+  `DATABASE_URL` (Postgres) verilirse onun yerine Postgres kullanılır.
 - Telefonu yine Mac'teki sunucuya bağlamak istersen derlerken
   `EXPO_PUBLIC_DOMAIN=<mac-adı>.local:4000` ver.
 
