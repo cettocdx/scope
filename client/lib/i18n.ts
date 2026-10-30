@@ -192,6 +192,14 @@ const tr = {
   "Suggested by AI, priced live. Compare features before buying.":
     "Yapay zekâ önerisi, canlı fiyat. Almadan önce özellikleri karşılaştır.",
   "Best time to buy": "En iyi alım zamanı",
+  "Choose a photo": "Fotoğraf seç",
+  "Scan latest screenshot": "Son ekran görüntüsünü tara",
+  "Photo access is off": "Fotoğraf erişimi kapalı",
+  "Allow photo access in Settings to scan screenshots.":
+    "Ekran görüntülerini taramak için Ayarlar'dan fotoğraf erişimine izin ver.",
+  "No recent screenshot": "Yakın zamanda ekran görüntüsü yok",
+  "Take a screenshot of the product, then come back.":
+    "Ürünün ekran görüntüsünü al, sonra geri gel.",
   today: "bugün",
   tomorrow: "yarın",
   "in {n} days": "{n} gün sonra",

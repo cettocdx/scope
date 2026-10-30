@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -26,6 +27,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useIsFocused } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as MediaLibrary from "expo-media-library";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { LinearGradient } from "expo-linear-gradient";
 import { Icon } from "@/components/Icon";
@@ -133,6 +135,49 @@ export default function ScanScreen({ navigation }: Props) {
     }
   }, [busy, go]);
 
+  // The newest screenshot (Instagram, TikTok, a shop app…) in one tap.
+  const scanScreenshot = useCallback(async () => {
+    if (busy) return;
+    const perm = await MediaLibrary.requestPermissionsAsync(false, ["photo"]);
+    if (!perm.granted) {
+      Alert.alert(
+        t("Photo access is off"),
+        t("Allow photo access in Settings to scan screenshots."),
+        [
+          { text: t("Cancel"), style: "cancel" },
+          { text: t("Open Settings"), onPress: () => Linking.openSettings() },
+        ],
+      );
+      return;
+    }
+    const page = await MediaLibrary.getAssetsAsync({
+      first: 20,
+      mediaType: "photo",
+      sortBy: [[MediaLibrary.SortBy.creationTime, false]],
+    });
+    const shot = page.assets.find((a) =>
+      (a.mediaSubtypes ?? []).includes("screenshot"),
+    );
+    if (!shot) {
+      Alert.alert(
+        t("No recent screenshot"),
+        t("Take a screenshot of the product, then come back."),
+      );
+      return;
+    }
+    const info = await MediaLibrary.getAssetInfoAsync(shot);
+    setBusy(true);
+    try {
+      await go(
+        await prepare(info.localUri ?? shot.uri, shot.width, shot.height),
+      );
+    } catch {
+      Alert.alert(t("Couldn't take the photo"));
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, go]);
+
   const pick = useCallback(async () => {
     if (busy) return;
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -148,6 +193,30 @@ export default function ScanScreen({ navigation }: Props) {
       setBusy(false);
     }
   }, [busy, go]);
+
+  const pickMenu = useCallback(() => {
+    tap();
+    const options = [
+      t("Choose a photo"),
+      t("Scan latest screenshot"),
+      t("Cancel"),
+    ];
+    const run = (i: number) => {
+      if (i === 0) void pick();
+      if (i === 1) void scanScreenshot();
+    };
+    if (Platform.OS === "ios")
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: 2 },
+        run,
+      );
+    else
+      Alert.alert(t("Pick a photo instead"), undefined, [
+        { text: options[0], onPress: () => run(0) },
+        { text: options[1], onPress: () => run(1) },
+        { text: options[2], style: "cancel" },
+      ]);
+  }, [pick, scanScreenshot]);
 
   const cameraUsable = permission?.granted && !cameraFailed;
 
@@ -366,7 +435,7 @@ export default function ScanScreen({ navigation }: Props) {
           <IconButton
             icon="image"
             label={t("Pick a photo instead")}
-            onPress={pick}
+            onPress={pickMenu}
             size={52}
           />
         </View>

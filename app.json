@@ -65,6 +65,14 @@
       ],
       "expo-localization",
       "expo-background-task",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "SCOPE reads your latest screenshot when you ask it to, to find the product in it.",
+          "savePhotosPermission": false,
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
       "./plugins/with-ios-build-fixes"
     ],
     "experiments": {
